@@ -4,10 +4,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Minus,
   Search,
   Star,
   Trash2,
   X,
+  Check,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,7 +43,6 @@ export function NutritionPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<FoodItem[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [quantity, setQuantity] = useState(1)
 
   const {
     foods,
@@ -104,17 +105,19 @@ export function NutritionPage() {
     return () => clearTimeout(timer)
   }, [searchQuery, handleSearch])
 
-  const handleAddFood = (food: FoodItem) => {
+  const handleAddFood = (food: FoodItem, qty: number) => {
+    let foodId = food.id
+    
     // If it's from OpenFoodFacts and not in our database, add it
     if (!food.isCustom && !foods.find((f) => f.id === food.id)) {
-      addFood({ ...food })
+      const newFood = addFood({ ...food })
+      foodId = newFood.id
     }
     
-    addMealEntry(selectedDate, food.id, quantity, selectedMealType)
+    addMealEntry(selectedDate, foodId, qty, selectedMealType)
     setShowAddSheet(false)
     setSearchQuery("")
     setSearchResults([])
-    setQuantity(1)
   }
 
   const openAddSheet = (mealType: MealType) => {
@@ -204,6 +207,20 @@ export function NutritionPage() {
                 color="bg-yellow-500"
               />
             </div>
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <MacroBar
+                label="Fiber"
+                value={totals.fiber}
+                goal={nutritionGoals.fiber}
+                color="bg-orange-500"
+              />
+              <MacroBar
+                label="Sugar"
+                value={totals.sugar}
+                goal={nutritionGoals.sugar}
+                color="bg-pink-500"
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -279,7 +296,7 @@ export function NutritionPage() {
             </SheetTitle>
           </SheetHeader>
 
-          <Tabs defaultValue="search" className="mt-4">
+          <Tabs defaultValue="search" className="mt-4 px-4">
             <TabsList className="w-full">
               <TabsTrigger value="search" className="flex-1">
                 Search
@@ -324,7 +341,7 @@ export function NutritionPage() {
                       <FoodListItem
                         key={food.id}
                         food={food}
-                        onSelect={() => handleAddFood(food)}
+                        onAdd={(qty) => handleAddFood(food, qty)}
                         onToggleFavorite={() => toggleFavorite(food.id)}
                         isFavorite={food.isFavorite}
                       />
@@ -350,7 +367,7 @@ export function NutritionPage() {
                       <FoodListItem
                         key={food.id}
                         food={food}
-                        onSelect={() => handleAddFood(food)}
+                        onAdd={(qty) => handleAddFood(food, qty)}
                         onToggleFavorite={() => toggleFavorite(food.id)}
                         isFavorite={true}
                       />
@@ -368,7 +385,7 @@ export function NutritionPage() {
               <CustomFoodForm
                 onAdd={(food) => {
                   const newFood = addFood(food)
-                  handleAddFood(newFood)
+                  handleAddFood(newFood, 1)
                 }}
               />
             </TabsContent>
@@ -407,43 +424,120 @@ function MacroBar({
 
 function FoodListItem({
   food,
-  onSelect,
+  onAdd,
   onToggleFavorite,
   isFavorite,
 }: {
   food: FoodItem
-  onSelect: () => void
+  onAdd: (quantity: number) => void
   onToggleFavorite: () => void
   isFavorite?: boolean
 }) {
+  const [quantity, setQuantity] = useState(1)
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  const adjustedCalories = Math.round(food.calories * quantity)
+  const adjustedProtein = Math.round(food.protein * quantity * 10) / 10
+  const adjustedCarbs = Math.round(food.carbs * quantity * 10) / 10
+  const adjustedFat = Math.round(food.fat * quantity * 10) / 10
+  const adjustedFiber = Math.round((food.fiber ?? 0) * quantity * 10) / 10
+  const adjustedSugar = Math.round((food.sugar ?? 0) * quantity * 10) / 10
+
+  const handleToggleExpand = () => {
+    setIsExpanded(!isExpanded)
+    if (!isExpanded) {
+      setQuantity(1)
+    }
+  }
+
+  const incrementQuantity = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setQuantity((q) => Math.round((q + 0.5) * 10) / 10)
+  }
+
+  const decrementQuantity = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setQuantity((q) => Math.max(0.5, Math.round((q - 0.5) * 10) / 10))
+  }
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onAdd(quantity)
+    setIsExpanded(false)
+    setQuantity(1)
+  }
+
   return (
-    <div
-      className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50"
-      onClick={onSelect}
-    >
-      <div className="flex-1">
-        <p className="font-medium">{food.name}</p>
-        {food.brand && (
-          <p className="text-xs text-muted-foreground">{food.brand}</p>
-        )}
-        <p className="text-sm text-muted-foreground">
-          {food.calories} kcal • P: {food.protein}g • C: {food.carbs}g • F:{" "}
-          {food.fat}g
-        </p>
-        <p className="text-xs text-muted-foreground">{food.servingSize}</p>
-      </div>
-      <Button
-        size="icon-sm"
-        variant="ghost"
-        onClick={(e: React.MouseEvent) => {
-          e.stopPropagation()
-          onToggleFavorite()
-        }}
+    <div className="rounded-lg border overflow-hidden">
+      <div
+        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50"
+        onClick={handleToggleExpand}
       >
-        <Star
-          className={`h-4 w-4 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`}
-        />
-      </Button>
+        <div className="flex-1">
+          <p className="font-medium">{food.name}</p>
+          {food.brand && (
+            <p className="text-xs text-muted-foreground">{food.brand}</p>
+          )}
+          <p className="text-sm text-muted-foreground">
+            {food.calories} kcal • P: {food.protein}g • C: {food.carbs}g • F:{" "}
+            {food.fat}g
+          </p>
+          <p className="text-xs text-muted-foreground">{food.servingSize}</p>
+        </div>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          onClick={(e: React.MouseEvent) => {
+            e.stopPropagation()
+            onToggleFavorite()
+          }}
+        >
+          <Star
+            className={`h-4 w-4 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`}
+          />
+        </Button>
+      </div>
+
+      {isExpanded && (
+        <div className="border-t bg-muted/30 p-3 space-y-3">
+          {/* Quantity Selector */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Servings</span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="icon-sm"
+                variant="outline"
+                onClick={decrementQuantity}
+                disabled={quantity <= 0.5}
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="w-12 text-center font-medium">{quantity}</span>
+              <Button
+                size="icon-sm"
+                variant="outline"
+                onClick={incrementQuantity}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Adjusted Macros */}
+          <div className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{adjustedCalories} kcal</span>
+            {" • "}P: {adjustedProtein}g • C: {adjustedCarbs}g • F: {adjustedFat}g
+            <br />
+            Fiber: {adjustedFiber}g • Sugar: {adjustedSugar}g
+          </div>
+
+          {/* Add Button */}
+          <Button className="w-full" onClick={handleAdd}>
+            <Check className="mr-2 h-4 w-4" />
+            Add {quantity > 1 ? `${quantity} servings` : ""}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
@@ -458,6 +552,8 @@ function CustomFoodForm({
   const [protein, setProtein] = useState("")
   const [carbs, setCarbs] = useState("")
   const [fat, setFat] = useState("")
+  const [fiber, setFiber] = useState("")
+  const [sugar, setSugar] = useState("")
   const [servingSize, setServingSize] = useState("1 serving")
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -470,6 +566,8 @@ function CustomFoodForm({
       protein: parseFloat(protein) || 0,
       carbs: parseFloat(carbs) || 0,
       fat: parseFloat(fat) || 0,
+      fiber: parseFloat(fiber) || 0,
+      sugar: parseFloat(sugar) || 0,
       servingSize,
     })
   }
@@ -531,6 +629,27 @@ function CustomFoodForm({
             type="number"
             value={fat}
             onChange={(e) => setFat(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Fiber (g)</label>
+          <Input
+            type="number"
+            value={fiber}
+            onChange={(e) => setFiber(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Sugar (g)</label>
+          <Input
+            type="number"
+            value={sugar}
+            onChange={(e) => setSugar(e.target.value)}
             placeholder="0"
           />
         </div>

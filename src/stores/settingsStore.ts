@@ -17,6 +17,8 @@ const defaultSettings: UserSettings = {
     protein: 150,
     carbs: 300,
     fat: 80,
+    fiber: 30,
+    sugar: 50,
   },
 }
 
@@ -55,7 +57,25 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: "training-app-settings",
-      version: 1,
+      version: 2,
+      migrate: (persistedState, version) => {
+        const state = persistedState as SettingsStore
+        if (version < 2) {
+          // Add fiber and sugar goals if they don't exist
+          return {
+            ...state,
+            settings: {
+              ...state.settings,
+              nutritionGoals: {
+                ...state.settings.nutritionGoals,
+                fiber: state.settings.nutritionGoals.fiber ?? 30,
+                sugar: state.settings.nutritionGoals.sugar ?? 50,
+              },
+            },
+          }
+        }
+        return state
+      },
     }
   )
 )

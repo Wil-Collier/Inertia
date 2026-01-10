@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 interface HeaderProps {
   title: string
   showBack?: boolean
+  onBack?: () => void
   rightAction?: ReactNode
   className?: string
 }
@@ -14,10 +15,19 @@ interface HeaderProps {
 export function Header({
   title,
   showBack = false,
+  onBack,
   rightAction,
   className,
 }: HeaderProps) {
   const navigate = useNavigate()
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack()
+    } else {
+      navigate(-1)
+    }
+  }
 
   return (
     <header
@@ -30,7 +40,7 @@ export function Header({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="-ml-2"
         >
           <ChevronLeft className="h-5 w-5" />

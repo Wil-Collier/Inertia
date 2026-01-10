@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid"
 
 interface ExerciseStore {
   exercises: Exercise[]
-  addExercise: (name: string, muscleGroup: MuscleGroup) => Exercise
+  addExercise: (name: string, muscleGroup: MuscleGroup, isWeighted?: boolean) => Exercise
   updateExercise: (id: string, updates: Partial<Omit<Exercise, "id">>) => void
   deleteExercise: (id: string) => void
   getExercise: (id: string) => Exercise | undefined
@@ -19,12 +19,13 @@ export const useExerciseStore = create<ExerciseStore>()(
     (set, get) => ({
       exercises: defaultExercises,
 
-      addExercise: (name, muscleGroup) => {
+      addExercise: (name, muscleGroup, isWeighted = true) => {
         const newExercise: Exercise = {
           id: uuidv4(),
           name,
           muscleGroup,
           isCustom: true,
+          isWeighted,
         }
         set((state) => ({
           exercises: [...state.exercises, newExercise],
@@ -60,7 +61,25 @@ export const useExerciseStore = create<ExerciseStore>()(
     }),
     {
       name: "training-app-exercises",
-      version: 1,
+      version: 2,
+      migrate: (persistedState, version) => {
+        const state = persistedState as ExerciseStore
+        if (version < 2) {
+          // Add isWeighted to existing exercises (default to true for weighted)
+          // Match against defaultExercises to get correct isWeighted value
+          const defaultExerciseMap = new Map(
+            defaultExercises.map((e) => [e.id, e.isWeighted])
+          )
+          return {
+            ...state,
+            exercises: state.exercises.map((ex) => ({
+              ...ex,
+              isWeighted: defaultExerciseMap.get(ex.id) ?? true,
+            })),
+          }
+        }
+        return state
+      },
     }
   )
 )

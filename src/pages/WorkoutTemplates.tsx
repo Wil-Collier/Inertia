@@ -292,7 +292,7 @@ export function WorkoutTemplates() {
           </SheetHeader>
 
           {editingTemplate && (
-            <div className="mt-4 flex flex-col gap-4">
+            <div className="mt-4 flex flex-col gap-4 h-[calc(85vh-100px)]">
               {/* Template Name */}
               <div className="flex gap-2">
                 <Input

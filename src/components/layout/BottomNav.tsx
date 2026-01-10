@@ -7,6 +7,7 @@ import {
   Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useWorkoutStore } from "@/stores/workoutStore"
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
@@ -18,11 +19,17 @@ const navItems = [
 
 export function BottomNav() {
   const location = useLocation()
+  const { activeSession } = useWorkoutStore()
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-area-bottom">
       <div className="flex h-16 items-center justify-around px-2">
         {navItems.map((item) => {
+          // Redirect to active workout when there's an ongoing session
+          const to = item.to === "/workout" && activeSession 
+            ? "/workout/active" 
+            : item.to
+          
           const isActive =
             item.to === "/"
               ? location.pathname === "/"
@@ -31,7 +38,7 @@ export function BottomNav() {
           return (
             <NavLink
               key={item.to}
-              to={item.to}
+              to={to}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs transition-colors",
                 isActive

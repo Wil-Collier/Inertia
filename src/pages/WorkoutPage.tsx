@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate, Link, Navigate } from "react-router-dom"
 import { Plus, Dumbbell, Clock, LayoutTemplate } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
@@ -35,8 +35,7 @@ export function WorkoutPage() {
   }
 
   if (activeSession) {
-    navigate("/workout/active")
-    return null
+    return <Navigate to="/workout/active" replace />
   }
 
   const recentDates = getWorkoutDates().slice(0, 5)

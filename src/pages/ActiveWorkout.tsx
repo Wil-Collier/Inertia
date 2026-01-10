@@ -1,8 +1,7 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Navigate } from "react-router-dom"
 import {
   Plus,
-  X,
   Check,
   Trash2,
   Timer,
@@ -62,8 +61,7 @@ export function ActiveWorkout() {
   const timer = useRestTimer({ defaultDuration: 90 })
 
   if (!activeSession) {
-    navigate("/workout")
-    return null
+    return <Navigate to="/workout" replace />
   }
 
   const { workout } = activeSession
@@ -115,15 +113,7 @@ export function ActiveWorkout() {
       <Header
         title={workout.name}
         showBack
-        rightAction={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowCancelDialog(true)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        }
+        onBack={() => setShowCancelDialog(true)}
       />
 
       {/* Rest Timer */}
@@ -208,74 +198,93 @@ export function ActiveWorkout() {
               {isExpanded && (
                 <CardContent className="space-y-3 pt-0">
                   {/* Sets Header */}
-                  <div className="grid grid-cols-[1fr_3fr_3fr_auto] gap-2 text-xs text-muted-foreground">
+                  <div className={cn(
+                    "gap-2 text-xs text-muted-foreground grid",
+                    exercise?.isWeighted 
+                      ? "grid-cols-[1fr_3fr_3fr_auto]" 
+                      : "grid-cols-[1fr_6fr_auto]"
+                  )}>
                     <span>Set</span>
-                    <span>Weight</span>
+                    {exercise?.isWeighted && <span>Weight</span>}
                     <span>Reps</span>
                     <span className="w-8"></span>
                   </div>
 
                   {/* Sets */}
-                  {workoutExercise.sets.map((set, index) => (
-                    <div
-                      key={set.id}
-                      className={cn(
-                        "grid grid-cols-[1fr_3fr_3fr_auto] items-center gap-2",
-                        set.completed && "opacity-60"
-                      )}
-                    >
-                      <span className="text-sm font-medium">{index + 1}</span>
-                      <Input
-                        type="number"
-                        value={set.weight || ""}
-                        onChange={(e) =>
-                          updateSet(workoutExercise.id, set.id, {
-                            weight: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                        placeholder="lbs"
-                        className="h-9"
-                        disabled={set.completed}
-                      />
-                      <Input
-                        type="number"
-                        value={set.reps || ""}
-                        onChange={(e) =>
-                          updateSet(workoutExercise.id, set.id, {
-                            reps: parseInt(e.target.value) || 0,
-                          })
-                        }
-                        placeholder="reps"
-                        className="h-9"
-                        disabled={set.completed}
-                      />
-                      <div className="flex gap-1">
-                        <Button
-                          size="icon-sm"
-                          variant={set.completed ? "default" : "outline"}
-                          onClick={() => {
-                            toggleSetComplete(workoutExercise.id, set.id)
-                            if (!set.completed) {
-                              timer.start()
+                  {workoutExercise.sets.map((set, index) => {
+                    const canComplete = exercise?.isWeighted 
+                      ? set.weight > 0 && set.reps > 0
+                      : set.reps > 0
+
+                    return (
+                      <div
+                        key={set.id}
+                        className={cn(
+                          "items-center gap-2 grid",
+                          exercise?.isWeighted 
+                            ? "grid-cols-[1fr_3fr_3fr_auto]" 
+                            : "grid-cols-[1fr_6fr_auto]",
+                          set.completed && "opacity-60"
+                        )}
+                      >
+                        <span className="text-sm font-medium">{index + 1}</span>
+                        {exercise?.isWeighted && (
+                          <Input
+                            type="number"
+                            value={set.weight || ""}
+                            onChange={(e) =>
+                              updateSet(workoutExercise.id, set.id, {
+                                weight: parseFloat(e.target.value) || 0,
+                              })
                             }
-                          }}
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        {!set.completed && workoutExercise.sets.length > 1 && (
+                            placeholder="lbs"
+                            className="h-9"
+                            disabled={set.completed}
+                          />
+                        )}
+                        <Input
+                          type="number"
+                          value={set.reps || ""}
+                          onChange={(e) =>
+                            updateSet(workoutExercise.id, set.id, {
+                              reps: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          placeholder="reps"
+                          className="h-9"
+                          disabled={set.completed}
+                        />
+                        <div className="flex gap-1">
                           <Button
                             size="icon-sm"
-                            variant="ghost"
-                            onClick={() =>
-                              removeSet(workoutExercise.id, set.id)
-                            }
+                            variant={set.completed ? "default" : "outline"}
+                            disabled={!set.completed && !canComplete}
+                            onClick={() => {
+                              if (set.completed || canComplete) {
+                                toggleSetComplete(workoutExercise.id, set.id)
+                                if (!set.completed) {
+                                  timer.start()
+                                }
+                              }
+                            }}
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Check className="h-3 w-3" />
                           </Button>
-                        )}
+                          {!set.completed && workoutExercise.sets.length > 1 && (
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              onClick={() =>
+                                removeSet(workoutExercise.id, set.id)
+                              }
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
 
                   {/* Add Set & Remove Exercise */}
                   <div className="flex gap-2 pt-2">

@@ -3,71 +3,72 @@ import type { Exercise, MuscleGroup } from "@/lib/types"
 interface ExerciseDefinition {
   name: string
   muscleGroup: MuscleGroup
+  isWeighted: boolean
 }
 
 const defaultExerciseList: ExerciseDefinition[] = [
   // Chest
-  { name: "Bench Press", muscleGroup: "chest" },
-  { name: "Incline Bench Press", muscleGroup: "chest" },
-  { name: "Incline Dumbbell Press", muscleGroup: "chest" },
-  { name: "Dumbbell Flyes", muscleGroup: "chest" },
-  { name: "Push-ups", muscleGroup: "chest" },
-  { name: "Cable Crossover", muscleGroup: "chest" },
-  { name: "Pec Deck", muscleGroup: "chest" },
+  { name: "Bench Press", muscleGroup: "chest", isWeighted: true },
+  { name: "Incline Bench Press", muscleGroup: "chest", isWeighted: true },
+  { name: "Incline Dumbbell Press", muscleGroup: "chest", isWeighted: true },
+  { name: "Dumbbell Flyes", muscleGroup: "chest", isWeighted: true },
+  { name: "Push-ups", muscleGroup: "chest", isWeighted: false },
+  { name: "Cable Crossover", muscleGroup: "chest", isWeighted: true },
+  { name: "Pec Deck", muscleGroup: "chest", isWeighted: true },
 
   // Back
-  { name: "Deadlift", muscleGroup: "back" },
-  { name: "Pull-ups", muscleGroup: "back" },
-  { name: "Weighted Pull-ups", muscleGroup: "back" },
-  { name: "Barbell Row", muscleGroup: "back" },
-  { name: "Lat Pulldown", muscleGroup: "back" },
-  { name: "Seated Cable Row", muscleGroup: "back" },
+  { name: "Deadlift", muscleGroup: "back", isWeighted: true },
+  { name: "Pull-ups", muscleGroup: "back", isWeighted: false },
+  { name: "Weighted Pull-ups", muscleGroup: "back", isWeighted: true },
+  { name: "Barbell Row", muscleGroup: "back", isWeighted: true },
+  { name: "Lat Pulldown", muscleGroup: "back", isWeighted: true },
+  { name: "Seated Cable Row", muscleGroup: "back", isWeighted: true },
 
   // Shoulders
-  { name: "Overhead Press", muscleGroup: "shoulders" },
-  { name: "Lateral Raises", muscleGroup: "shoulders" },
-  { name: "Front Raises", muscleGroup: "shoulders" },
-  { name: "Face Pulls", muscleGroup: "shoulders" },
-  { name: "Arnold Press", muscleGroup: "shoulders" },
+  { name: "Overhead Press", muscleGroup: "shoulders", isWeighted: true },
+  { name: "Lateral Raises", muscleGroup: "shoulders", isWeighted: true },
+  { name: "Front Raises", muscleGroup: "shoulders", isWeighted: true },
+  { name: "Face Pulls", muscleGroup: "shoulders", isWeighted: true },
+  { name: "Arnold Press", muscleGroup: "shoulders", isWeighted: true },
 
   // Arms
-  { name: "Barbell Curl", muscleGroup: "arms" },
-  { name: "Hammer Curl", muscleGroup: "arms" },
-  { name: "Tricep Pushdown", muscleGroup: "arms" },
-  { name: "Tricep Rope Pushdown", muscleGroup: "arms" },
-  { name: "Skull Crushers", muscleGroup: "arms" },
-  { name: "Dips", muscleGroup: "arms" },
+  { name: "Barbell Curl", muscleGroup: "arms", isWeighted: true },
+  { name: "Hammer Curl", muscleGroup: "arms", isWeighted: true },
+  { name: "Tricep Pushdown", muscleGroup: "arms", isWeighted: true },
+  { name: "Tricep Rope Pushdown", muscleGroup: "arms", isWeighted: true },
+  { name: "Skull Crushers", muscleGroup: "arms", isWeighted: true },
+  { name: "Dips", muscleGroup: "arms", isWeighted: false },
 
   // Legs
-  { name: "Squat", muscleGroup: "legs" },
-  { name: "Front Squat", muscleGroup: "legs" },
-  { name: "Goblet Squat", muscleGroup: "legs" },
-  { name: "Leg Press", muscleGroup: "legs" },
-  { name: "Romanian Deadlift", muscleGroup: "legs" },
-  { name: "Leg Curl", muscleGroup: "legs" },
-  { name: "Seated Leg Curl", muscleGroup: "legs" },
-  { name: "Leg Extension", muscleGroup: "legs" },
-  { name: "Standing Calf Raises", muscleGroup: "legs" },
-  { name: "Seated Calf Raises", muscleGroup: "legs" },
-  { name: "Lunges", muscleGroup: "legs" },
-  { name: "Walking Lunges", muscleGroup: "legs" },
+  { name: "Squat", muscleGroup: "legs", isWeighted: true },
+  { name: "Front Squat", muscleGroup: "legs", isWeighted: true },
+  { name: "Goblet Squat", muscleGroup: "legs", isWeighted: true },
+  { name: "Leg Press", muscleGroup: "legs", isWeighted: true },
+  { name: "Romanian Deadlift", muscleGroup: "legs", isWeighted: true },
+  { name: "Leg Curl", muscleGroup: "legs", isWeighted: true },
+  { name: "Seated Leg Curl", muscleGroup: "legs", isWeighted: true },
+  { name: "Leg Extension", muscleGroup: "legs", isWeighted: true },
+  { name: "Standing Calf Raises", muscleGroup: "legs", isWeighted: true },
+  { name: "Seated Calf Raises", muscleGroup: "legs", isWeighted: true },
+  { name: "Lunges", muscleGroup: "legs", isWeighted: false },
+  { name: "Walking Lunges", muscleGroup: "legs", isWeighted: false },
 
   // Core
-  { name: "Plank", muscleGroup: "core" },
-  { name: "Side Plank", muscleGroup: "core" },
-  { name: "Dead Bug", muscleGroup: "core" },
-  { name: "Bird Dog", muscleGroup: "core" },
-  { name: "Bicycle Crunches", muscleGroup: "core" },
-  { name: "Crunches", muscleGroup: "core" },
-  { name: "Hanging Leg Raise", muscleGroup: "core" },
-  { name: "Russian Twist", muscleGroup: "core" },
-  { name: "Cable Woodchop", muscleGroup: "core" },
+  { name: "Plank", muscleGroup: "core", isWeighted: false },
+  { name: "Side Plank", muscleGroup: "core", isWeighted: false },
+  { name: "Dead Bug", muscleGroup: "core", isWeighted: false },
+  { name: "Bird Dog", muscleGroup: "core", isWeighted: false },
+  { name: "Bicycle Crunches", muscleGroup: "core", isWeighted: false },
+  { name: "Crunches", muscleGroup: "core", isWeighted: false },
+  { name: "Hanging Leg Raise", muscleGroup: "core", isWeighted: false },
+  { name: "Russian Twist", muscleGroup: "core", isWeighted: true },
+  { name: "Cable Woodchop", muscleGroup: "core", isWeighted: true },
 
   // Cardio
-  { name: "Running", muscleGroup: "cardio" },
-  { name: "Cycling", muscleGroup: "cardio" },
-  { name: "Rowing", muscleGroup: "cardio" },
-  { name: "Jump Rope", muscleGroup: "cardio" },
+  { name: "Running", muscleGroup: "cardio", isWeighted: false },
+  { name: "Cycling", muscleGroup: "cardio", isWeighted: false },
+  { name: "Rowing", muscleGroup: "cardio", isWeighted: false },
+  { name: "Jump Rope", muscleGroup: "cardio", isWeighted: false },
 ]
 
 export const defaultExercises: Exercise[] = defaultExerciseList.map(
@@ -76,6 +77,7 @@ export const defaultExercises: Exercise[] = defaultExerciseList.map(
     name: ex.name,
     muscleGroup: ex.muscleGroup,
     isCustom: false,
+    isWeighted: ex.isWeighted,
   })
 )
 

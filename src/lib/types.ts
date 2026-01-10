@@ -13,6 +13,7 @@ export interface Exercise {
   name: string
   muscleGroup: MuscleGroup
   isCustom: boolean
+  isWeighted: boolean
 }
 
 // Workout Types
@@ -62,6 +63,8 @@ export interface FoodItem {
   protein: number
   carbs: number
   fat: number
+  fiber: number
+  sugar: number
   servingSize: string
   servingGrams?: number
   barcode?: string
@@ -89,6 +92,8 @@ export interface NutritionGoals {
   protein: number
   carbs: number
   fat: number
+  fiber: number
+  sugar: number
 }
 
 export type ThemeMode = "light" | "dark" | "system"

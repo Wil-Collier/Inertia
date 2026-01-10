@@ -42,7 +42,7 @@ interface NutritionStore {
   getDailyLog: (date: string) => DailyNutrition | undefined
   getDailyTotals: (
     date: string
-  ) => { calories: number; protein: number; carbs: number; fat: number }
+  ) => { calories: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number }
   getEntriesByMealType: (date: string, mealType: MealType) => MealEntry[]
 
   // Template Actions
@@ -59,6 +59,8 @@ interface NutritionStore {
     protein: number
     carbs: number
     fat: number
+    fiber: number
+    sugar: number
   }
 }
 
@@ -182,7 +184,7 @@ export const useNutritionStore = create<NutritionStore>()(
 
       getDailyTotals: (date) => {
         const log = get().getDailyLog(date)
-        if (!log) return { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        if (!log) return { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }
 
         return log.entries.reduce(
           (acc, entry) => {
@@ -194,9 +196,11 @@ export const useNutritionStore = create<NutritionStore>()(
               protein: acc.protein + food.protein * entry.quantity,
               carbs: acc.carbs + food.carbs * entry.quantity,
               fat: acc.fat + food.fat * entry.quantity,
+              fiber: acc.fiber + (food.fiber ?? 0) * entry.quantity,
+              sugar: acc.sugar + (food.sugar ?? 0) * entry.quantity,
             }
           },
-          { calories: 0, protein: 0, carbs: 0, fat: 0 }
+          { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }
         )
       },
 
@@ -237,12 +241,14 @@ export const useNutritionStore = create<NutritionStore>()(
           protein: goals.protein > 0 ? (totals.protein / goals.protein) * 100 : 0,
           carbs: goals.carbs > 0 ? (totals.carbs / goals.carbs) * 100 : 0,
           fat: goals.fat > 0 ? (totals.fat / goals.fat) * 100 : 0,
+          fiber: goals.fiber > 0 ? (totals.fiber / goals.fiber) * 100 : 0,
+          sugar: goals.sugar > 0 ? (totals.sugar / goals.sugar) * 100 : 0,
         }
       },
     }),
     {
       name: "training-app-nutrition",
-      version: 1,
+      version: 2,
     }
   )
 )

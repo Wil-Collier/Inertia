@@ -139,6 +139,23 @@ export function Dashboard() {
                 color="bg-yellow-500"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <MacroProgress
+                label="Fiber"
+                value={totals.fiber}
+                goal={settings.nutritionGoals.fiber}
+                unit="g"
+                color="bg-emerald-500"
+              />
+              <MacroProgress
+                label="Sugar"
+                value={totals.sugar}
+                goal={settings.nutritionGoals.sugar}
+                unit="g"
+                color="bg-pink-500"
+              />
+            </div>
           </CardContent>
         </Card>
 

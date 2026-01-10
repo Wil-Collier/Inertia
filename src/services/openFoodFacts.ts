@@ -17,6 +17,10 @@ interface OpenFoodFactsProduct {
     carbohydrates_serving?: number
     fat_100g?: number
     fat_serving?: number
+    fiber_100g?: number
+    fiber_serving?: number
+    sugars_100g?: number
+    sugars_serving?: number
   }
   serving_size?: string
   serving_quantity?: number
@@ -59,6 +63,14 @@ function parseProduct(product: OpenFoodFactsProduct): FoodItem | null {
     ? nutriments.fat_serving ?? 0
     : nutriments.fat_100g ?? 0
 
+  const fiber = hasServing
+    ? nutriments.fiber_serving ?? 0
+    : nutriments.fiber_100g ?? 0
+
+  const sugar = hasServing
+    ? nutriments.sugars_serving ?? 0
+    : nutriments.sugars_100g ?? 0
+
   return {
     id: uuidv4(),
     name: product.product_name,
@@ -67,6 +79,8 @@ function parseProduct(product: OpenFoodFactsProduct): FoodItem | null {
     protein: Math.round(protein * 10) / 10,
     carbs: Math.round(carbs * 10) / 10,
     fat: Math.round(fat * 10) / 10,
+    fiber: Math.round(fiber * 10) / 10,
+    sugar: Math.round(sugar * 10) / 10,
     servingSize: hasServing ? servingSize : "100g",
     servingGrams: product.serving_quantity || 100,
     barcode: product.code,

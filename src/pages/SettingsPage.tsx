@@ -144,6 +144,29 @@ export function SettingsPage() {
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Fiber (g)</Label>
+                <Input
+                  type="number"
+                  value={settings.nutritionGoals.fiber}
+                  onChange={(e) =>
+                    updateNutritionGoal("fiber", parseInt(e.target.value) || 0)
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Sugar (g)</Label>
+                <Input
+                  type="number"
+                  value={settings.nutritionGoals.sugar}
+                  onChange={(e) =>
+                    updateNutritionGoal("sugar", parseInt(e.target.value) || 0)
+                  }
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
