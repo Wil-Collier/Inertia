@@ -28,15 +28,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
 import { useWorkoutStore } from "@/stores/workoutStore"
 import { useExerciseStore } from "@/stores/exerciseStore"
-import type { WorkoutTemplate, MuscleGroup } from "@/lib/types"
+import type { WorkoutTemplate } from "@/lib/types"
 
 export function WorkoutTemplates() {
   const navigate = useNavigate()
   const { templates, deleteTemplate, createTemplate, updateTemplate, startWorkout } =
     useWorkoutStore()
-  const { exercises, getExercise } = useExerciseStore()
+  const { getExercise } = useExerciseStore()
 
   const [templateToDelete, setTemplateToDelete] = useState<WorkoutTemplate | null>(null)
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null)
@@ -44,17 +45,6 @@ export function WorkoutTemplates() {
   const [newTemplateName, setNewTemplateName] = useState("")
   const [editName, setEditName] = useState("")
   const [isAddExerciseOpen, setIsAddExerciseOpen] = useState(false)
-  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<MuscleGroup | null>(null)
-
-  const muscleGroups: MuscleGroup[] = [
-    "chest",
-    "back",
-    "shoulders",
-    "arms",
-    "legs",
-    "core",
-    "cardio",
-  ]
 
   const handleDelete = () => {
     if (templateToDelete) {
@@ -107,7 +97,6 @@ export function WorkoutTemplates() {
       })
     }
     setIsAddExerciseOpen(false)
-    setSelectedMuscleGroup(null)
   }
 
   const handleRemoveExercise = (exerciseId: string) => {
@@ -139,10 +128,6 @@ export function WorkoutTemplates() {
       })
     }
   }
-
-  const filteredExercises = selectedMuscleGroup
-    ? exercises.filter((e) => e.muscleGroup === selectedMuscleGroup)
-    : exercises
 
   return (
     <div className="flex flex-col">
@@ -292,9 +277,9 @@ export function WorkoutTemplates() {
           </SheetHeader>
 
           {editingTemplate && (
-            <div className="mt-4 flex flex-col gap-4 h-[calc(85vh-100px)]">
+            <div className="flex flex-col gap-4 h-[calc(85vh-100px)] p-4">
               {/* Template Name */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 mx-auto w-full max-w-lg">
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
@@ -307,8 +292,8 @@ export function WorkoutTemplates() {
               </div>
 
               {/* Exercises List */}
-              <ScrollArea className="flex-1">
-                <div className="space-y-3 pr-4">
+              <ScrollArea className="flex-1 overflow-hidden">
+                <div className="mx-auto w-full max-w-lg space-y-3">
                   {editingTemplate.exercises.length === 0 ? (
                     <div className="rounded-lg border border-dashed p-6 text-center">
                       <Dumbbell className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
@@ -409,69 +394,12 @@ export function WorkoutTemplates() {
       </Sheet>
 
       {/* Add Exercise Sheet */}
-      <Sheet open={isAddExerciseOpen} onOpenChange={setIsAddExerciseOpen}>
-        <SheetContent side="bottom" className="h-[70vh]">
-          <SheetHeader>
-            <SheetTitle>Add Exercise</SheetTitle>
-          </SheetHeader>
-
-          <div className="mt-4">
-            {/* Muscle Group Selector */}
-            <div className="mb-4 flex flex-wrap gap-2">
-              <Button
-                variant={selectedMuscleGroup === null ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedMuscleGroup(null)}
-              >
-                All
-              </Button>
-              {muscleGroups.map((mg) => (
-                <Button
-                  key={mg}
-                  variant={selectedMuscleGroup === mg ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedMuscleGroup(mg)}
-                >
-                  {mg.charAt(0).toUpperCase() + mg.slice(1)}
-                </Button>
-              ))}
-            </div>
-
-            {/* Exercise List */}
-            <ScrollArea className="h-[calc(70vh-140px)]">
-              <div className="space-y-1 pr-4">
-                {filteredExercises.map((exercise) => {
-                  const isAdded = editingTemplate?.exercises.some(
-                    (e) => e.exerciseId === exercise.id
-                  )
-                  return (
-                    <button
-                      key={exercise.id}
-                      className={`flex w-full items-center justify-between rounded-lg p-3 text-left transition-colors ${
-                        isAdded
-                          ? "bg-primary/10 text-primary"
-                          : "hover:bg-muted"
-                      }`}
-                      onClick={() => !isAdded && handleAddExercise(exercise.id)}
-                      disabled={isAdded}
-                    >
-                      <div>
-                        <p className="font-medium">{exercise.name}</p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {exercise.muscleGroup}
-                        </p>
-                      </div>
-                      {isAdded && (
-                        <span className="text-xs text-primary">Added</span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </ScrollArea>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <ExercisePickerSheet
+        open={isAddExerciseOpen}
+        onOpenChange={setIsAddExerciseOpen}
+        onSelect={handleAddExercise}
+        addedExerciseIds={editingTemplate?.exercises.map((e) => e.exerciseId) ?? []}
+      />
     </div>
   )
 }

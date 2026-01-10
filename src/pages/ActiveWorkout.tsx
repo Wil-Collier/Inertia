@@ -19,19 +19,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
 import { useWorkoutStore } from "@/stores/workoutStore"
 import { useExerciseStore } from "@/stores/exerciseStore"
 import { useRestTimer } from "@/hooks/useRestTimer"
 import { cn } from "@/lib/utils"
-import type { MuscleGroup } from "@/lib/types"
-import { muscleGroupLabels } from "@/data/defaultExercises"
 
 export function ActiveWorkout() {
   const navigate = useNavigate()
@@ -48,7 +40,7 @@ export function ActiveWorkout() {
     createTemplate,
   } = useWorkoutStore()
 
-  const { exercises, getExercise } = useExerciseStore()
+  const { getExercise } = useExerciseStore()
   const [showExerciseSheet, setShowExerciseSheet] = useState(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
@@ -91,16 +83,16 @@ export function ActiveWorkout() {
     })
   }
 
-  const exercisesByGroup = exercises.reduce(
-    (acc, ex) => {
-      if (!acc[ex.muscleGroup]) {
-        acc[ex.muscleGroup] = []
+  const handleAddExercise = (exerciseId: string) => {
+    addExerciseToWorkout(exerciseId)
+    // Expand the newly added exercise
+    setTimeout(() => {
+      const newExercise = workout.exercises[workout.exercises.length - 1]
+      if (newExercise) {
+        setExpandedExercises((prev) => new Set([...prev, newExercise.id]))
       }
-      acc[ex.muscleGroup].push(ex)
-      return acc
-    },
-    {} as Record<MuscleGroup, typeof exercises>
-  )
+    }, 0)
+  }
 
   const completedSets = workout.exercises.reduce(
     (sum, e) => sum + e.sets.filter((s) => s.completed).length,
@@ -336,47 +328,12 @@ export function ActiveWorkout() {
       </div>
 
       {/* Exercise Selection Sheet */}
-      <Sheet open={showExerciseSheet} onOpenChange={setShowExerciseSheet}>
-        <SheetContent side="bottom" className="h-[80vh]">
-          <SheetHeader>
-            <SheetTitle>Add Exercise</SheetTitle>
-          </SheetHeader>
-          <ScrollArea className="h-full pr-4">
-            <div className="space-y-6 py-4">
-              {(Object.keys(exercisesByGroup) as MuscleGroup[]).map((group) => (
-                <div key={group}>
-                  <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-                    {muscleGroupLabels[group]}
-                  </h3>
-                  <div className="space-y-1">
-                    {exercisesByGroup[group].map((exercise) => (
-                      <Button
-                        key={exercise.id}
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          addExerciseToWorkout(exercise.id)
-                          setExpandedExercises(
-                            (prev) =>
-                              new Set([
-                                ...prev,
-                                workout.exercises[workout.exercises.length - 1]
-                                  ?.id,
-                              ].filter(Boolean))
-                          )
-                          setShowExerciseSheet(false)
-                        }}
-                      >
-                        {exercise.name}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
+      <ExercisePickerSheet
+        open={showExerciseSheet}
+        onOpenChange={setShowExerciseSheet}
+        onSelect={handleAddExercise}
+        addedExerciseIds={workout.exercises.map((e) => e.exerciseId)}
+      />
 
       {/* Finish Dialog */}
       <Dialog open={showFinishDialog} onOpenChange={setShowFinishDialog}>
