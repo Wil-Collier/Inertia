@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useNavigate, Navigate } from "react-router-dom"
 import {
   Plus,
@@ -8,11 +8,14 @@ import {
   Save,
   ChevronDown,
   ChevronUp,
+  Play,
+  Pause,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DurationInput } from "@/components/ui/duration-input"
 import {
   Dialog,
   DialogContent,
@@ -22,7 +25,10 @@ import {
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
 import { useWorkoutStore } from "@/stores/workoutStore"
 import { useExerciseStore } from "@/stores/exerciseStore"
+import { useSettingsStore } from "@/stores/settingsStore"
 import { useRestTimer } from "@/hooks/useRestTimer"
+import { useCountdownTimer } from "@/hooks/useCountdownTimer"
+import { playDingSound } from "@/lib/audio"
 import { cn } from "@/lib/utils"
 
 export function ActiveWorkout() {
@@ -41,6 +47,7 @@ export function ActiveWorkout() {
   } = useWorkoutStore()
 
   const { getExercise } = useExerciseStore()
+  const { settings } = useSettingsStore()
   const [showExerciseSheet, setShowExerciseSheet] = useState(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
@@ -50,7 +57,19 @@ export function ActiveWorkout() {
     new Set()
   )
 
-  const timer = useRestTimer({ defaultDuration: 90 })
+  const timer = useRestTimer({ defaultDuration: settings.restTimerDuration })
+
+  // Handler for when countdown timer completes
+  const handleCountdownComplete = useCallback(
+    (setId: string, workoutExerciseId: string) => {
+      playDingSound()
+      toggleSetComplete(workoutExerciseId, setId)
+      timer.start() // Start rest timer after completing timed set
+    },
+    [toggleSetComplete, timer]
+  )
+
+  const countdown = useCountdownTimer({ onComplete: handleCountdownComplete })
 
   if (!activeSession) {
     return <Navigate to="/workout" replace />
@@ -100,12 +119,51 @@ export function ActiveWorkout() {
   )
   const totalSets = workout.exercises.reduce((sum, e) => sum + e.sets.length, 0)
 
+  // Check if the workout has any meaningful changes that would warrant a discard warning
+  const hasChanges = () => {
+    // If any set is completed, there are changes
+    if (completedSets > 0) return true
+    
+    // If there's no template, check if any exercises were added
+    if (!activeSession.templateId) {
+      return workout.exercises.length > 0
+    }
+    
+    // If started from template, check if exercises were added or removed
+    const template = useWorkoutStore.getState().templates.find(
+      (t) => t.id === activeSession.templateId
+    )
+    if (!template) return workout.exercises.length > 0
+    
+    // Different number of exercises means changes were made
+    if (workout.exercises.length !== template.exercises.length) return true
+    
+    // Check if any exercise was swapped or if set counts changed
+    for (let i = 0; i < workout.exercises.length; i++) {
+      const workoutEx = workout.exercises[i]
+      const templateEx = template.exercises[i]
+      if (workoutEx.exerciseId !== templateEx.exerciseId) return true
+      if (workoutEx.sets.length !== templateEx.targetSets) return true
+    }
+    
+    return false
+  }
+
+  const handleBack = () => {
+    if (hasChanges()) {
+      setShowCancelDialog(true)
+    } else {
+      // No changes, just cancel without confirmation
+      handleCancel()
+    }
+  }
+
   return (
     <div className="flex flex-col">
       <Header
         title={workout.name}
         showBack
-        onBack={() => setShowCancelDialog(true)}
+        onBack={handleBack}
       />
 
       {/* Rest Timer */}
@@ -192,35 +250,45 @@ export function ActiveWorkout() {
                   {/* Sets Header */}
                   <div className={cn(
                     "gap-2 text-xs text-muted-foreground grid",
-                    exercise?.isWeighted 
-                      ? "grid-cols-[1fr_3fr_3fr_auto]" 
-                      : "grid-cols-[1fr_6fr_auto]"
+                    exercise?.isTimeBased
+                      ? "grid-cols-[1fr_4fr_auto]"
+                      : exercise?.isWeighted 
+                        ? "grid-cols-[1fr_3fr_3fr_auto]" 
+                        : "grid-cols-[1fr_6fr_auto]"
                   )}>
                     <span>Set</span>
-                    {exercise?.isWeighted && <span>Weight</span>}
-                    <span>Reps</span>
+                    {exercise?.isWeighted && !exercise?.isTimeBased && <span>Weight</span>}
+                    <span>{exercise?.isTimeBased ? "Duration" : "Reps"}</span>
                     <span className="w-8"></span>
                   </div>
 
                   {/* Sets */}
                   {workoutExercise.sets.map((set, index) => {
-                    const canComplete = exercise?.isWeighted 
-                      ? set.weight > 0 && set.reps > 0
-                      : set.reps > 0
+                    const isTimeBased = exercise?.isTimeBased ?? false
+                    const isActiveCountdown = countdown.activeSetId === set.id
+                    const canComplete = isTimeBased
+                      ? set.reps > 0 // reps stores duration in seconds for time-based
+                      : exercise?.isWeighted 
+                        ? set.weight > 0 && set.reps > 0
+                        : set.reps > 0
 
                     return (
                       <div
                         key={set.id}
                         className={cn(
                           "items-center gap-2 grid",
-                          exercise?.isWeighted 
-                            ? "grid-cols-[1fr_3fr_3fr_auto]" 
-                            : "grid-cols-[1fr_6fr_auto]",
+                          isTimeBased
+                            ? "grid-cols-[1fr_4fr_auto]"
+                            : exercise?.isWeighted 
+                              ? "grid-cols-[1fr_3fr_3fr_auto]" 
+                              : "grid-cols-[1fr_6fr_auto]",
                           set.completed && "opacity-60"
                         )}
                       >
                         <span className="text-sm font-medium">{index + 1}</span>
-                        {exercise?.isWeighted && (
+                        
+                        {/* Weight input (only for weighted, non-time-based exercises) */}
+                        {exercise?.isWeighted && !isTimeBased && (
                           <Input
                             type="number"
                             value={set.weight || ""}
@@ -234,35 +302,99 @@ export function ActiveWorkout() {
                             disabled={set.completed}
                           />
                         )}
-                        <Input
-                          type="number"
-                          value={set.reps || ""}
-                          onChange={(e) =>
-                            updateSet(workoutExercise.id, set.id, {
-                              reps: parseInt(e.target.value) || 0,
-                            })
-                          }
-                          placeholder="reps"
-                          className="h-9"
-                          disabled={set.completed}
-                        />
-                        <div className="flex gap-1">
-                          <Button
-                            size="icon-sm"
-                            variant={set.completed ? "default" : "outline"}
-                            disabled={!set.completed && !canComplete}
-                            onClick={() => {
-                              if (set.completed || canComplete) {
-                                toggleSetComplete(workoutExercise.id, set.id)
-                                if (!set.completed) {
-                                  timer.start()
-                                }
+
+                        {/* Duration input/countdown for time-based exercises */}
+                        {isTimeBased ? (
+                          isActiveCountdown ? (
+                            /* Show countdown in place of duration input */
+                            <div className="flex h-9 items-center justify-center rounded-md border bg-primary/10 font-mono text-lg font-bold text-primary">
+                              {countdown.formattedTime}
+                            </div>
+                          ) : (
+                            /* Show editable duration input */
+                            <DurationInput
+                              value={set.reps} // reps stores duration in seconds
+                              onChange={(seconds) =>
+                                updateSet(workoutExercise.id, set.id, {
+                                  reps: seconds,
+                                })
                               }
-                            }}
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                          {!set.completed && workoutExercise.sets.length > 1 && (
+                              disabled={set.completed}
+                            />
+                          )
+                        ) : (
+                          /* Reps input for non-time-based exercises */
+                          <Input
+                            type="number"
+                            value={set.reps || ""}
+                            onChange={(e) =>
+                              updateSet(workoutExercise.id, set.id, {
+                                reps: parseInt(e.target.value) || 0,
+                              })
+                            }
+                            placeholder="reps"
+                            className="h-9"
+                            disabled={set.completed}
+                          />
+                        )}
+
+                        {/* Action buttons */}
+                        <div className="flex gap-1">
+                          {isTimeBased && !set.completed ? (
+                            /* Time-based exercise: Play/Pause button */
+                            isActiveCountdown ? (
+                              /* Show pause or resume button based on running state */
+                              <Button
+                                size="icon-sm"
+                                variant={countdown.isRunning ? "default" : "outline"}
+                                onClick={() => {
+                                  if (countdown.isRunning) {
+                                    countdown.pause()
+                                  } else {
+                                    countdown.resume()
+                                  }
+                                }}
+                              >
+                                {countdown.isRunning ? (
+                                  <Pause className="h-3 w-3" />
+                                ) : (
+                                  <Play className="h-3 w-3" />
+                                )}
+                              </Button>
+                            ) : (
+                              /* Show play button to start */
+                              <Button
+                                size="icon-sm"
+                                variant="outline"
+                                disabled={!canComplete}
+                                onClick={() => {
+                                  if (canComplete) {
+                                    countdown.start(set.id, workoutExercise.id, set.reps)
+                                  }
+                                }}
+                              >
+                                <Play className="h-3 w-3" />
+                              </Button>
+                            )
+                          ) : (
+                            /* Rep-based exercise or completed: Check button */
+                            <Button
+                              size="icon-sm"
+                              variant={set.completed ? "default" : "outline"}
+                              disabled={!set.completed && !canComplete}
+                              onClick={() => {
+                                if (set.completed || canComplete) {
+                                  toggleSetComplete(workoutExercise.id, set.id)
+                                  if (!set.completed) {
+                                    timer.start()
+                                  }
+                                }
+                              }}
+                            >
+                              <Check className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {!set.completed && !isActiveCountdown && workoutExercise.sets.length > 1 && (
                             <Button
                               size="icon-sm"
                               variant="ghost"

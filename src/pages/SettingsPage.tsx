@@ -7,6 +7,7 @@ import {
   Upload,
   Trash2,
   Target,
+  Timer,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,7 +27,7 @@ import { toast } from "sonner"
 import type { ThemeMode } from "@/lib/types"
 
 export function SettingsPage() {
-  const { settings, updateNutritionGoal } = useSettingsStore()
+  const { settings, updateNutritionGoal, setRestTimerDuration } = useSettingsStore()
   const { theme, setTheme } = useTheme()
   const [showClearDialog, setShowClearDialog] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -88,6 +89,33 @@ export function SettingsPage() {
                   {label}
                 </Button>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Workout Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Timer className="h-4 w-4" />
+              Workout
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Rest Timer Duration (seconds)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={600}
+                value={settings.restTimerDuration}
+                onChange={(e) =>
+                  setRestTimerDuration(parseInt(e.target.value) || 0)
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Default rest time between sets (0-600 seconds)
+              </p>
             </div>
           </CardContent>
         </Card>

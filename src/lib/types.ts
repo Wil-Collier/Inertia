@@ -14,6 +14,7 @@ export interface Exercise {
   muscleGroup: MuscleGroup
   isCustom: boolean
   isWeighted: boolean
+  isTimeBased: boolean
 }
 
 // Workout Types
@@ -101,6 +102,7 @@ export type ThemeMode = "light" | "dark" | "system"
 export interface UserSettings {
   theme: ThemeMode
   nutritionGoals: NutritionGoals
+  restTimerDuration: number // seconds
 }
 
 // Personal Records

@@ -7,6 +7,7 @@ interface SettingsStore {
   setTheme: (theme: ThemeMode) => void
   setNutritionGoals: (goals: NutritionGoals) => void
   updateNutritionGoal: (key: keyof NutritionGoals, value: number) => void
+  setRestTimerDuration: (seconds: number) => void
   resetSettings: () => void
 }
 
@@ -20,6 +21,7 @@ const defaultSettings: UserSettings = {
     fiber: 30,
     sugar: 50,
   },
+  restTimerDuration: 90,
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -51,13 +53,19 @@ export const useSettingsStore = create<SettingsStore>()(
         }))
       },
 
+      setRestTimerDuration: (seconds) => {
+        set((state) => ({
+          settings: { ...state.settings, restTimerDuration: seconds },
+        }))
+      },
+
       resetSettings: () => {
         set({ settings: defaultSettings })
       },
     }),
     {
       name: "training-app-settings",
-      version: 2,
+      version: 3,
       migrate: (persistedState, version) => {
         const state = persistedState as SettingsStore
         if (version < 2) {
@@ -71,6 +79,16 @@ export const useSettingsStore = create<SettingsStore>()(
                 fiber: state.settings.nutritionGoals.fiber ?? 30,
                 sugar: state.settings.nutritionGoals.sugar ?? 50,
               },
+            },
+          }
+        }
+        if (version < 3) {
+          // Add rest timer duration setting
+          return {
+            ...state,
+            settings: {
+              ...state.settings,
+              restTimerDuration: state.settings.restTimerDuration ?? 90,
             },
           }
         }

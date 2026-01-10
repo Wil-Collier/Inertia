@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid"
 
 interface ExerciseStore {
   exercises: Exercise[]
-  addExercise: (name: string, muscleGroup: MuscleGroup, isWeighted?: boolean) => Exercise
+  addExercise: (name: string, muscleGroup: MuscleGroup, isWeighted?: boolean, isTimeBased?: boolean) => Exercise
   updateExercise: (id: string, updates: Partial<Omit<Exercise, "id">>) => void
   deleteExercise: (id: string) => void
   getExercise: (id: string) => Exercise | undefined
@@ -19,13 +19,14 @@ export const useExerciseStore = create<ExerciseStore>()(
     (set, get) => ({
       exercises: defaultExercises,
 
-      addExercise: (name, muscleGroup, isWeighted = true) => {
+      addExercise: (name, muscleGroup, isWeighted = true, isTimeBased = false) => {
         const newExercise: Exercise = {
           id: uuidv4(),
           name,
           muscleGroup,
           isCustom: true,
           isWeighted,
+          isTimeBased,
         }
         set((state) => ({
           exercises: [...state.exercises, newExercise],
@@ -61,7 +62,7 @@ export const useExerciseStore = create<ExerciseStore>()(
     }),
     {
       name: "training-app-exercises",
-      version: 2,
+      version: 3,
       migrate: (persistedState, version) => {
         const state = persistedState as ExerciseStore
         if (version < 2) {
@@ -75,6 +76,20 @@ export const useExerciseStore = create<ExerciseStore>()(
             exercises: state.exercises.map((ex) => ({
               ...ex,
               isWeighted: defaultExerciseMap.get(ex.id) ?? true,
+            })),
+          }
+        }
+        if (version < 3) {
+          // Add isTimeBased to existing exercises
+          // Match against defaultExercises to get correct isTimeBased value
+          const defaultExerciseMap = new Map(
+            defaultExercises.map((e) => [e.id, e.isTimeBased])
+          )
+          return {
+            ...state,
+            exercises: state.exercises.map((ex) => ({
+              ...ex,
+              isTimeBased: defaultExerciseMap.get(ex.id) ?? false,
             })),
           }
         }

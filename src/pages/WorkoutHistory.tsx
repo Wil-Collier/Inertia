@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { formatDuration } from "@/lib/utils"
 import { useWorkoutStore } from "@/stores/workoutStore"
 import { useExerciseStore } from "@/stores/exerciseStore"
 import type { Workout } from "@/lib/types"
@@ -165,29 +166,37 @@ export function WorkoutHistory() {
                                     (s) => s.completed
                                   )
 
-                                  return (
-                                    <div key={we.id} className="text-sm">
-                                      <p className="font-medium">
-                                        {exercise?.name ?? "Unknown Exercise"}
-                                      </p>
-                                      <div className="mt-1 space-y-0.5 text-muted-foreground">
-                                        {completedSets.map((set, idx) => (
-                                          <p key={set.id}>
-                                            Set {idx + 1}: {set.weight} lbs ×{" "}
-                                            {set.reps} reps
+                                    return (
+                                      <div key={we.id} className="text-sm">
+                                        <p className="font-medium">
+                                          {exercise?.name ?? "Unknown Exercise"}
+                                        </p>
+                                        <div className="mt-1 space-y-0.5 text-muted-foreground">
+                                          {completedSets.map((set, idx) => (
+                                            <p key={set.id}>
+                                              Set {idx + 1}:{" "}
+                                              {exercise?.isTimeBased ? (
+                                                formatDuration(set.reps)
+                                              ) : exercise?.isWeighted ? (
+                                                <>
+                                                  {set.weight} lbs × {set.reps} reps
+                                                </>
+                                              ) : (
+                                                <>{set.reps} reps</>
+                                              )}
+                                            </p>
+                                          ))}
+                                          {completedSets.length === 0 && (
+                                            <p className="italic">No completed sets</p>
+                                          )}
+                                        </div>
+                                        {we.notes && (
+                                          <p className="mt-1 text-xs italic text-muted-foreground">
+                                            Note: {we.notes}
                                           </p>
-                                        ))}
-                                        {completedSets.length === 0 && (
-                                          <p className="italic">No completed sets</p>
                                         )}
                                       </div>
-                                      {we.notes && (
-                                        <p className="mt-1 text-xs italic text-muted-foreground">
-                                          Note: {we.notes}
-                                        </p>
-                                      )}
-                                    </div>
-                                  )
+                                    )
                                 })}
                               </div>
 
