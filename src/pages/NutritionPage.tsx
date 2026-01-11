@@ -11,6 +11,8 @@ import {
   Trash2,
   X,
   Check,
+  ScanBarcode,
+  Loader2,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,7 +31,9 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useNutritionStore, getTodayDate } from "@/stores/nutritionStore"
 import { useSettingsStore } from "@/stores/settingsStore"
-import { searchFoods } from "@/services/openFoodFacts"
+import { searchFoods, getProductByBarcode } from "@/services/openFoodFacts"
+import { BarcodeScanner } from "@/components/BarcodeScanner"
+import { toast } from "sonner"
 import type { FoodItem, MealType } from "@/lib/types"
 
 const mealTypes: { type: MealType; label: string }[] = [
@@ -47,6 +51,10 @@ export function NutritionPage() {
   const [searchResults, setSearchResults] = useState<FoodItem[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
+  const [isLookingUp, setIsLookingUp] = useState(false)
+  const [scannedBarcode, setScannedBarcode] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState("search")
 
   const {
     foods,
@@ -129,6 +137,35 @@ export function NutritionPage() {
   const openAddSheet = (mealType: MealType) => {
     setSelectedMealType(mealType)
     setShowAddSheet(true)
+    setActiveTab("search")
+    setScannedBarcode(null)
+  }
+
+  const handleBarcodeScan = async (barcode: string) => {
+    setShowScanner(false)
+    setIsLookingUp(true)
+
+    try {
+      const food = await getProductByBarcode(barcode)
+      
+      if (food) {
+        // Product found - add to search results and show it
+        setSearchResults([food])
+        setSearchQuery("")
+        setActiveTab("search")
+        toast.success(`Found: ${food.name}`)
+      } else {
+        // Product not found - switch to My Foods tab and open custom food form with barcode
+        setScannedBarcode(barcode)
+        setActiveTab("myfoods")
+        toast.info("Product not found. Create a custom entry.")
+      }
+    } catch (error) {
+      console.error("Barcode lookup error:", error)
+      toast.error("Failed to look up product")
+    } finally {
+      setIsLookingUp(false)
+    }
   }
 
   const favorites = getFavorites()
@@ -334,7 +371,7 @@ export function NutritionPage() {
             </SheetTitle>
           </SheetHeader>
 
-          <Tabs defaultValue="search" className="mt-4 px-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 px-4">
             <TabsList className="w-full">
               <TabsTrigger value="search" className="flex-1">
                 Search
@@ -348,30 +385,45 @@ export function NutritionPage() {
             </TabsList>
 
             <TabsContent value="search" className="mt-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search foods..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-                {searchQuery && (
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    className="absolute right-2 top-1/2 -translate-y-1/2"
-                    onClick={() => setSearchQuery("")}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search foods..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-9"
+                  />
+                  {searchQuery && (
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      className="absolute right-2 top-1/2 -translate-y-1/2"
+                      onClick={() => setSearchQuery("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowScanner(true)}
+                  disabled={isLookingUp}
+                  title="Scan barcode"
+                >
+                  {isLookingUp ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ScanBarcode className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
 
               <ScrollArea className="mt-4 h-[50vh]">
-                {isSearching ? (
+                {isSearching || isLookingUp ? (
                   <p className="py-8 text-center text-sm text-muted-foreground">
-                    Searching...
+                    {isLookingUp ? "Looking up product..." : "Searching..."}
                   </p>
                 ) : searchResults.length > 0 ? (
                   <div className="space-y-2">
@@ -403,11 +455,15 @@ export function NutritionPage() {
                   <CustomFoodForm
                     onSave={(food) => {
                       addFood(food)
+                      setScannedBarcode(null)
                     }}
                     onSaveAndAdd={(food) => {
                       const newFood = addFood(food)
                       handleAddFood(newFood, 1)
+                      setScannedBarcode(null)
                     }}
+                    initialBarcode={scannedBarcode}
+                    onClearBarcode={() => setScannedBarcode(null)}
                   />
                   
                   {getCustomFoods().length > 0 && (
@@ -454,6 +510,13 @@ export function NutritionPage() {
           </Tabs>
         </SheetContent>
       </Sheet>
+
+      {/* Barcode Scanner */}
+      <BarcodeScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={handleBarcodeScan}
+      />
     </div>
   )
 }
@@ -623,9 +686,13 @@ function FoodListItem({
 function CustomFoodForm({
   onSave,
   onSaveAndAdd,
+  initialBarcode,
+  onClearBarcode,
 }: {
   onSave: (food: Omit<FoodItem, "id" | "isCustom">) => void
   onSaveAndAdd: (food: Omit<FoodItem, "id" | "isCustom">) => void
+  initialBarcode?: string | null
+  onClearBarcode?: () => void
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [name, setName] = useState("")
@@ -636,6 +703,15 @@ function CustomFoodForm({
   const [fiber, setFiber] = useState("")
   const [sugar, setSugar] = useState("")
   const [servingSize, setServingSize] = useState("1 serving")
+  const [barcode, setBarcode] = useState("")
+
+  // Auto-expand when barcode is scanned
+  useEffect(() => {
+    if (initialBarcode) {
+      setIsExpanded(true)
+      setBarcode(initialBarcode)
+    }
+  }, [initialBarcode])
 
   const getFoodData = (): Omit<FoodItem, "id" | "isCustom"> => ({
     name: name.trim(),
@@ -646,6 +722,7 @@ function CustomFoodForm({
     fiber: parseFloat(fiber) || 0,
     sugar: parseFloat(sugar) || 0,
     servingSize,
+    barcode: barcode.trim() || undefined,
   })
 
   const resetForm = () => {
@@ -657,7 +734,9 @@ function CustomFoodForm({
     setFiber("")
     setSugar("")
     setServingSize("1 serving")
+    setBarcode("")
     setIsExpanded(false)
+    onClearBarcode?.()
   }
 
   const handleSave = () => {
@@ -688,15 +767,28 @@ function CustomFoodForm({
   return (
     <div className="space-y-4 rounded-lg border p-4">
       <div className="flex items-center justify-between">
-        <p className="font-medium">Create New Food</p>
+        <p className="font-medium">
+          {initialBarcode ? "Create Food (Scanned)" : "Create New Food"}
+        </p>
         <Button
           size="icon-sm"
           variant="ghost"
-          onClick={() => setIsExpanded(false)}
+          onClick={() => {
+            setIsExpanded(false)
+            onClearBarcode?.()
+          }}
         >
           <X className="h-4 w-4" />
         </Button>
       </div>
+
+      {barcode && (
+        <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
+          <ScanBarcode className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Barcode:</span>
+          <span className="font-mono">{barcode}</span>
+        </div>
+      )}
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Name</label>
