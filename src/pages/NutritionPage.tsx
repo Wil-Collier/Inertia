@@ -141,7 +141,7 @@ export function NutritionPage() {
     setScannedBarcode(null)
   }
 
-  const handleBarcodeScan = async (barcode: string) => {
+  const handleBarcodeScan = useCallback(async (barcode: string) => {
     setShowScanner(false)
     setIsLookingUp(true)
 
@@ -166,7 +166,7 @@ export function NutritionPage() {
     } finally {
       setIsLookingUp(false)
     }
-  }
+  }, [])
 
   const favorites = getFavorites()
 

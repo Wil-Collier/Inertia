@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { Html5Qrcode } from "html5-qrcode"
 import { X, Camera, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,23 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
   const [isStarting, setIsStarting] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const onScanRef = useRef(onScan)
+
+  // Keep the callback ref updated without causing re-renders
+  useEffect(() => {
+    onScanRef.current = onScan
+  }, [onScan])
+
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop()
+      } catch {
+        // Ignore errors when stopping (may already be stopped)
+      }
+      scannerRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
@@ -24,6 +41,11 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
     const startScanner = async () => {
       setIsStarting(true)
       setError(null)
+
+      // Small delay to ensure DOM is ready
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      if (!mounted) return
 
       try {
         const scanner = new Html5Qrcode(scannerId)
@@ -57,11 +79,17 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
         await scanner.start(
           { facingMode: "environment" },
           config,
-          (decodedText) => {
-            if (mounted) {
+          async (decodedText) => {
+            if (mounted && scannerRef.current) {
               // Stop scanner before calling onScan to prevent multiple scans
-              scanner.stop().catch(console.error)
-              onScan(decodedText)
+              try {
+                await scanner.stop()
+              } catch {
+                // Ignore
+              }
+              scannerRef.current = null
+              // Use ref to avoid stale closure
+              onScanRef.current(decodedText)
             }
           },
           () => {
@@ -98,27 +126,19 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
 
     return () => {
       mounted = false
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {
-          // Ignore errors when stopping (may already be stopped)
-        })
-        scannerRef.current = null
-      }
+      stopScanner()
     }
-  }, [isOpen, onScan])
+  }, [isOpen, stopScanner])
 
-  const handleClose = () => {
-    if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {})
-      scannerRef.current = null
-    }
+  const handleClose = async () => {
+    await stopScanner()
     onClose()
   }
 
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+    <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 text-white">
         <h2 className="text-lg font-semibold">Scan Barcode</h2>
