@@ -58,6 +58,8 @@ export function NutritionPage() {
     removeMealEntry,
     toggleFavorite,
     getFavorites,
+    getCustomFoods,
+    deleteFood,
     searchFoods: searchLocalFoods,
   } = useNutritionStore()
 
@@ -337,11 +339,11 @@ export function NutritionPage() {
               <TabsTrigger value="search" className="flex-1">
                 Search
               </TabsTrigger>
+              <TabsTrigger value="myfoods" className="flex-1">
+                My Foods
+              </TabsTrigger>
               <TabsTrigger value="favorites" className="flex-1">
                 Favorites
-              </TabsTrigger>
-              <TabsTrigger value="custom" className="flex-1">
-                Custom
               </TabsTrigger>
             </TabsList>
 
@@ -395,6 +397,39 @@ export function NutritionPage() {
               </ScrollArea>
             </TabsContent>
 
+            <TabsContent value="myfoods" className="mt-4">
+              <ScrollArea className="h-[55vh]">
+                <div className="space-y-3">
+                  <CustomFoodForm
+                    onSave={(food) => {
+                      addFood(food)
+                    }}
+                    onSaveAndAdd={(food) => {
+                      const newFood = addFood(food)
+                      handleAddFood(newFood, 1)
+                    }}
+                  />
+                  
+                  {getCustomFoods().length > 0 && (
+                    <div className="space-y-2 pt-2">
+                      <p className="text-sm font-medium text-muted-foreground">Saved Foods</p>
+                      {getCustomFoods().map((food) => (
+                        <FoodListItem
+                          key={food.id}
+                          food={food}
+                          onAdd={(qty) => handleAddFood(food, qty)}
+                          onToggleFavorite={() => toggleFavorite(food.id)}
+                          isFavorite={food.isFavorite}
+                          onDelete={() => deleteFood(food.id)}
+                          showDelete
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
             <TabsContent value="favorites" className="mt-4">
               <ScrollArea className="h-[55vh]">
                 {favorites.length > 0 ? (
@@ -415,15 +450,6 @@ export function NutritionPage() {
                   </p>
                 )}
               </ScrollArea>
-            </TabsContent>
-
-            <TabsContent value="custom" className="mt-4">
-              <CustomFoodForm
-                onAdd={(food) => {
-                  const newFood = addFood(food)
-                  handleAddFood(newFood, 1)
-                }}
-              />
             </TabsContent>
           </Tabs>
         </SheetContent>
@@ -463,11 +489,15 @@ function FoodListItem({
   onAdd,
   onToggleFavorite,
   isFavorite,
+  onDelete,
+  showDelete,
 }: {
   food: FoodItem
   onAdd: (quantity: number) => void
   onToggleFavorite: () => void
   isFavorite?: boolean
+  onDelete?: () => void
+  showDelete?: boolean
 }) {
   const [quantity, setQuantity] = useState(1)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -532,6 +562,18 @@ function FoodListItem({
             className={`h-4 w-4 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`}
           />
         </Button>
+        {showDelete && onDelete && (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        )}
       </div>
 
       {isExpanded && (
@@ -579,10 +621,13 @@ function FoodListItem({
 }
 
 function CustomFoodForm({
-  onAdd,
+  onSave,
+  onSaveAndAdd,
 }: {
-  onAdd: (food: Omit<FoodItem, "id" | "isCustom">) => void
+  onSave: (food: Omit<FoodItem, "id" | "isCustom">) => void
+  onSaveAndAdd: (food: Omit<FoodItem, "id" | "isCustom">) => void
 }) {
+  const [isExpanded, setIsExpanded] = useState(false)
   const [name, setName] = useState("")
   const [calories, setCalories] = useState("")
   const [protein, setProtein] = useState("")
@@ -592,31 +637,73 @@ function CustomFoodForm({
   const [sugar, setSugar] = useState("")
   const [servingSize, setServingSize] = useState("1 serving")
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!name.trim()) return
+  const getFoodData = (): Omit<FoodItem, "id" | "isCustom"> => ({
+    name: name.trim(),
+    calories: parseFloat(calories) || 0,
+    protein: parseFloat(protein) || 0,
+    carbs: parseFloat(carbs) || 0,
+    fat: parseFloat(fat) || 0,
+    fiber: parseFloat(fiber) || 0,
+    sugar: parseFloat(sugar) || 0,
+    servingSize,
+  })
 
-    onAdd({
-      name: name.trim(),
-      calories: parseFloat(calories) || 0,
-      protein: parseFloat(protein) || 0,
-      carbs: parseFloat(carbs) || 0,
-      fat: parseFloat(fat) || 0,
-      fiber: parseFloat(fiber) || 0,
-      sugar: parseFloat(sugar) || 0,
-      servingSize,
-    })
+  const resetForm = () => {
+    setName("")
+    setCalories("")
+    setProtein("")
+    setCarbs("")
+    setFat("")
+    setFiber("")
+    setSugar("")
+    setServingSize("1 serving")
+    setIsExpanded(false)
+  }
+
+  const handleSave = () => {
+    if (!name.trim()) return
+    onSave(getFoodData())
+    resetForm()
+  }
+
+  const handleSaveAndAdd = () => {
+    if (!name.trim()) return
+    onSaveAndAdd(getFoodData())
+    resetForm()
+  }
+
+  if (!isExpanded) {
+    return (
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={() => setIsExpanded(true)}
+      >
+        <Plus className="mr-2 h-4 w-4" />
+        Create New Food
+      </Button>
+    )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4 rounded-lg border p-4">
+      <div className="flex items-center justify-between">
+        <p className="font-medium">Create New Food</p>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          onClick={() => setIsExpanded(false)}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
       <div className="space-y-2">
         <label className="text-sm font-medium">Name</label>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Food name"
-          required
         />
       </div>
 
@@ -691,9 +778,25 @@ function CustomFoodForm({
         </div>
       </div>
 
-      <Button type="submit" className="w-full" disabled={!name.trim()}>
-        Add Food
-      </Button>
-    </form>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="flex-1"
+          disabled={!name.trim()}
+          onClick={handleSave}
+        >
+          Save Only
+        </Button>
+        <Button
+          type="button"
+          className="flex-1"
+          disabled={!name.trim()}
+          onClick={handleSaveAndAdd}
+        >
+          Save & Add
+        </Button>
+      </div>
+    </div>
   )
 }

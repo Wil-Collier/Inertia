@@ -22,6 +22,7 @@ interface NutritionStore {
   toggleFavorite: (id: string) => void
   getFood: (id: string) => FoodItem | undefined
   getFavorites: () => FoodItem[]
+  getCustomFoods: () => FoodItem[]
   searchFoods: (query: string) => FoodItem[]
 
   // Meal Entry Actions
@@ -109,6 +110,10 @@ export const useNutritionStore = create<NutritionStore>()(
 
       getFavorites: () => {
         return get().foods.filter((f) => f.isFavorite)
+      },
+
+      getCustomFoods: () => {
+        return get().foods.filter((f) => f.isCustom)
       },
 
       searchFoods: (query) => {

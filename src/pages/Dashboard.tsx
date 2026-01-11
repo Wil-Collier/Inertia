@@ -29,7 +29,7 @@ export function Dashboard() {
 
         {/* Active Workout Banner */}
         {activeSession && (
-          <Link to="/workout/active">
+          <Link to="/workout/active" className="block">
             <Card className="border-primary bg-primary/5">
               <CardContent className="flex items-center gap-3 py-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
