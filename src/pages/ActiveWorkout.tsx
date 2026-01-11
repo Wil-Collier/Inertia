@@ -10,6 +10,7 @@ import {
   ChevronUp,
   Play,
   Pause,
+  TrendingUp,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,6 +31,7 @@ import { useRestTimer } from "@/hooks/useRestTimer"
 import { useCountdownTimer } from "@/hooks/useCountdownTimer"
 import { playDingSound } from "@/lib/audio"
 import { cn } from "@/lib/utils"
+import { format, parseISO } from "date-fns"
 
 export function ActiveWorkout() {
   const navigate = useNavigate()
@@ -44,6 +46,7 @@ export function ActiveWorkout() {
     removeSet,
     toggleSetComplete,
     createTemplate,
+    bumpExerciseWeight,
   } = useWorkoutStore()
 
   const { getExercise } = useExerciseStore()
@@ -220,6 +223,8 @@ export function ActiveWorkout() {
         {workout.exercises.map((workoutExercise) => {
           const exercise = getExercise(workoutExercise.exerciseId)
           const isExpanded = expandedExercises.has(workoutExercise.id)
+          const hasLastPerformance = !!workoutExercise.lastPerformanceDate
+          const isWeightedExercise = exercise?.isWeighted && !exercise?.isTimeBased
 
           return (
             <Card key={workoutExercise.id}>
@@ -228,10 +233,32 @@ export function ActiveWorkout() {
                 onClick={() => toggleExpanded(workoutExercise.id)}
               >
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">
-                    {exercise?.name || "Unknown Exercise"}
-                  </CardTitle>
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-base">
+                      {exercise?.name || "Unknown Exercise"}
+                    </CardTitle>
+                    {hasLastPerformance && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Last: {format(parseISO(workoutExercise.lastPerformanceDate!), "MMM d")}
+                      </p>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
+                    {/* +5 lbs button for weighted exercises with history */}
+                    {hasLastPerformance && isWeightedExercise && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs font-medium"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          bumpExerciseWeight(workoutExercise.id, 5)
+                        }}
+                      >
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        +5
+                      </Button>
+                    )}
                     <span className="text-sm text-muted-foreground">
                       {workoutExercise.sets.filter((s) => s.completed).length}/
                       {workoutExercise.sets.length}
@@ -394,7 +421,7 @@ export function ActiveWorkout() {
                               <Check className="h-3 w-3" />
                             </Button>
                           )}
-                          {!set.completed && !isActiveCountdown && workoutExercise.sets.length > 1 && (
+                          {!set.completed && !isActiveCountdown && workoutExercise.sets.length > 1 ? (
                             <Button
                               size="icon-sm"
                               variant="ghost"
@@ -404,6 +431,11 @@ export function ActiveWorkout() {
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
+                          ) : (
+                            /* Invisible placeholder to maintain layout */
+                            workoutExercise.sets.length > 1 && (
+                              <div className="w-7 h-7" />
+                            )
                           )}
                         </div>
                       </div>

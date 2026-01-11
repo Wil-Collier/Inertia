@@ -7,6 +7,7 @@ import type {
   WorkoutSet,
   ActiveWorkoutSession,
   PersonalRecord,
+  LastPerformance,
 } from "@/lib/types"
 import { defaultTemplates } from "@/data/defaultTemplates"
 import { v4 as uuidv4 } from "uuid"
@@ -34,6 +35,7 @@ interface WorkoutStore {
   removeSet: (workoutExerciseId: string, setId: string) => void
   toggleSetComplete: (workoutExerciseId: string, setId: string) => void
   updateExerciseNotes: (workoutExerciseId: string, notes: string) => void
+  bumpExerciseWeight: (workoutExerciseId: string, increment: number) => void
 
   // Template Actions
   createTemplate: (name: string, workout?: Workout) => WorkoutTemplate
@@ -51,6 +53,9 @@ interface WorkoutStore {
   // Personal Records
   getPersonalRecord: (exerciseId: string) => PersonalRecord | undefined
   calculateOneRepMax: (weight: number, reps: number) => number
+
+  // Progressive Overload
+  getLastPerformance: (exerciseId: string) => LastPerformance | null
 }
 
 export const useWorkoutStore = create<WorkoutStore>()(
@@ -67,16 +72,41 @@ export const useWorkoutStore = create<WorkoutStore>()(
           : undefined
 
         const exercises: WorkoutExercise[] = template
-          ? template.exercises.map((te) => ({
-              id: uuidv4(),
-              exerciseId: te.exerciseId,
-              sets: Array.from({ length: te.targetSets }, () => ({
+          ? template.exercises.map((te) => {
+              // Check for last performance to enable progressive overload
+              const lastPerformance = get().getLastPerformance(te.exerciseId)
+
+              if (lastPerformance && lastPerformance.sets.length > 0) {
+                // Use last performance data, but match template set count
+                const targetSetCount = te.targetSets
+                const lastSets = lastPerformance.sets
+
+                return {
+                  id: uuidv4(),
+                  exerciseId: te.exerciseId,
+                  lastPerformanceDate: lastPerformance.date,
+                  sets: Array.from({ length: targetSetCount }, (_, i) => ({
+                    id: uuidv4(),
+                    // Use corresponding set from history, or last set if fewer sets in history
+                    reps: lastSets[Math.min(i, lastSets.length - 1)]?.reps ?? te.targetReps ?? 0,
+                    weight: lastSets[Math.min(i, lastSets.length - 1)]?.weight ?? te.targetWeight ?? 0,
+                    completed: false,
+                  })),
+                }
+              }
+
+              // No history - use template defaults
+              return {
                 id: uuidv4(),
-                reps: te.targetReps ?? 0,
-                weight: te.targetWeight ?? 0,
-                completed: false,
-              })),
-            }))
+                exerciseId: te.exerciseId,
+                sets: Array.from({ length: te.targetSets }, () => ({
+                  id: uuidv4(),
+                  reps: te.targetReps ?? 0,
+                  weight: te.targetWeight ?? 0,
+                  completed: false,
+                })),
+              }
+            })
           : []
 
         const workout: Workout = {
@@ -147,20 +177,40 @@ export const useWorkoutStore = create<WorkoutStore>()(
       },
 
       addExerciseToWorkout: (exerciseId) => {
+        const lastPerformance = get().getLastPerformance(exerciseId)
+
         set((state) => {
           if (!state.activeSession) return state
 
-          const newExercise: WorkoutExercise = {
-            id: uuidv4(),
-            exerciseId,
-            sets: [
-              {
+          let newExercise: WorkoutExercise
+
+          if (lastPerformance && lastPerformance.sets.length > 0) {
+            // Pre-fill with last performance data
+            newExercise = {
+              id: uuidv4(),
+              exerciseId,
+              lastPerformanceDate: lastPerformance.date,
+              sets: lastPerformance.sets.map((s) => ({
                 id: uuidv4(),
-                reps: 0,
-                weight: 0,
+                reps: s.reps,
+                weight: s.weight,
                 completed: false,
-              },
-            ],
+              })),
+            }
+          } else {
+            // No history - create single empty set
+            newExercise = {
+              id: uuidv4(),
+              exerciseId,
+              sets: [
+                {
+                  id: uuidv4(),
+                  reps: 0,
+                  weight: 0,
+                  completed: false,
+                },
+              ],
+            }
           }
 
           return {
@@ -315,6 +365,33 @@ export const useWorkoutStore = create<WorkoutStore>()(
         })
       },
 
+      bumpExerciseWeight: (workoutExerciseId, increment) => {
+        set((state) => {
+          if (!state.activeSession) return state
+
+          return {
+            activeSession: {
+              ...state.activeSession,
+              workout: {
+                ...state.activeSession.workout,
+                exercises: state.activeSession.workout.exercises.map((e) =>
+                  e.id === workoutExerciseId
+                    ? {
+                        ...e,
+                        sets: e.sets.map((s) =>
+                          s.completed
+                            ? s // Don't modify completed sets
+                            : { ...s, weight: s.weight + increment }
+                        ),
+                      }
+                    : e
+                ),
+              },
+            },
+          }
+        })
+      },
+
       createTemplate: (name, workout) => {
         const template: WorkoutTemplate = {
           id: uuidv4(),
@@ -374,6 +451,44 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (reps === 1) return weight
         if (reps > 12) return weight * (1 + reps / 30) // simplified for high reps
         return weight * (36 / (37 - reps))
+      },
+
+      // Get the last performance for an exercise (for progressive overload)
+      getLastPerformance: (exerciseId) => {
+        const workouts = get().workouts
+        // Sort by date descending (newest first)
+        const sortedWorkouts = [...workouts].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+
+        for (const workout of sortedWorkouts) {
+          const workoutExercise = workout.exercises.find(
+            (e) => e.exerciseId === exerciseId
+          )
+          if (workoutExercise) {
+            // Get completed sets with meaningful data
+            const completedSets = workoutExercise.sets
+              .filter((s) => s.completed)
+              .map((s) => ({ weight: s.weight, reps: s.reps }))
+
+            // If no completed sets, use all sets that have data
+            const setsWithData =
+              completedSets.length > 0
+                ? completedSets
+                : workoutExercise.sets
+                    .filter((s) => s.weight > 0 || s.reps > 0)
+                    .map((s) => ({ weight: s.weight, reps: s.reps }))
+
+            if (setsWithData.length > 0) {
+              return {
+                sets: setsWithData,
+                date: workout.date,
+                workoutId: workout.id,
+              }
+            }
+          }
+        }
+        return null
       },
     }),
     {

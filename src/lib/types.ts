@@ -30,6 +30,14 @@ export interface WorkoutExercise {
   exerciseId: string
   sets: WorkoutSet[]
   notes?: string
+  lastPerformanceDate?: string // ISO date of last workout with this exercise
+}
+
+// Progressive overload - last performance data
+export interface LastPerformance {
+  sets: { weight: number; reps: number }[]
+  date: string // ISO date string
+  workoutId: string
 }
 
 export interface Workout {

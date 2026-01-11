@@ -123,7 +123,7 @@ export function WorkoutPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {templates.map((template) => (
                 <Card
                   key={template.id}
@@ -155,7 +155,7 @@ export function WorkoutPage() {
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">
               Recent Activity
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {recentDates.map((date) => {
                 const dateWorkouts = workouts.filter((w) => w.date === date)
                 return dateWorkouts.map((workout) => (

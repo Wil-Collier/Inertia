@@ -2,7 +2,6 @@ import type { FoodItem } from "@/lib/types"
 import { v4 as uuidv4 } from "uuid"
 
 const API_BASE = "https://world.openfoodfacts.org"
-const USER_AGENT = "TrainingApp/1.0 (training-app-pwa)"
 
 interface OpenFoodFactsProduct {
   code: string
@@ -107,11 +106,7 @@ export async function searchFoods(
   })
 
   try {
-    const response = await fetch(`${API_BASE}/cgi/search.pl?${params}`, {
-      headers: {
-        "User-Agent": USER_AGENT,
-      },
-    })
+    const response = await fetch(`${API_BASE}/cgi/search.pl?${params}`)
 
     if (!response.ok) {
       throw new Error(`Search failed: ${response.status}`)
@@ -140,12 +135,7 @@ export async function getProductByBarcode(
 
   try {
     const response = await fetch(
-      `${API_BASE}/api/v2/product/${barcode}.json?fields=code,product_name,brands,nutriments,serving_size,serving_quantity`,
-      {
-        headers: {
-          "User-Agent": USER_AGENT,
-        },
-      }
+      `${API_BASE}/api/v2/product/${barcode}.json?fields=code,product_name,brands,nutriments,serving_size,serving_quantity`
     )
 
     if (!response.ok) {
