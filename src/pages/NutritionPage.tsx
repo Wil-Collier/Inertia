@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { format, addDays, subDays, parseISO } from "date-fns"
 import {
+  CalendarIcon,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -24,6 +25,8 @@ import {
 } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useNutritionStore, getTodayDate } from "@/stores/nutritionStore"
 import { useSettingsStore } from "@/stores/settingsStore"
 import { searchFoods } from "@/services/openFoodFacts"
@@ -43,6 +46,7 @@ export function NutritionPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<FoodItem[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
 
   const {
     foods,
@@ -142,7 +146,39 @@ export function NutritionPage() {
           <Button variant="ghost" size="icon" onClick={handlePrevDay}>
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <span className="font-medium">{displayDate}</span>
+          <div className="flex flex-col items-center gap-1">
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger
+                className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
+              >
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{displayDate}</span>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center">
+                <Calendar
+                  mode="single"
+                  selected={parseISO(selectedDate)}
+                  onSelect={(date) => {
+                    if (date) {
+                      setSelectedDate(format(date, "yyyy-MM-dd"))
+                      setCalendarOpen(false)
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            {!isToday && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs text-muted-foreground"
+                onClick={() => setSelectedDate(getTodayDate())}
+              >
+                Go to today
+              </Button>
+            )}
+          </div>
           <Button variant="ghost" size="icon" onClick={handleNextDay}>
             <ChevronRight className="h-5 w-5" />
           </Button>

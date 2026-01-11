@@ -1,3 +1,13 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+dist-ssr
+build
+*.local
+
 # Logs
 logs
 *.log
@@ -7,18 +17,50 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+coverage
+.nyc_output
+
+# Cloudflare
+.wrangler
+.dev.vars
+
+# PWA / Service Worker
+dev-dist
+sw.js
+workbox-*.js
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+*.DS_Store
+
+# Debug
+.eslintcache
+*.cpuprofile
+
+# Temporary files
+*.tmp
+*.temp
+.cache

@@ -1,0 +1,15 @@
+{
+    "rules": {
+        "react/react-in-jsx-scope": "off",
+        "import/no-unassigned-import": "off",
+        "import/no-named-as-default": "off",
+        "unicorn/no-array-sort": "off",
+        "unicorn/no-array-reverse": "off",
+        "react-perf/jsx-no-new-object-as-prop": "off",
+        "react-perf/jsx-no-new-function-as-prop": "off",
+        "react-perf/jsx-no-jsx-as-prop": "off",
+        "react-perf/jsx-no-new-array-as-prop": "off",
+        "typescript/no-floating-promises": "off",
+        "typescript/no-unsafe-type-assertion": "off"
+    }
+}

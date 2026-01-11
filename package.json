@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "oxlint -c oxlintrc.json -D correctness -D suspicious -D perf -A no-floating-promises -A no-unsafe-type-assertion -A react-in-jsx-scope -A no-unassigned-import -A no-named-as-default -A no-array-sort -A no-array-reverse -A no-map-spread -A consistent-function-scoping -A no-array-index-key -A prefer-set-has --react-plugin --promise-plugin --node-plugin --vitest-plugin --import-plugin --type-check --type-aware",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -42,6 +42,8 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "oxlint": "^1.38.0",
+    "oxlint-tsgolint": "^0.11.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4"
