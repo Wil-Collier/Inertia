@@ -1,11 +1,70 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#ea580c" rx="64"/>
-  <g fill="#ffffff">
-    <!-- Dumbbell icon scaled -->
-    <rect x="106" y="224" width="64" height="64" rx="10"/>
-    <rect x="342" y="224" width="64" height="64" rx="10"/>
-    <rect x="170" y="240" width="172" height="32" rx="6"/>
-    <rect x="85" y="202" width="21" height="108" rx="6"/>
-    <rect x="406" y="202" width="21" height="108" rx="6"/>
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#2a2a2e"/>
+      <stop offset="100%" stop-color="#050505"/>
+    </radialGradient>
+    
+    <!-- Metallic Gradient for weights -->
+    <linearGradient id="metal-orange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c2410c"/>
+      <stop offset="50%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+
+    <!-- Shine for handle -->
+    <linearGradient id="handle-shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#666"/>
+      <stop offset="50%" stop-color="#eee"/>
+      <stop offset="100%" stop-color="#666"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded Background -->
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  
+  <!-- Main Content Group: Angled -->
+  <g transform="translate(256, 256) rotate(-45) translate(-256, -256)">
+    
+    <!-- Bar/Handle -->
+    <rect x="180" y="244" width="152" height="24" rx="12" fill="url(#handle-shine)"/>
+    
+    <!-- Knurling pattern on handle (small dots) -->
+    <pattern id="knurling" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="0.8" fill="#333" opacity="0.5"/>
+    </pattern>
+    <rect x="200" y="244" width="112" height="24" rx="12" fill="url(#knurling)"/>
+
+    <!-- Left Weights Group -->
+    <g transform="translate(180, 256)">
+      <!-- Collar -->
+      <rect x="-10" y="-18" width="12" height="36" rx="4" fill="#888"/>
+      <!-- Large Plate -->
+      <rect x="-42" y="-64" width="28" height="128" rx="8" fill="url(#metal-orange)"/>
+      <!-- Medium Plate -->
+      <rect x="-78" y="-52" width="28" height="104" rx="8" fill="#ea580c"/>
+      <!-- Small Outer Plate -->
+      <rect x="-106" y="-36" width="20" height="72" rx="6" fill="#c2410c"/>
+      <!-- End Cap -->
+      <path d="M-114 -10 L-106 -10 L-106 10 L-114 10" fill="#444"/>
+    </g>
+
+    <!-- Right Weights Group -->
+    <g transform="translate(332, 256)">
+      <!-- Collar -->
+      <rect x="-2" y="-18" width="12" height="36" rx="4" fill="#888"/>
+      <!-- Large Plate -->
+      <rect x="14" y="-64" width="28" height="128" rx="8" fill="url(#metal-orange)"/>
+      <!-- Medium Plate -->
+      <rect x="50" y="-52" width="28" height="104" rx="8" fill="#ea580c"/>
+      <!-- Small Outer Plate -->
+      <rect x="86" y="-36" width="20" height="72" rx="6" fill="#c2410c"/>
+        <!-- End Cap -->
+      <path d="M114 -10 L106 -10 L106 10 L114 10" fill="#444"/>
+    </g>
   </g>
+
+  <!-- Finishing touches: subtle light ray -->
+  <rect x="250" y="0" width="12" height="512" fill="#fff" opacity="0.01" transform="rotate(30, 256, 256)"/>
 </svg>
