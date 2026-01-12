@@ -138,3 +138,18 @@ export interface WeightEntry {
   weight: number
   note?: string
 }
+
+// Achievements & Streaks
+export interface UnlockedAchievement {
+  id: string
+  unlockedAt: string // ISO date string
+}
+
+export interface StreakData {
+  currentWorkoutStreak: number
+  longestWorkoutStreak: number
+  lastWorkoutDate: string | null
+  currentNutritionStreak: number
+  longestNutritionStreak: number
+  lastNutritionDate: string | null
+}

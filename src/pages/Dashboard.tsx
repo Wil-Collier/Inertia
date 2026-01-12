@@ -4,6 +4,7 @@ import { Dumbbell, Utensils, Clock, Flame, Target } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { StreakBadge } from "@/components/StreakDisplay"
 import { useWorkoutStore } from "@/stores/workoutStore"
 import { useNutritionStore, getTodayDate } from "@/stores/nutritionStore"
 import { useSettingsStore } from "@/stores/settingsStore"
@@ -24,8 +25,11 @@ export function Dashboard() {
       <Header title="Dashboard" />
 
       <div className="space-y-4 p-4">
-        {/* Date display */}
-        <p className="text-sm text-muted-foreground">{todayFormatted}</p>
+        {/* Date display with streak */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">{todayFormatted}</p>
+          <StreakBadge />
+        </div>
 
         {/* Active Workout Banner */}
         {activeSession && (

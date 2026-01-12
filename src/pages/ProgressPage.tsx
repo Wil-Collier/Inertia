@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { format, subDays, startOfWeek, eachDayOfInterval, parseISO } from "date-fns"
-import { Trophy, TrendingUp, Dumbbell, Calendar, Scale, Trash2, TrendingDown, Minus } from "lucide-react"
+import { Trophy, TrendingUp, Dumbbell, Calendar, Scale, Trash2, TrendingDown, Minus, Activity, Award } from "lucide-react"
 import {
   LineChart,
   Line,
@@ -9,15 +9,26 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from "recharts"
+import type { MuscleGroup } from "@/lib/types"
+import { muscleGroupLabels } from "@/data/defaultExercises"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { StreakDisplay } from "@/components/StreakDisplay"
+import { AchievementCard } from "@/components/AchievementCard"
 import { useWorkoutStore } from "@/stores/workoutStore"
 import { useExerciseStore } from "@/stores/exerciseStore"
 import { useBodyWeightStore, getTodayDate } from "@/stores/bodyWeightStore"
+import { useAchievementsStore } from "@/stores/achievementsStore"
+import { achievements, categoryLabels } from "@/data/achievements"
 import { toast } from "sonner"
 
 export function ProgressPage() {
@@ -154,14 +165,14 @@ export function ProgressPage() {
             <TabsTrigger value="volume" className="flex-1">
               Volume
             </TabsTrigger>
-            <TabsTrigger value="exercises" className="flex-1">
-              Exercises
+            <TabsTrigger value="training" className="flex-1">
+              Training
             </TabsTrigger>
             <TabsTrigger value="body" className="flex-1">
               Body
             </TabsTrigger>
-            <TabsTrigger value="prs" className="flex-1">
-              PRs
+            <TabsTrigger value="awards" className="flex-1">
+              Awards
             </TabsTrigger>
           </TabsList>
 
@@ -211,17 +222,25 @@ export function ProgressPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="exercises" className="mt-4 space-y-4">
-            <ExerciseProgressTab
-              exercises={exercises}
-              selectedExerciseId={selectedExerciseId}
-              setSelectedExerciseId={setSelectedExerciseId}
-              getExerciseHistory={getExerciseHistory}
-              getExercise={getExercise}
-            />
+          <TabsContent value="training" className="mt-4 space-y-4">
+            {/* Muscle Balance Section */}
+            <MuscleBalanceTab workouts={workouts} getExercise={getExercise} />
+            
+            {/* Exercise Progress Section */}
+            <div className="pt-2">
+              <h3 className="mb-3 text-sm font-medium text-muted-foreground">Exercise Progress</h3>
+              <ExerciseProgressTab
+                exercises={exercises}
+                selectedExerciseId={selectedExerciseId}
+                setSelectedExerciseId={setSelectedExerciseId}
+                getExerciseHistory={getExerciseHistory}
+                getExercise={getExercise}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="body" className="mt-4 space-y-4">
+            {/* Body Weight Section */}
             <BodyWeightTab
               newWeight={newWeight}
               setNewWeight={setNewWeight}
@@ -232,41 +251,53 @@ export function ProgressPage() {
               preferredUnit={preferredUnit}
               weightEntries={weightEntries}
             />
-          </TabsContent>
 
-          <TabsContent value="prs" className="mt-4 space-y-3">
-            {sortedPRs.length > 0 ? (
-              sortedPRs.map((pr) => (
-                <Card key={pr.exerciseId}>
-                  <CardContent className="flex items-center gap-4 py-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500">
-                      <Trophy className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{pr.exercise?.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {pr.weight} lbs x {pr.reps} reps
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-primary">
-                        {Math.round(pr.oneRepMax)} lbs
-                      </p>
-                      <p className="text-xs text-muted-foreground">Est. 1RM</p>
-                    </div>
+            {/* Personal Records Section */}
+            <div className="pt-2">
+              <h3 className="mb-3 text-sm font-medium text-muted-foreground">Personal Records</h3>
+              {sortedPRs.length > 0 ? (
+                <div className="space-y-2">
+                  {sortedPRs.map((pr) => (
+                    <Card key={pr.exerciseId}>
+                      <CardContent className="flex items-center gap-4 py-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500">
+                          <Trophy className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium">{pr.exercise?.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {pr.weight} lbs x {pr.reps} reps
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-primary">
+                            {Math.round(pr.oneRepMax)} lbs
+                          </p>
+                          <p className="text-xs text-muted-foreground">Est. 1RM</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-8 text-center">
+                    <Trophy className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Complete some workouts to track your PRs!
+                    </p>
                   </CardContent>
                 </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <Trophy className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Complete some workouts to track your PRs!
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="awards" className="mt-4 space-y-4">
+            <AchievementsTab
+              totalWorkouts={stats.totalWorkouts}
+              totalVolume={stats.totalVolume}
+              prCount={stats.prsCount}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -655,6 +686,292 @@ function ExerciseProgressTab({
           </Card>
         </>
       )}
+    </>
+  )
+}
+
+// Muscle group balance data for radar chart
+const MUSCLE_GROUPS: MuscleGroup[] = ["chest", "back", "shoulders", "arms", "legs", "core"]
+
+function MuscleBalanceTab({
+  workouts,
+  getExercise,
+}: {
+  workouts: Array<{
+    id: string
+    date: string
+    exercises: Array<{
+      exerciseId: string
+      sets: Array<{ completed: boolean; weight: number; reps: number }>
+    }>
+  }>
+  getExercise: (id: string) => { muscleGroup: MuscleGroup } | undefined
+}) {
+  const [timeRange, setTimeRange] = useState<7 | 30 | 90>(30)
+
+  // Calculate sets per muscle group
+  const muscleData = useMemo(() => {
+    const cutoff = subDays(new Date(), timeRange)
+    const cutoffStr = format(cutoff, "yyyy-MM-dd")
+
+    const recentWorkouts = workouts.filter((w) => w.date >= cutoffStr)
+
+    const volumeByGroup: Record<MuscleGroup, number> = {
+      chest: 0,
+      back: 0,
+      shoulders: 0,
+      arms: 0,
+      legs: 0,
+      core: 0,
+      cardio: 0,
+    }
+
+    recentWorkouts.forEach((workout) => {
+      workout.exercises.forEach((ex) => {
+        const exercise = getExercise(ex.exerciseId)
+        if (exercise) {
+          const completedSets = ex.sets.filter((s) => s.completed).length
+          volumeByGroup[exercise.muscleGroup] += completedSets
+        }
+      })
+    })
+
+    // Get max for scaling
+    const maxSets = Math.max(...MUSCLE_GROUPS.map((mg) => volumeByGroup[mg]), 1)
+
+    return MUSCLE_GROUPS.map((mg) => ({
+      muscle: muscleGroupLabels[mg],
+      muscleGroup: mg,
+      sets: volumeByGroup[mg],
+      fullMark: maxSets,
+    }))
+  }, [workouts, getExercise, timeRange])
+
+  const totalSets = muscleData.reduce((sum, d) => sum + d.sets, 0)
+  const hasData = totalSets > 0
+
+  // Find undertrained muscle groups (less than 50% of average)
+  const avgSets = totalSets / MUSCLE_GROUPS.length
+  const undertrainedGroups = muscleData.filter((d) => d.sets < avgSets * 0.5 && avgSets > 0)
+
+  return (
+    <>
+      {/* Time Range Selector */}
+      <div className="flex gap-2">
+        {([7, 30, 90] as const).map((days) => (
+          <Button
+            key={days}
+            size="sm"
+            variant={timeRange === days ? "default" : "outline"}
+            onClick={() => setTimeRange(days)}
+            className="flex-1"
+          >
+            {days}d
+          </Button>
+        ))}
+      </div>
+
+      {/* Radar Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Activity className="h-4 w-4" />
+            Muscle Group Balance
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {hasData ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <RadarChart data={muscleData} cx="50%" cy="50%" outerRadius="70%">
+                <PolarGrid className="stroke-muted" />
+                <PolarAngleAxis
+                  dataKey="muscle"
+                  tick={{ fontSize: 12 }}
+                  className="text-muted-foreground"
+                />
+                <PolarRadiusAxis
+                  angle={90}
+                  domain={[0, "dataMax"]}
+                  tick={{ fontSize: 10 }}
+                  className="text-muted-foreground"
+                />
+                <Radar
+                  name="Sets"
+                  dataKey="sets"
+                  stroke="hsl(var(--primary))"
+                  fill="hsl(var(--primary))"
+                  fillOpacity={0.5}
+                  strokeWidth={2}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-[280px] items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <Activity className="mx-auto mb-2 h-8 w-8" />
+                <p>Complete some workouts to see your balance!</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Breakdown Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Sets per Muscle Group</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {muscleData.map((item) => {
+              const percentage = totalSets > 0 ? (item.sets / totalSets) * 100 : 0
+              const isUndertrained = undertrainedGroups.some((u) => u.muscleGroup === item.muscleGroup)
+
+              return (
+                <div key={item.muscleGroup} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className={isUndertrained ? "text-orange-500" : ""}>
+                      {item.muscle}
+                      {isUndertrained && " (Low)"}
+                    </span>
+                    <span className="font-medium">
+                      {item.sets} sets ({percentage.toFixed(0)}%)
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        isUndertrained ? "bg-orange-500" : "bg-primary"
+                      }`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {undertrainedGroups.length > 0 && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Consider adding more{" "}
+              {undertrainedGroups.map((g) => g.muscle.toLowerCase()).join(", ")} exercises to
+              balance your training.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </>
+  )
+}
+
+function AchievementsTab({
+  totalWorkouts,
+  totalVolume,
+  prCount,
+}: {
+  totalWorkouts: number
+  totalVolume: number
+  prCount: number
+}) {
+  const { unlockedAchievements, getUnlockedAchievement } = useAchievementsStore()
+  const [showLocked, setShowLocked] = useState(true)
+
+  // Group achievements by category
+  const groupedAchievements = useMemo(() => {
+    const groups: Record<string, typeof achievements> = {}
+    for (const achievement of achievements) {
+      if (!groups[achievement.category]) {
+        groups[achievement.category] = []
+      }
+      groups[achievement.category].push(achievement)
+    }
+    return groups
+  }, [])
+
+  // Get progress for each achievement
+  const getProgress = (achievementId: string): number | undefined => {
+    switch (achievementId) {
+      case "first-workout":
+      case "ten-workouts":
+      case "fifty-workouts":
+      case "century-club":
+        return totalWorkouts
+      case "10k-club":
+      case "100k-crusher":
+      case "500k-beast":
+      case "million-pounder":
+        return totalVolume
+      case "first-pr":
+      case "pr-collector":
+      case "pr-master":
+        return prCount
+      default:
+        return undefined
+    }
+  }
+
+  const unlockedCount = unlockedAchievements.length
+  const totalCount = achievements.length
+
+  return (
+    <>
+      {/* Streaks */}
+      <StreakDisplay />
+
+      {/* Progress Summary */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500">
+              <Award className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {unlockedCount} / {totalCount}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Achievements Unlocked
+              </p>
+            </div>
+            <div className="ml-auto">
+              <Button
+                size="sm"
+                variant={showLocked ? "default" : "outline"}
+                onClick={() => setShowLocked(!showLocked)}
+              >
+                {showLocked ? "Hide Locked" : "Show All"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Achievements by Category */}
+      {Object.entries(groupedAchievements).map(([category, categoryAchievements]) => {
+        const visibleAchievements = showLocked
+          ? categoryAchievements
+          : categoryAchievements.filter((a) => getUnlockedAchievement(a.id))
+
+        if (visibleAchievements.length === 0) return null
+
+        return (
+          <div key={category} className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              {categoryLabels[category as keyof typeof categoryLabels]}
+            </h3>
+            <div className="space-y-2">
+              {visibleAchievements.map((achievement) => (
+                <AchievementCard
+                  key={achievement.id}
+                  achievement={achievement}
+                  unlocked={getUnlockedAchievement(achievement.id)}
+                  progress={getProgress(achievement.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
     </>
   )
 }

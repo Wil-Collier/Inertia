@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
+import { ExerciseInfoButton } from "@/components/ExerciseInfoSheet"
 import { useWorkoutStore } from "@/stores/workoutStore"
 import { useExerciseStore } from "@/stores/exerciseStore"
 import { useSettingsStore } from "@/stores/settingsStore"
@@ -249,9 +250,12 @@ export function ActiveWorkout() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-base">
-                      {exercise?.name || "Unknown Exercise"}
-                    </CardTitle>
+                    <div className="flex items-center gap-1">
+                      <CardTitle className="text-base">
+                        {exercise?.name || "Unknown Exercise"}
+                      </CardTitle>
+                      {exercise && <ExerciseInfoButton exercise={exercise} />}
+                    </div>
                     {hasLastPerformance && (
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Last: {format(parseISO(workoutExercise.lastPerformanceDate!), "MMM d")}

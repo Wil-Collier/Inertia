@@ -7,6 +7,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { ExerciseInfoButton } from "@/components/ExerciseInfoSheet"
 import { useExerciseStore } from "@/stores/exerciseStore"
 import type { MuscleGroup } from "@/lib/types"
 
@@ -110,21 +111,28 @@ export function ExercisePickerSheet({
                     {exercisesByGroup[group].map((exercise) => {
                       const isAdded = addedExerciseIds.includes(exercise.id)
                       return (
-                        <button
+                        <div
                           key={exercise.id}
-                          className={`flex w-full items-center justify-between rounded-lg p-3 text-left transition-colors ${
+                          className={`flex w-full items-center justify-between rounded-lg p-3 transition-colors ${
                             isAdded
-                              ? "bg-primary/10 text-primary"
+                              ? "bg-primary/10"
                               : "hover:bg-muted"
                           }`}
-                          onClick={() => !isAdded && handleSelect(exercise.id)}
-                          disabled={isAdded}
                         >
-                          <span className="font-medium">{exercise.name}</span>
-                          {isAdded && (
-                            <span className="text-xs text-primary">Added</span>
-                          )}
-                        </button>
+                          <button
+                            className={`flex-1 text-left font-medium ${isAdded ? "text-primary" : ""}`}
+                            onClick={() => !isAdded && handleSelect(exercise.id)}
+                            disabled={isAdded}
+                          >
+                            {exercise.name}
+                          </button>
+                          <div className="flex items-center gap-1">
+                            <ExerciseInfoButton exercise={exercise} />
+                            {isAdded && (
+                              <span className="text-xs text-primary">Added</span>
+                            )}
+                          </div>
+                        </div>
                       )
                     })}
                   </div>
