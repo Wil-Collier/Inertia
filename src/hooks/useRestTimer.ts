@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useEffect, useCallback, useRef, useState } from "react"
+import { useRestTimerStore } from "@/stores/restTimerStore"
 
 interface UseRestTimerOptions {
   defaultDuration?: number // seconds
@@ -21,85 +22,81 @@ interface UseRestTimerReturn {
 export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerReturn {
   const { defaultDuration = 90, onComplete } = options
 
-  const [duration, setDuration] = useState(defaultDuration)
-  const [timeRemaining, setTimeRemaining] = useState(defaultDuration)
-  const [isRunning, setIsRunning] = useState(false)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const store = useRestTimerStore()
+  const { timer } = store
   const onCompleteRef = useRef(onComplete)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  
+  // Local state for display updates (triggers re-renders on tick)
+  const [, forceUpdate] = useState(0)
+  
+  // Track the duration setting separately (for when timer is not running)
+  const [configuredDuration, setConfiguredDuration] = useState(defaultDuration)
 
   // Keep callback ref updated
   useEffect(() => {
     onCompleteRef.current = onComplete
   }, [onComplete])
 
-  const clearTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
+  // Set up interval for ticking the timer
+  useEffect(() => {
+    if (timer.isRunning && !timer.isPaused) {
+      intervalRef.current = setInterval(() => {
+        const remaining = store.getTimeRemaining()
+        
+        if (remaining <= 0) {
+          store.reset()
+          onCompleteRef.current?.()
+        }
+        
+        // Force re-render to update display
+        forceUpdate((n) => n + 1)
+      }, 100) // Update more frequently for smoother display
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
     }
-  }, [])
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [timer.isRunning, timer.isPaused, store])
 
   const start = useCallback(
     (customDuration?: number) => {
-      clearTimer()
-      const time = customDuration ?? duration
-      setTimeRemaining(time)
-      setIsRunning(true)
-
-      intervalRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearTimer()
-            setIsRunning(false)
-            onCompleteRef.current?.()
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
+      const time = customDuration ?? configuredDuration
+      store.start(time)
     },
-    [duration, clearTimer]
+    [configuredDuration, store]
   )
 
   const pause = useCallback(() => {
-    clearTimer()
-    setIsRunning(false)
-  }, [clearTimer])
+    store.pause()
+  }, [store])
 
   const resume = useCallback(() => {
-    if (timeRemaining > 0) {
-      setIsRunning(true)
-      intervalRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearTimer()
-            setIsRunning(false)
-            onCompleteRef.current?.()
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    }
-  }, [timeRemaining, clearTimer])
+    store.resume()
+  }, [store])
 
   const reset = useCallback(() => {
-    clearTimer()
-    setIsRunning(false)
-    setTimeRemaining(duration)
-  }, [duration, clearTimer])
+    store.reset()
+  }, [store])
 
   const handleSetDuration = useCallback((newDuration: number) => {
-    setDuration(newDuration)
-    setTimeRemaining(newDuration)
+    setConfiguredDuration(newDuration)
   }, [])
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      clearTimer()
-    }
-  }, [clearTimer])
+  // Calculate current time remaining
+  const timeRemaining = store.getTimeRemaining()
+  const duration = timer.isRunning ? timer.duration : configuredDuration
+  
+  // Timer is considered "running" for UI purposes if it's active (even if paused)
+  const isRunning = timer.isRunning && timeRemaining > 0
 
   // Format time as MM:SS
   const formattedTime = `${Math.floor(timeRemaining / 60)

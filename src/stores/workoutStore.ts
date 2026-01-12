@@ -56,6 +56,16 @@ interface WorkoutStore {
 
   // Progressive Overload
   getLastPerformance: (exerciseId: string) => LastPerformance | null
+
+  // Exercise History (for progress charts)
+  getExerciseHistory: (exerciseId: string) => Array<{
+    date: string
+    workoutId: string
+    maxWeight: number
+    totalVolume: number
+    totalReps: number
+    sets: Array<{ weight: number; reps: number }>
+  }>
 }
 
 export const useWorkoutStore = create<WorkoutStore>()(
@@ -489,6 +499,58 @@ export const useWorkoutStore = create<WorkoutStore>()(
           }
         }
         return null
+      },
+
+      // Get full exercise history for progress charts
+      getExerciseHistory: (exerciseId) => {
+        const workouts = get().workouts
+        const history: Array<{
+          date: string
+          workoutId: string
+          maxWeight: number
+          totalVolume: number
+          totalReps: number
+          sets: Array<{ weight: number; reps: number }>
+        }> = []
+
+        // Sort by date ascending (oldest first) for chronological chart
+        const sortedWorkouts = [...workouts].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        )
+
+        for (const workout of sortedWorkouts) {
+          const workoutExercise = workout.exercises.find(
+            (e) => e.exerciseId === exerciseId
+          )
+          if (workoutExercise) {
+            const completedSets = workoutExercise.sets
+              .filter((s) => s.completed && (s.weight > 0 || s.reps > 0))
+              .map((s) => ({ weight: s.weight, reps: s.reps }))
+
+            if (completedSets.length > 0) {
+              const maxWeight = Math.max(...completedSets.map((s) => s.weight))
+              const totalVolume = completedSets.reduce(
+                (sum, s) => sum + s.weight * s.reps,
+                0
+              )
+              const totalReps = completedSets.reduce(
+                (sum, s) => sum + s.reps,
+                0
+              )
+
+              history.push({
+                date: workout.date,
+                workoutId: workout.id,
+                maxWeight,
+                totalVolume,
+                totalReps,
+                sets: completedSets,
+              })
+            }
+          }
+        }
+
+        return history
       },
     }),
     {

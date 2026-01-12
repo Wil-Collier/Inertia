@@ -49,7 +49,7 @@ interface NutritionStore {
   // Template Actions
   saveMealTemplate: (name: string, entries: Omit<MealEntry, "id">[]) => void
   deleteMealTemplate: (id: string) => void
-  applyMealTemplate: (templateId: string, date: string) => void
+  applyMealTemplate: (templateId: string, date: string, mealType: MealType) => void
 
   // Progress calculation
   getProgressToGoals: (
@@ -63,6 +63,32 @@ interface NutritionStore {
     fiber: number
     sugar: number
   }
+
+  // History/Trends
+  getDailyTotalsForRange: (
+    startDate: string,
+    endDate: string
+  ) => Array<{
+    date: string
+    calories: number
+    protein: number
+    carbs: number
+    fat: number
+    fiber: number
+    sugar: number
+  }>
+  getAveragesForRange: (
+    startDate: string,
+    endDate: string
+  ) => {
+    calories: number
+    protein: number
+    carbs: number
+    fat: number
+    fiber: number
+    sugar: number
+  }
+  getLoggedDates: () => string[]
 }
 
 export const useNutritionStore = create<NutritionStore>()(
@@ -230,12 +256,12 @@ export const useNutritionStore = create<NutritionStore>()(
         }))
       },
 
-      applyMealTemplate: (templateId, date) => {
+      applyMealTemplate: (templateId, date, mealType) => {
         const template = get().mealTemplates.find((t) => t.id === templateId)
         if (!template) return
 
         template.entries.forEach((entry) => {
-          get().addMealEntry(date, entry.foodId, entry.quantity, entry.mealType)
+          get().addMealEntry(date, entry.foodId, entry.quantity, mealType)
         })
       },
 
@@ -249,6 +275,64 @@ export const useNutritionStore = create<NutritionStore>()(
           fiber: goals.fiber > 0 ? (totals.fiber / goals.fiber) * 100 : 0,
           sugar: goals.sugar > 0 ? (totals.sugar / goals.sugar) * 100 : 0,
         }
+      },
+
+      getDailyTotalsForRange: (startDate, endDate) => {
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+        const results: Array<{
+          date: string
+          calories: number
+          protein: number
+          carbs: number
+          fat: number
+          fiber: number
+          sugar: number
+        }> = []
+
+        const current = new Date(start)
+        while (current <= end) {
+          const dateStr = format(current, "yyyy-MM-dd")
+          const totals = get().getDailyTotals(dateStr)
+          results.push({ date: dateStr, ...totals })
+          current.setDate(current.getDate() + 1)
+        }
+
+        return results
+      },
+
+      getAveragesForRange: (startDate, endDate) => {
+        const dailyTotals = get().getDailyTotalsForRange(startDate, endDate)
+        const daysWithData = dailyTotals.filter((d) => d.calories > 0)
+
+        if (daysWithData.length === 0) {
+          return { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }
+        }
+
+        const sums = daysWithData.reduce(
+          (acc, day) => ({
+            calories: acc.calories + day.calories,
+            protein: acc.protein + day.protein,
+            carbs: acc.carbs + day.carbs,
+            fat: acc.fat + day.fat,
+            fiber: acc.fiber + day.fiber,
+            sugar: acc.sugar + day.sugar,
+          }),
+          { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }
+        )
+
+        return {
+          calories: Math.round(sums.calories / daysWithData.length),
+          protein: Math.round(sums.protein / daysWithData.length),
+          carbs: Math.round(sums.carbs / daysWithData.length),
+          fat: Math.round(sums.fat / daysWithData.length),
+          fiber: Math.round(sums.fiber / daysWithData.length),
+          sugar: Math.round(sums.sugar / daysWithData.length),
+        }
+      },
+
+      getLoggedDates: () => {
+        return get().dailyLogs.map((log) => log.date).sort()
       },
     }),
     {

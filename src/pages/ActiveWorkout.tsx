@@ -11,6 +11,7 @@ import {
   Play,
   Pause,
   TrendingUp,
+  StickyNote,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,7 +30,7 @@ import { useExerciseStore } from "@/stores/exerciseStore"
 import { useSettingsStore } from "@/stores/settingsStore"
 import { useRestTimer } from "@/hooks/useRestTimer"
 import { useCountdownTimer } from "@/hooks/useCountdownTimer"
-import { playDingSound } from "@/lib/audio"
+import { playDingSound, unlockAudio } from "@/lib/audio"
 import { cn } from "@/lib/utils"
 import { format, parseISO } from "date-fns"
 
@@ -47,6 +48,7 @@ export function ActiveWorkout() {
     toggleSetComplete,
     createTemplate,
     bumpExerciseWeight,
+    updateExerciseNotes,
   } = useWorkoutStore()
 
   const { getExercise } = useExerciseStore()
@@ -60,7 +62,15 @@ export function ActiveWorkout() {
     new Set()
   )
 
-  const timer = useRestTimer({ defaultDuration: settings.restTimerDuration })
+  // Handler for when rest timer completes
+  const handleRestTimerComplete = useCallback(() => {
+    playDingSound()
+  }, [])
+
+  const timer = useRestTimer({
+    defaultDuration: settings.restTimerDuration,
+    onComplete: handleRestTimerComplete,
+  })
 
   // Handler for when countdown timer completes
   const handleCountdownComplete = useCallback(
@@ -73,6 +83,11 @@ export function ActiveWorkout() {
   )
 
   const countdown = useCountdownTimer({ onComplete: handleCountdownComplete })
+
+  // Unlock audio on first user interaction for Safari/iOS
+  const handleUserInteraction = useCallback(() => {
+    unlockAudio()
+  }, [])
 
   if (!activeSession) {
     return <Navigate to="/workout" replace />
@@ -162,7 +177,7 @@ export function ActiveWorkout() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col" onTouchStart={handleUserInteraction} onClick={handleUserInteraction}>
       <Header
         title={workout.name}
         showBack
@@ -258,6 +273,10 @@ export function ActiveWorkout() {
                         <TrendingUp className="h-3 w-3 mr-1" />
                         +5
                       </Button>
+                    )}
+                    {/* Notes indicator */}
+                    {workoutExercise.notes && (
+                      <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
                     )}
                     <span className="text-sm text-muted-foreground">
                       {workoutExercise.sets.filter((s) => s.completed).length}/
@@ -462,6 +481,22 @@ export function ActiveWorkout() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="pt-2">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Notes</span>
+                    </div>
+                    <Input
+                      value={workoutExercise.notes || ""}
+                      onChange={(e) =>
+                        updateExerciseNotes(workoutExercise.id, e.target.value)
+                      }
+                      placeholder="Add a note for this exercise..."
+                      className="h-8 text-sm"
+                    />
                   </div>
                 </CardContent>
               )}

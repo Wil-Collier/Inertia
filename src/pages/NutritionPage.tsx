@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { format, addDays, subDays, parseISO } from "date-fns"
+import { Link } from "react-router-dom"
 import {
   CalendarIcon,
   ChevronLeft,
@@ -13,6 +14,9 @@ import {
   Check,
   ScanBarcode,
   Loader2,
+  BookmarkPlus,
+  Bookmark,
+  History,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,6 +33,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useNutritionStore, getTodayDate } from "@/stores/nutritionStore"
 import { useSettingsStore } from "@/stores/settingsStore"
 import { searchFoods, getProductByBarcode } from "@/services/openFoodFacts"
@@ -55,6 +65,9 @@ export function NutritionPage() {
   const [isLookingUp, setIsLookingUp] = useState(false)
   const [scannedBarcode, setScannedBarcode] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("search")
+  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false)
+  const [templateMealType, setTemplateMealType] = useState<MealType>("breakfast")
+  const [newTemplateName, setNewTemplateName] = useState("")
 
   const {
     foods,
@@ -69,6 +82,10 @@ export function NutritionPage() {
     getCustomFoods,
     deleteFood,
     searchFoods: searchLocalFoods,
+    mealTemplates,
+    saveMealTemplate,
+    deleteMealTemplate,
+    applyMealTemplate,
   } = useNutritionStore()
 
   const { settings } = useSettingsStore()
@@ -177,7 +194,16 @@ export function NutritionPage() {
 
   return (
     <div className="flex flex-col">
-      <Header title="Nutrition" />
+      <Header
+        title="Nutrition"
+        rightAction={
+          <Link to="/nutrition/history">
+            <Button variant="ghost" size="icon">
+              <History className="h-5 w-5" />
+            </Button>
+          </Link>
+        }
+      />
 
       <div className="space-y-4 p-4">
         {/* Date Navigation */}
@@ -355,6 +381,19 @@ export function NutritionPage() {
                       )
                     })}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 w-full text-xs text-muted-foreground"
+                    onClick={() => {
+                      setTemplateMealType(type)
+                      setNewTemplateName(`${label} Template`)
+                      setShowSaveTemplateDialog(true)
+                    }}
+                  >
+                    <BookmarkPlus className="mr-1 h-3 w-3" />
+                    Save as Template
+                  </Button>
                 </CardContent>
               )}
             </Card>
@@ -381,6 +420,9 @@ export function NutritionPage() {
               </TabsTrigger>
               <TabsTrigger value="favorites" className="flex-1">
                 Favorites
+              </TabsTrigger>
+              <TabsTrigger value="templates" className="flex-1">
+                Templates
               </TabsTrigger>
             </TabsList>
 
@@ -507,6 +549,84 @@ export function NutritionPage() {
                 )}
               </ScrollArea>
             </TabsContent>
+
+            <TabsContent value="templates" className="mt-4">
+              <ScrollArea className="h-[55vh]">
+                {mealTemplates.length > 0 ? (
+                  <div className="space-y-3">
+                    {mealTemplates.map((template) => {
+                      const templateCalories = template.entries.reduce((sum, e) => {
+                        const food = getFood(e.foodId)
+                        return sum + (food ? food.calories * e.quantity : 0)
+                      }, 0)
+                      const templateProtein = template.entries.reduce((sum, e) => {
+                        const food = getFood(e.foodId)
+                        return sum + (food ? food.protein * e.quantity : 0)
+                      }, 0)
+
+                      return (
+                        <div
+                          key={template.id}
+                          className="rounded-lg border p-3 space-y-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Bookmark className="h-4 w-4 text-primary" />
+                              <span className="font-medium">{template.name}</span>
+                            </div>
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              onClick={() => deleteMealTemplate(template.id)}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {template.entries.length} items • {Math.round(templateCalories)} kcal • {Math.round(templateProtein)}g protein
+                          </p>
+                          <div className="text-xs text-muted-foreground space-y-0.5">
+                            {template.entries.slice(0, 3).map((entry, idx) => {
+                              const food = getFood(entry.foodId)
+                              return food ? (
+                                <p key={idx}>
+                                  {entry.quantity > 1 ? `${entry.quantity}x ` : ""}{food.name}
+                                </p>
+                              ) : null
+                            })}
+                            {template.entries.length > 3 && (
+                              <p className="italic">+{template.entries.length - 3} more</p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            className="w-full"
+                            onClick={() => {
+                              applyMealTemplate(template.id, selectedDate, selectedMealType)
+                              setShowAddSheet(false)
+                              toast.success(`Applied "${template.name}"`)
+                            }}
+                          >
+                            <Check className="mr-1 h-3 w-3" />
+                            Apply to {mealTypes.find((m) => m.type === selectedMealType)?.label}
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center">
+                    <Bookmark className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      No templates yet
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Add foods to a meal, then tap "Save as Template"
+                    </p>
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
           </Tabs>
         </SheetContent>
       </Sheet>
@@ -517,6 +637,56 @@ export function NutritionPage() {
         onClose={() => setShowScanner(false)}
         onScan={handleBarcodeScan}
       />
+
+      {/* Save Template Dialog */}
+      <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save as Template</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Template Name</label>
+              <Input
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                placeholder="Enter template name..."
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowSaveTemplateDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={!newTemplateName.trim()}
+                onClick={() => {
+                  const entries = getEntriesByMealType(selectedDate, templateMealType)
+                  if (entries.length > 0) {
+                    saveMealTemplate(
+                      newTemplateName.trim(),
+                      entries.map((e) => ({
+                        foodId: e.foodId,
+                        quantity: e.quantity,
+                        mealType: e.mealType,
+                      }))
+                    )
+                    toast.success(`Saved "${newTemplateName.trim()}"`)
+                    setShowSaveTemplateDialog(false)
+                    setNewTemplateName("")
+                  }
+                }}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

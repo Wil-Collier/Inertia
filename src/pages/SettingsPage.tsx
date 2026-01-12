@@ -8,6 +8,7 @@ import {
   Trash2,
   Target,
   Timer,
+  Scale,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,13 +22,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useSettingsStore } from "@/stores/settingsStore"
+import { useBodyWeightStore } from "@/stores/bodyWeightStore"
 import { useTheme } from "@/hooks/useTheme"
 import { downloadExport, importData, clearAllData } from "@/services/dataExport"
 import { toast } from "sonner"
-import type { ThemeMode } from "@/lib/types"
+import type { ThemeMode, WeightUnit } from "@/lib/types"
 
 export function SettingsPage() {
   const { settings, updateNutritionGoal, setRestTimerDuration } = useSettingsStore()
+  const { preferredUnit, setPreferredUnit } = useBodyWeightStore()
   const { theme, setTheme } = useTheme()
   const [showClearDialog, setShowClearDialog] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -64,6 +67,11 @@ export function SettingsPage() {
     { value: "light", label: "Light", icon: Sun },
     { value: "dark", label: "Dark", icon: Moon },
     { value: "system", label: "System", icon: Monitor },
+  ]
+
+  const weightUnitOptions: { value: WeightUnit; label: string }[] = [
+    { value: "lbs", label: "Pounds (lbs)" },
+    { value: "kg", label: "Kilograms (kg)" },
   ]
 
   return (
@@ -116,6 +124,33 @@ export function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 Default rest time between sets (0-600 seconds)
               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Body Weight Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Scale className="h-4 w-4" />
+              Body Weight
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Weight Unit</Label>
+              <div className="flex gap-2">
+                {weightUnitOptions.map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={preferredUnit === value ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => setPreferredUnit(value)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>

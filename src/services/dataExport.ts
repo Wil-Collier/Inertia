@@ -2,6 +2,7 @@ import { useExerciseStore } from "@/stores/exerciseStore"
 import { useWorkoutStore } from "@/stores/workoutStore"
 import { useNutritionStore } from "@/stores/nutritionStore"
 import { useSettingsStore } from "@/stores/settingsStore"
+import { useBodyWeightStore } from "@/stores/bodyWeightStore"
 
 interface ExportData {
   version: number
@@ -14,6 +15,10 @@ interface ExportData {
   dailyLogs: ReturnType<typeof useNutritionStore.getState>["dailyLogs"]
   mealTemplates: ReturnType<typeof useNutritionStore.getState>["mealTemplates"]
   settings: ReturnType<typeof useSettingsStore.getState>["settings"]
+  bodyWeight?: {
+    entries: ReturnType<typeof useBodyWeightStore.getState>["entries"]
+    preferredUnit: ReturnType<typeof useBodyWeightStore.getState>["preferredUnit"]
+  }
 }
 
 export function exportAllData(): string {
@@ -21,6 +26,7 @@ export function exportAllData(): string {
   const workoutState = useWorkoutStore.getState()
   const nutritionState = useNutritionStore.getState()
   const settingsState = useSettingsStore.getState()
+  const bodyWeightState = useBodyWeightStore.getState()
 
   const data: ExportData = {
     version: 1,
@@ -33,6 +39,10 @@ export function exportAllData(): string {
     dailyLogs: nutritionState.dailyLogs,
     mealTemplates: nutritionState.mealTemplates,
     settings: settingsState.settings,
+    bodyWeight: {
+      entries: bodyWeightState.entries,
+      preferredUnit: bodyWeightState.preferredUnit,
+    },
   }
 
   return JSON.stringify(data, null, 2)
@@ -87,6 +97,13 @@ export async function importData(file: File): Promise<{ success: boolean; messag
       useSettingsStore.setState({ settings: data.settings })
     }
 
+    if (data.bodyWeight) {
+      useBodyWeightStore.setState({
+        entries: data.bodyWeight.entries || [],
+        preferredUnit: data.bodyWeight.preferredUnit || "lbs",
+      })
+    }
+
     return { success: true, message: "Data imported successfully" }
   } catch (error) {
     console.error("Import error:", error)
@@ -100,6 +117,7 @@ export function clearAllData(): void {
   localStorage.removeItem("training-app-workouts")
   localStorage.removeItem("training-app-nutrition")
   localStorage.removeItem("training-app-settings")
+  localStorage.removeItem("training-app-bodyweight")
 
   // Reset stores to defaults
   useExerciseStore.getState().resetToDefaults()
@@ -114,5 +132,9 @@ export function clearAllData(): void {
     foods: [],
     dailyLogs: [],
     mealTemplates: [],
+  })
+  useBodyWeightStore.setState({
+    entries: [],
+    preferredUnit: "lbs",
   })
 }

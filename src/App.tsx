@@ -9,6 +9,7 @@ const ActiveWorkout = lazy(() => import("@/pages/ActiveWorkout").then((m) => ({ 
 const WorkoutHistory = lazy(() => import("@/pages/WorkoutHistory").then((m) => ({ default: m.WorkoutHistory })))
 const WorkoutTemplates = lazy(() => import("@/pages/WorkoutTemplates").then((m) => ({ default: m.WorkoutTemplates })))
 const NutritionPage = lazy(() => import("@/pages/NutritionPage").then((m) => ({ default: m.NutritionPage })))
+const NutritionHistoryPage = lazy(() => import("@/pages/NutritionHistoryPage").then((m) => ({ default: m.NutritionHistoryPage })))
 const ProgressPage = lazy(() => import("@/pages/ProgressPage").then((m) => ({ default: m.ProgressPage })))
 const SettingsPage = lazy(() => import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })))
 
@@ -32,6 +33,7 @@ export function App() {
             <Route path="/workout/history" element={<WorkoutHistory />} />
             <Route path="/workout/templates" element={<WorkoutTemplates />} />
             <Route path="/nutrition" element={<NutritionPage />} />
+            <Route path="/nutrition/history" element={<NutritionHistoryPage />} />
             <Route path="/progress" element={<ProgressPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>

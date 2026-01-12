@@ -128,3 +128,13 @@ export interface ActiveWorkoutSession {
   startedAt: string
   templateId?: string
 }
+
+// Body Weight Tracking
+export type WeightUnit = "lbs" | "kg"
+
+export interface WeightEntry {
+  id: string
+  date: string // YYYY-MM-DD
+  weight: number
+  note?: string
+}
