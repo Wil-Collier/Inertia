@@ -139,6 +139,18 @@ export interface WeightEntry {
   note?: string
 }
 
+// Progressive Overload Suggestions
+export interface ProgressionSuggestion {
+  type: "increase" | "maintain" | "first_time"
+  suggestedWeight: number
+  suggestedReps: number
+  suggestedDuration?: number // for time-based exercises (in seconds)
+  reason: string
+  confidence: "high" | "medium" | "low"
+  increment: number // the detected/suggested increment for this exercise
+  isTimeBased: boolean
+}
+
 // Achievements & Streaks
 export interface UnlockedAchievement {
   id: string
