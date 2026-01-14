@@ -103,6 +103,8 @@ export async function searchFoods(
     page_size: pageSize.toString(),
     fields:
       "code,product_name,brands,nutriments,serving_size,serving_quantity",
+    cc: "us",
+    lc: "en",
   })
 
   try {
@@ -135,7 +137,7 @@ export async function getProductByBarcode(
 
   try {
     const response = await fetch(
-      `${API_BASE}/api/v2/product/${barcode}.json?fields=code,product_name,brands,nutriments,serving_size,serving_quantity`
+      `${API_BASE}/api/v2/product/${barcode}.json?fields=code,product_name,brands,nutriments,serving_size,serving_quantity&lc=en&cc=us`
     )
 
     if (!response.ok) {

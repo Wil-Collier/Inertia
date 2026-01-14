@@ -28,6 +28,7 @@ import { useWorkoutStore } from "@/stores/workoutStore"
 import { useExerciseStore } from "@/stores/exerciseStore"
 import { useBodyWeightStore, getTodayDate } from "@/stores/bodyWeightStore"
 import { useAchievementsStore } from "@/stores/achievementsStore"
+import { useWeightUnit } from "@/hooks/useWeightUnit"
 import { achievements, categoryLabels } from "@/data/achievements"
 import { toast } from "sonner"
 
@@ -36,12 +37,12 @@ export function ProgressPage() {
   const { getExercise, exercises } = useExerciseStore()
   const {
     entries: weightEntries,
-    preferredUnit,
     addEntry: addWeightEntry,
     deleteEntry: deleteWeightEntry,
     getLatestEntry,
     getEntriesForRange,
   } = useBodyWeightStore()
+  const weightUnit = useWeightUnit()
 
   const [newWeight, setNewWeight] = useState("")
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null)
@@ -151,7 +152,7 @@ export function ProgressPage() {
             icon={TrendingUp}
             label="Total Volume"
             value={`${(stats.totalVolume / 1000).toFixed(1)}k`}
-            sublabel="lbs"
+            sublabel={weightUnit.unitLabel}
           />
           <StatCard
             icon={Trophy}
@@ -202,7 +203,7 @@ export function ProgressPage() {
                           border: "1px solid hsl(var(--border))",
                           borderRadius: "8px",
                         }}
-                        formatter={(value) => [`${(value as number).toLocaleString()} lbs`, "Volume"]}
+                        formatter={(value) => [`${(value as number).toLocaleString()} ${weightUnit.unitLabel}`, "Volume"]}
                       />
                       <Line
                         type="monotone"
@@ -235,6 +236,7 @@ export function ProgressPage() {
                 setSelectedExerciseId={setSelectedExerciseId}
                 getExerciseHistory={getExerciseHistory}
                 getExercise={getExercise}
+                weightUnit={weightUnit}
               />
             </div>
           </TabsContent>
@@ -248,7 +250,7 @@ export function ProgressPage() {
               deleteWeightEntry={deleteWeightEntry}
               getLatestEntry={getLatestEntry}
               getEntriesForRange={getEntriesForRange}
-              preferredUnit={preferredUnit}
+              preferredUnit={weightUnit.unit}
               weightEntries={weightEntries}
             />
 
@@ -266,12 +268,12 @@ export function ProgressPage() {
                         <div className="flex-1">
                           <p className="font-medium">{pr.exercise?.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {pr.weight} lbs x {pr.reps} reps
+                            {weightUnit.format(pr.weight, { showUnit: false })} {weightUnit.unitLabel} x {pr.reps} reps
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-primary">
-                            {Math.round(pr.oneRepMax)} lbs
+                            {weightUnit.format(Math.round(pr.oneRepMax))} 
                           </p>
                           <p className="text-xs text-muted-foreground">Est. 1RM</p>
                         </div>
@@ -534,6 +536,7 @@ function ExerciseProgressTab({
   setSelectedExerciseId,
   getExerciseHistory,
   getExercise,
+  weightUnit,
 }: {
   exercises: { id: string; name: string; muscleGroup: string }[]
   selectedExerciseId: string | null
@@ -547,6 +550,7 @@ function ExerciseProgressTab({
     sets: Array<{ weight: number; reps: number }>
   }>
   getExercise: (id: string) => { id: string; name: string; muscleGroup: string } | undefined
+  weightUnit: ReturnType<typeof useWeightUnit>
 }) {
   // Get exercises that have workout history
   const exercisesWithHistory = useMemo(() => {
@@ -623,7 +627,7 @@ function ExerciseProgressTab({
                         border: "1px solid hsl(var(--border))",
                         borderRadius: "8px",
                       }}
-                      formatter={(value) => [`${String(value ?? 0)} lbs`, "Max Weight"]}
+                      formatter={(value) => [`${String(value ?? 0)} ${weightUnit.unitLabel}`, "Max Weight"]}
                     />
                     <Line
                       type="monotone"
@@ -667,7 +671,7 @@ function ExerciseProgressTab({
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Max: {session.maxWeight} lbs | Volume: {session.totalVolume.toLocaleString()} lbs
+                        Max: {weightUnit.format(session.maxWeight)} | Volume: {weightUnit.format(session.totalVolume, { decimals: 0 })}
                       </p>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {session.sets.map((set, idx) => (
@@ -675,7 +679,7 @@ function ExerciseProgressTab({
                             key={idx}
                             className="rounded bg-primary/10 px-1.5 py-0.5 text-xs"
                           >
-                            {set.weight}x{set.reps}
+                            {weightUnit.format(set.weight, { showUnit: false })}x{set.reps}
                           </span>
                         ))}
                       </div>

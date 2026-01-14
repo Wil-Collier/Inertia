@@ -1,12 +1,11 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { WeightEntry, WeightUnit } from "@/lib/types"
+import type { WeightEntry } from "@/lib/types"
 import { v4 as uuidv4 } from "uuid"
 import { format } from "date-fns"
 
 interface BodyWeightStore {
   entries: WeightEntry[]
-  preferredUnit: WeightUnit
 
   // Entry Actions
   addEntry: (weight: number, date?: string, note?: string) => WeightEntry
@@ -18,19 +17,12 @@ interface BodyWeightStore {
   getEntryForDate: (date: string) => WeightEntry | undefined
   getEntriesForRange: (startDate: string, endDate: string) => WeightEntry[]
   getAllEntriesSorted: () => WeightEntry[]
-
-  // Settings
-  setPreferredUnit: (unit: WeightUnit) => void
-
-  // Utility
-  convertWeight: (weight: number, from: WeightUnit, to: WeightUnit) => number
 }
 
 export const useBodyWeightStore = create<BodyWeightStore>()(
   persist(
     (set, get) => ({
       entries: [],
-      preferredUnit: "lbs",
 
       addEntry: (weight, date, note) => {
         const entryDate = date || format(new Date(), "yyyy-MM-dd")
@@ -89,17 +81,6 @@ export const useBodyWeightStore = create<BodyWeightStore>()(
 
       getAllEntriesSorted: () => {
         return [...get().entries].sort((a, b) => b.date.localeCompare(a.date))
-      },
-
-      setPreferredUnit: (unit) => {
-        set({ preferredUnit: unit })
-      },
-
-      convertWeight: (weight, from, to) => {
-        if (from === to) return weight
-        if (from === "lbs" && to === "kg") return weight * 0.453592
-        if (from === "kg" && to === "lbs") return weight * 2.20462
-        return weight
       },
     }),
     {

@@ -9,6 +9,8 @@ import {
   Target,
   Timer,
   Scale,
+  Bell,
+  BellOff,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,18 +24,49 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useSettingsStore } from "@/stores/settingsStore"
-import { useBodyWeightStore } from "@/stores/bodyWeightStore"
 import { useTheme } from "@/hooks/useTheme"
 import { downloadExport, importData, clearAllData } from "@/services/dataExport"
+import {
+  requestNotificationPermission,
+  getNotificationPermission,
+  isNotificationSupported,
+} from "@/services/notifications"
 import { toast } from "sonner"
 import type { ThemeMode, WeightUnit } from "@/lib/types"
 
 export function SettingsPage() {
-  const { settings, updateNutritionGoal, setRestTimerDuration } = useSettingsStore()
-  const { preferredUnit, setPreferredUnit } = useBodyWeightStore()
+  const { settings, updateNutritionGoal, setRestTimerDuration, setWeightUnit, setNotificationsEnabled } = useSettingsStore()
   const { theme, setTheme } = useTheme()
   const [showClearDialog, setShowClearDialog] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleToggleNotifications = async () => {
+    if (!isNotificationSupported()) {
+      toast.error("Notifications not supported in this browser")
+      return
+    }
+
+    if (settings.notificationsEnabled) {
+      // Disable notifications
+      setNotificationsEnabled(false)
+      toast.success("Notifications disabled")
+    } else {
+      // Request permission and enable
+      const permission = await requestNotificationPermission()
+      if (permission === "granted") {
+        setNotificationsEnabled(true)
+        toast.success("Notifications enabled")
+      } else if (permission === "denied") {
+        toast.error("Notification permission denied. Please enable in browser settings.")
+      } else {
+        toast.error("Could not enable notifications")
+      }
+    }
+  }
+
+  // Check current notification permission status
+  const notificationPermission = isNotificationSupported() ? getNotificationPermission() : "denied"
+  const canEnableNotifications = isNotificationSupported() && notificationPermission !== "denied"
 
   const handleExport = () => {
     downloadExport()
@@ -125,6 +158,35 @@ export function SettingsPage() {
                 Default rest time between sets (0-600 seconds)
               </p>
             </div>
+
+            {/* Notifications */}
+            <div className="space-y-2">
+              <Label>Rest Timer Notifications</Label>
+              <Button
+                variant={settings.notificationsEnabled ? "default" : "outline"}
+                className="w-full justify-start"
+                onClick={handleToggleNotifications}
+                disabled={!canEnableNotifications && !settings.notificationsEnabled}
+              >
+                {settings.notificationsEnabled ? (
+                  <>
+                    <Bell className="mr-2 h-4 w-4" />
+                    Notifications Enabled
+                  </>
+                ) : (
+                  <>
+                    <BellOff className="mr-2 h-4 w-4" />
+                    Notifications Disabled
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {notificationPermission === "denied" 
+                  ? "Notifications blocked. Please enable in browser settings."
+                  : "Get notified when rest timer completes (even when app is in background)"
+                }
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -140,16 +202,16 @@ export function SettingsPage() {
             <div className="space-y-2">
               <Label>Weight Unit</Label>
               <div className="flex gap-2">
-                {weightUnitOptions.map(({ value, label }) => (
-                  <Button
-                    key={value}
-                    variant={preferredUnit === value ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => setPreferredUnit(value)}
-                  >
-                    {label}
-                  </Button>
-                ))}
+                  {weightUnitOptions.map(({ value, label }) => (
+                    <Button
+                      key={value}
+                      variant={settings.weightUnit === value ? "default" : "outline"}
+                      className="flex-1"
+                      onClick={() => setWeightUnit(value)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
               </div>
             </div>
           </CardContent>

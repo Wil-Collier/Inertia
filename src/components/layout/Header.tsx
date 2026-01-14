@@ -10,6 +10,8 @@ interface HeaderProps {
   onBack?: () => void
   rightAction?: ReactNode
   className?: string
+  /** Content rendered below the title bar but still inside the sticky header */
+  bottomContent?: ReactNode
 }
 
 export function Header({
@@ -18,6 +20,7 @@ export function Header({
   onBack,
   rightAction,
   className,
+  bottomContent,
 }: HeaderProps) {
   const navigate = useNavigate()
 
@@ -50,6 +53,7 @@ export function Header({
         <h1 className="flex-1 text-lg font-semibold">{title}</h1>
         {rightAction}
       </div>
+      {bottomContent}
     </header>
   )
 }

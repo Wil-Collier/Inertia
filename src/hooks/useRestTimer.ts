@@ -1,5 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from "react"
 import { useRestTimerStore } from "@/stores/restTimerStore"
+import { useSettingsStore } from "@/stores/settingsStore"
+import { showRestTimerNotification, canShowNotifications, vibrateDevice } from "@/services/notifications"
 
 interface UseRestTimerOptions {
   defaultDuration?: number // seconds
@@ -23,6 +25,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
   const { defaultDuration = 90, onComplete } = options
 
   const store = useRestTimerStore()
+  const { settings } = useSettingsStore()
   const { timer } = store
   const onCompleteRef = useRef(onComplete)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -46,6 +49,15 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
         
         if (remaining <= 0) {
           store.reset()
+          
+          // Show notification if enabled
+          if (settings.notificationsEnabled && canShowNotifications()) {
+            showRestTimerNotification()
+          }
+          
+          // Vibrate device for haptic feedback
+          vibrateDevice([200, 100, 200])
+          
           onCompleteRef.current?.()
         }
         
@@ -65,7 +77,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
         intervalRef.current = null
       }
     }
-  }, [timer.isRunning, timer.isPaused, store])
+  }, [timer.isRunning, timer.isPaused, store, settings.notificationsEnabled])
 
   const start = useCallback(
     (customDuration?: number) => {

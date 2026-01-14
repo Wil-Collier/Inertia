@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { UserSettings, ThemeMode, NutritionGoals } from "@/lib/types"
+import type { UserSettings, ThemeMode, NutritionGoals, WeightUnit } from "@/lib/types"
 
 interface SettingsStore {
   settings: UserSettings
@@ -8,6 +8,8 @@ interface SettingsStore {
   setNutritionGoals: (goals: NutritionGoals) => void
   updateNutritionGoal: (key: keyof NutritionGoals, value: number) => void
   setRestTimerDuration: (seconds: number) => void
+  setWeightUnit: (unit: WeightUnit) => void
+  setNotificationsEnabled: (enabled: boolean) => void
   resetSettings: () => void
 }
 
@@ -22,6 +24,8 @@ const defaultSettings: UserSettings = {
     sugar: 50,
   },
   restTimerDuration: 90,
+  weightUnit: "lbs",
+  notificationsEnabled: false,
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -59,13 +63,25 @@ export const useSettingsStore = create<SettingsStore>()(
         }))
       },
 
+      setWeightUnit: (unit) => {
+        set((state) => ({
+          settings: { ...state.settings, weightUnit: unit },
+        }))
+      },
+
+      setNotificationsEnabled: (enabled) => {
+        set((state) => ({
+          settings: { ...state.settings, notificationsEnabled: enabled },
+        }))
+      },
+
       resetSettings: () => {
         set({ settings: defaultSettings })
       },
     }),
     {
       name: "training-app-settings",
-      version: 3,
+      version: 5,
       migrate: (persistedState, version) => {
         const state = persistedState as SettingsStore
         if (version < 2) {
@@ -89,6 +105,26 @@ export const useSettingsStore = create<SettingsStore>()(
             settings: {
               ...state.settings,
               restTimerDuration: state.settings.restTimerDuration ?? 90,
+            },
+          }
+        }
+        if (version < 4) {
+          // Add weight unit setting
+          return {
+            ...state,
+            settings: {
+              ...state.settings,
+              weightUnit: state.settings.weightUnit ?? "lbs",
+            },
+          }
+        }
+        if (version < 5) {
+          // Add notifications setting
+          return {
+            ...state,
+            settings: {
+              ...state.settings,
+              notificationsEnabled: state.settings.notificationsEnabled ?? false,
             },
           }
         }

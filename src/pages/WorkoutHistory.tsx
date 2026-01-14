@@ -16,11 +16,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatDuration } from "@/lib/utils"
 import { useWorkoutStore } from "@/stores/workoutStore"
 import { useExerciseStore } from "@/stores/exerciseStore"
+import { useWeightUnit } from "@/hooks/useWeightUnit"
 import type { Workout } from "@/lib/types"
 
 export function WorkoutHistory() {
   const { workouts, deleteWorkout } = useWorkoutStore()
   const { getExercise } = useExerciseStore()
+  const weightUnit = useWeightUnit()
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null)
   const [workoutToDelete, setWorkoutToDelete] = useState<Workout | null>(null)
 
@@ -145,7 +147,7 @@ export function WorkoutHistory() {
                                     Total Volume
                                   </p>
                                   <p className="text-lg font-semibold">
-                                    {totalVolume.toLocaleString()} lbs
+                                    {weightUnit.format(totalVolume, { decimals: 0 })}
                                   </p>
                                 </div>
                                 <div className="rounded-lg bg-muted/50 p-3">
@@ -179,7 +181,7 @@ export function WorkoutHistory() {
                                                 formatDuration(set.reps)
                                               ) : exercise?.isWeighted ? (
                                                 <>
-                                                  {set.weight} lbs × {set.reps} reps
+                                                  {weightUnit.format(set.weight, { showUnit: false })} {weightUnit.unitLabel} × {set.reps} reps
                                                 </>
                                               ) : (
                                                 <>{set.reps} reps</>

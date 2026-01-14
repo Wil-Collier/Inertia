@@ -31,6 +31,7 @@ import { useExerciseStore } from "@/stores/exerciseStore"
 import { useSettingsStore } from "@/stores/settingsStore"
 import { useRestTimer } from "@/hooks/useRestTimer"
 import { useCountdownTimer } from "@/hooks/useCountdownTimer"
+import { useWeightUnit } from "@/hooks/useWeightUnit"
 import { playDingSound, unlockAudio } from "@/lib/audio"
 import { cn } from "@/lib/utils"
 import { format, parseISO } from "date-fns"
@@ -55,6 +56,7 @@ export function ActiveWorkout() {
 
   const { getExercise } = useExerciseStore()
   const { settings } = useSettingsStore()
+  const weightUnit = useWeightUnit()
   const [showExerciseSheet, setShowExerciseSheet] = useState(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
@@ -184,42 +186,42 @@ export function ActiveWorkout() {
         title={workout.name}
         showBack
         onBack={handleBack}
+        bottomContent={
+          timer.isRunning ? (
+            <div className="border-t border-border bg-primary/5 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-primary" />
+                  <span className="font-mono text-lg font-bold">
+                    {timer.formattedTime}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={timer.pause}>
+                    Pause
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => timer.start(timer.duration + 30)}
+                  >
+                    +30s
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={timer.reset}>
+                    Skip
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${timer.progress}%` }}
+                />
+              </div>
+            </div>
+          ) : undefined
+        }
       />
-
-      {/* Rest Timer */}
-      {timer.isRunning && (
-        <div className="border-b border-border bg-primary/5 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Timer className="h-4 w-4 text-primary" />
-              <span className="font-mono text-lg font-bold">
-                {timer.formattedTime}
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={timer.pause}>
-                Pause
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => timer.start(timer.duration + 30)}
-              >
-                +30s
-              </Button>
-              <Button size="sm" variant="ghost" onClick={timer.reset}>
-                Skip
-              </Button>
-            </div>
-          </div>
-          <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full bg-primary transition-all"
-              style={{ width: `${timer.progress}%` }}
-            />
-          </div>
-        </div>
-      )}
 
       <div className="flex-1 space-y-4 p-4">
         {/* Progress Summary */}
@@ -293,8 +295,8 @@ export function ActiveWorkout() {
                       >
                         <TrendingUp className="h-3 w-3 mr-1" />
                         {suggestion.type === "increase" 
-                          ? `Try ${suggestion.suggestedWeight}`
-                          : `+${suggestion.increment}`
+                          ? `Try ${weightUnit.format(suggestion.suggestedWeight, { showUnit: false })} ${weightUnit.unitLabel}`
+                          : weightUnit.formatIncrement(suggestion.increment)
                         }
                       </Button>
                     )}
@@ -389,7 +391,7 @@ export function ActiveWorkout() {
                                 weight: parseFloat(e.target.value) || 0,
                               })
                             }
-                            placeholder="lbs"
+                            placeholder={weightUnit.unitLabel}
                             className="h-9"
                             disabled={set.completed}
                           />

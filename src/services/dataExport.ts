@@ -17,7 +17,6 @@ interface ExportData {
   settings: ReturnType<typeof useSettingsStore.getState>["settings"]
   bodyWeight?: {
     entries: ReturnType<typeof useBodyWeightStore.getState>["entries"]
-    preferredUnit: ReturnType<typeof useBodyWeightStore.getState>["preferredUnit"]
   }
 }
 
@@ -41,7 +40,6 @@ export function exportAllData(): string {
     settings: settingsState.settings,
     bodyWeight: {
       entries: bodyWeightState.entries,
-      preferredUnit: bodyWeightState.preferredUnit,
     },
   }
 
@@ -100,8 +98,16 @@ export async function importData(file: File): Promise<{ success: boolean; messag
     if (data.bodyWeight) {
       useBodyWeightStore.setState({
         entries: data.bodyWeight.entries || [],
-        preferredUnit: data.bodyWeight.preferredUnit || "lbs",
       })
+      // Handle legacy preferredUnit by migrating to settings
+      if ((data.bodyWeight as { preferredUnit?: string }).preferredUnit) {
+        const legacyUnit = (data.bodyWeight as { preferredUnit?: string }).preferredUnit
+        if (legacyUnit === "lbs" || legacyUnit === "kg") {
+          useSettingsStore.setState((state) => ({
+            settings: { ...state.settings, weightUnit: legacyUnit }
+          }))
+        }
+      }
     }
 
     return { success: true, message: "Data imported successfully" }
@@ -135,6 +141,5 @@ export function clearAllData(): void {
   })
   useBodyWeightStore.setState({
     entries: [],
-    preferredUnit: "lbs",
   })
 }

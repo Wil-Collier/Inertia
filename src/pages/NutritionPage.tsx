@@ -5,6 +5,7 @@ import {
   CalendarIcon,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Plus,
   Minus,
   Search,
@@ -76,6 +77,7 @@ export function NutritionPage() {
     getFood,
     addFood,
     addMealEntry,
+    updateMealEntry,
     removeMealEntry,
     toggleFavorite,
     getFavorites,
@@ -113,7 +115,7 @@ export function NutritionPage() {
       const local = searchLocalFoods(query)
       
       // Then search Open Food Facts
-      const { foods: remote } = await searchFoods(query, 1, 10)
+      const { foods: remote } = await searchFoods(query, 1, 20)
       
       // Combine and dedupe
       const combined = [...local, ...remote.filter(
@@ -358,26 +360,15 @@ export function NutritionPage() {
                       if (!food) return null
 
                       return (
-                        <div
+                        <MealEntryItem
                           key={entry.id}
-                          className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2"
-                        >
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{food.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {entry.quantity > 1 ? `${entry.quantity}x ` : ""}
-                              {food.servingSize} •{" "}
-                              {Math.round(food.calories * entry.quantity)} kcal
-                            </p>
-                          </div>
-                          <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            onClick={() => removeMealEntry(selectedDate, entry.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
+                          entry={entry}
+                          food={food}
+                          onUpdateQuantity={(quantity) =>
+                            updateMealEntry(selectedDate, entry.id, { quantity })
+                          }
+                          onRemove={() => removeMealEntry(selectedDate, entry.id)}
+                        />
                       )
                     })}
                   </div>
@@ -713,6 +704,144 @@ function MacroBar({
       <p className="text-xs font-medium">
         {Math.round(value)}g / {goal}g
       </p>
+    </div>
+  )
+}
+
+function MealEntryItem({
+  entry,
+  food,
+  onUpdateQuantity,
+  onRemove,
+}: {
+  entry: { id: string; quantity: number }
+  food: FoodItem
+  onUpdateQuantity: (quantity: number) => void
+  onRemove: () => void
+}) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [quantity, setQuantity] = useState(entry.quantity)
+
+  // Sync local state when entry changes
+  useEffect(() => {
+    setQuantity(entry.quantity)
+  }, [entry.quantity])
+
+  const adjustedCalories = Math.round(food.calories * quantity)
+  const adjustedProtein = Math.round(food.protein * quantity * 10) / 10
+  const adjustedCarbs = Math.round(food.carbs * quantity * 10) / 10
+  const adjustedFat = Math.round(food.fat * quantity * 10) / 10
+  const adjustedFiber = Math.round((food.fiber ?? 0) * quantity * 10) / 10
+  const adjustedSugar = Math.round((food.sugar ?? 0) * quantity * 10) / 10
+
+  const incrementQuantity = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const newQty = Math.round((quantity + 0.5) * 10) / 10
+    setQuantity(newQty)
+    onUpdateQuantity(newQty)
+  }
+
+  const decrementQuantity = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const newQty = Math.max(0.5, Math.round((quantity - 0.5) * 10) / 10)
+    setQuantity(newQty)
+    onUpdateQuantity(newQty)
+  }
+
+  const handleRemove = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onRemove()
+  }
+
+  return (
+    <div className="rounded-lg bg-muted/50 overflow-hidden">
+      <div
+        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/70 transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{food.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {quantity !== 1 ? `${quantity}x ` : ""}
+            {food.servingSize} • {adjustedCalories} kcal
+          </p>
+        </div>
+        <ChevronDown
+          className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${
+            isExpanded ? "rotate-180" : ""
+          }`}
+        />
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          onClick={handleRemove}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+
+      {isExpanded && (
+        <div className="border-t border-border/50 bg-muted/30 px-3 py-3 space-y-3">
+          {/* Quantity Selector */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Servings</span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="icon-sm"
+                variant="outline"
+                onClick={decrementQuantity}
+                disabled={quantity <= 0.5}
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="w-12 text-center font-medium">{quantity}</span>
+              <Button
+                size="icon-sm"
+                variant="outline"
+                onClick={incrementQuantity}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Macro Details */}
+          <div className="rounded-md bg-background/50 p-3 space-y-2">
+            <p className="text-sm font-medium">Nutrition Info</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Calories</span>
+                <span className="font-medium">{adjustedCalories} kcal</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Protein</span>
+                <span className="font-medium">{adjustedProtein}g</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Carbs</span>
+                <span className="font-medium">{adjustedCarbs}g</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Fat</span>
+                <span className="font-medium">{adjustedFat}g</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Fiber</span>
+                <span className="font-medium">{adjustedFiber}g</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Sugar</span>
+                <span className="font-medium">{adjustedSugar}g</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Per serving info */}
+          <p className="text-xs text-muted-foreground text-center">
+            Per serving ({food.servingSize}): {food.calories} kcal • P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g
+          </p>
+        </div>
+      )}
     </div>
   )
 }
