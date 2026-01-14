@@ -1,15 +1,12 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, lazy, Suspense } from "react"
 import { format, addDays, subDays, parseISO } from "date-fns"
 import { Link } from "react-router-dom"
 import {
   CalendarIcon,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   Plus,
-  Minus,
   Search,
-  Star,
   Trash2,
   X,
   Check,
@@ -23,7 +20,7 @@ import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Progress } from "@/components/ui/progress"
+import { MacroBar, MealEntryItem, FoodListItem, CustomFoodForm } from "@/components/nutrition"
 import {
   Sheet,
   SheetContent,
@@ -43,9 +40,13 @@ import {
 import { useNutritionStore, getTodayDate } from "@/stores/nutritionStore"
 import { useSettingsStore } from "@/stores/settingsStore"
 import { searchFoods, getProductByBarcode } from "@/services/openFoodFacts"
-import { BarcodeScanner } from "@/components/BarcodeScanner"
 import { toast } from "sonner"
 import type { FoodItem, MealType } from "@/lib/types"
+
+// Lazy load BarcodeScanner (includes html5-qrcode library)
+const BarcodeScanner = lazy(() =>
+  import("@/components/BarcodeScanner").then((m) => ({ default: m.BarcodeScanner }))
+)
 
 const mealTypes: { type: MealType; label: string }[] = [
   { type: "breakfast", label: "Breakfast" },
@@ -622,12 +623,16 @@ export function NutritionPage() {
         </SheetContent>
       </Sheet>
 
-      {/* Barcode Scanner */}
-      <BarcodeScanner
-        isOpen={showScanner}
-        onClose={() => setShowScanner(false)}
-        onScan={handleBarcodeScan}
-      />
+      {/* Barcode Scanner - Lazy loaded */}
+      {showScanner && (
+        <Suspense fallback={null}>
+          <BarcodeScanner
+            isOpen={showScanner}
+            onClose={() => setShowScanner(false)}
+            onScan={handleBarcodeScan}
+          />
+        </Suspense>
+      )}
 
       {/* Save Template Dialog */}
       <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
@@ -678,516 +683,6 @@ export function NutritionPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  )
-}
-
-function MacroBar({
-  label,
-  value,
-  goal,
-  color,
-}: {
-  label: string
-  value: number
-  goal: number
-  color: string
-}) {
-  const percentage = goal > 0 ? Math.min((value / goal) * 100, 100) : 0
-
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
-      </div>
-      <Progress value={percentage} className={`h-2 [&>div]:${color}`} />
-      <p className="text-xs font-medium">
-        {Math.round(value)}g / {goal}g
-      </p>
-    </div>
-  )
-}
-
-function MealEntryItem({
-  entry,
-  food,
-  onUpdateQuantity,
-  onRemove,
-}: {
-  entry: { id: string; quantity: number }
-  food: FoodItem
-  onUpdateQuantity: (quantity: number) => void
-  onRemove: () => void
-}) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [quantity, setQuantity] = useState(entry.quantity)
-
-  // Sync local state when entry changes
-  useEffect(() => {
-    setQuantity(entry.quantity)
-  }, [entry.quantity])
-
-  const adjustedCalories = Math.round(food.calories * quantity)
-  const adjustedProtein = Math.round(food.protein * quantity * 10) / 10
-  const adjustedCarbs = Math.round(food.carbs * quantity * 10) / 10
-  const adjustedFat = Math.round(food.fat * quantity * 10) / 10
-  const adjustedFiber = Math.round((food.fiber ?? 0) * quantity * 10) / 10
-  const adjustedSugar = Math.round((food.sugar ?? 0) * quantity * 10) / 10
-
-  const incrementQuantity = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newQty = Math.round((quantity + 0.5) * 10) / 10
-    setQuantity(newQty)
-    onUpdateQuantity(newQty)
-  }
-
-  const decrementQuantity = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newQty = Math.max(0.5, Math.round((quantity - 0.5) * 10) / 10)
-    setQuantity(newQty)
-    onUpdateQuantity(newQty)
-  }
-
-  const handleRemove = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    onRemove()
-  }
-
-  return (
-    <div className="rounded-lg bg-muted/50 overflow-hidden">
-      <div
-        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/70 transition-colors"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{food.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {quantity !== 1 ? `${quantity}x ` : ""}
-            {food.servingSize} • {adjustedCalories} kcal
-          </p>
-        </div>
-        <ChevronDown
-          className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${
-            isExpanded ? "rotate-180" : ""
-          }`}
-        />
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          onClick={handleRemove}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
-      </div>
-
-      {isExpanded && (
-        <div className="border-t border-border/50 bg-muted/30 px-3 py-3 space-y-3">
-          {/* Quantity Selector */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Servings</span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={decrementQuantity}
-                disabled={quantity <= 0.5}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-12 text-center font-medium">{quantity}</span>
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={incrementQuantity}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Macro Details */}
-          <div className="rounded-md bg-background/50 p-3 space-y-2">
-            <p className="text-sm font-medium">Nutrition Info</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Calories</span>
-                <span className="font-medium">{adjustedCalories} kcal</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Protein</span>
-                <span className="font-medium">{adjustedProtein}g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Carbs</span>
-                <span className="font-medium">{adjustedCarbs}g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Fat</span>
-                <span className="font-medium">{adjustedFat}g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Fiber</span>
-                <span className="font-medium">{adjustedFiber}g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Sugar</span>
-                <span className="font-medium">{adjustedSugar}g</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Per serving info */}
-          <p className="text-xs text-muted-foreground text-center">
-            Per serving ({food.servingSize}): {food.calories} kcal • P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g
-          </p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function FoodListItem({
-  food,
-  onAdd,
-  onToggleFavorite,
-  isFavorite,
-  onDelete,
-  showDelete,
-}: {
-  food: FoodItem
-  onAdd: (quantity: number) => void
-  onToggleFavorite: () => void
-  isFavorite?: boolean
-  onDelete?: () => void
-  showDelete?: boolean
-}) {
-  const [quantity, setQuantity] = useState(1)
-  const [isExpanded, setIsExpanded] = useState(false)
-
-  const adjustedCalories = Math.round(food.calories * quantity)
-  const adjustedProtein = Math.round(food.protein * quantity * 10) / 10
-  const adjustedCarbs = Math.round(food.carbs * quantity * 10) / 10
-  const adjustedFat = Math.round(food.fat * quantity * 10) / 10
-  const adjustedFiber = Math.round((food.fiber ?? 0) * quantity * 10) / 10
-  const adjustedSugar = Math.round((food.sugar ?? 0) * quantity * 10) / 10
-
-  const handleToggleExpand = () => {
-    setIsExpanded(!isExpanded)
-    if (!isExpanded) {
-      setQuantity(1)
-    }
-  }
-
-  const incrementQuantity = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setQuantity((q) => Math.round((q + 0.5) * 10) / 10)
-  }
-
-  const decrementQuantity = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setQuantity((q) => Math.max(0.5, Math.round((q - 0.5) * 10) / 10))
-  }
-
-  const handleAdd = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    onAdd(quantity)
-    setIsExpanded(false)
-    setQuantity(1)
-  }
-
-  return (
-    <div className="rounded-lg border overflow-hidden">
-      <div
-        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50"
-        onClick={handleToggleExpand}
-      >
-        <div className="flex-1">
-          <p className="font-medium">{food.name}</p>
-          {food.brand && (
-            <p className="text-xs text-muted-foreground">{food.brand}</p>
-          )}
-          <p className="text-sm text-muted-foreground">
-            {food.calories} kcal • P: {food.protein}g • C: {food.carbs}g • F:{" "}
-            {food.fat}g
-          </p>
-          <p className="text-xs text-muted-foreground">{food.servingSize}</p>
-        </div>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          onClick={(e: React.MouseEvent) => {
-            e.stopPropagation()
-            onToggleFavorite()
-          }}
-        >
-          <Star
-            className={`h-4 w-4 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`}
-          />
-        </Button>
-        {showDelete && onDelete && (
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        )}
-      </div>
-
-      {isExpanded && (
-        <div className="border-t bg-muted/30 p-3 space-y-3">
-          {/* Quantity Selector */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Servings</span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={decrementQuantity}
-                disabled={quantity <= 0.5}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-12 text-center font-medium">{quantity}</span>
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={incrementQuantity}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Adjusted Macros */}
-          <div className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{adjustedCalories} kcal</span>
-            {" • "}P: {adjustedProtein}g • C: {adjustedCarbs}g • F: {adjustedFat}g
-            <br />
-            Fiber: {adjustedFiber}g • Sugar: {adjustedSugar}g
-          </div>
-
-          {/* Add Button */}
-          <Button className="w-full" onClick={handleAdd}>
-            <Check className="mr-2 h-4 w-4" />
-            Add {quantity > 1 ? `${quantity} servings` : ""}
-          </Button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function CustomFoodForm({
-  onSave,
-  onSaveAndAdd,
-  initialBarcode,
-  onClearBarcode,
-}: {
-  onSave: (food: Omit<FoodItem, "id" | "isCustom">) => void
-  onSaveAndAdd: (food: Omit<FoodItem, "id" | "isCustom">) => void
-  initialBarcode?: string | null
-  onClearBarcode?: () => void
-}) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [name, setName] = useState("")
-  const [calories, setCalories] = useState("")
-  const [protein, setProtein] = useState("")
-  const [carbs, setCarbs] = useState("")
-  const [fat, setFat] = useState("")
-  const [fiber, setFiber] = useState("")
-  const [sugar, setSugar] = useState("")
-  const [servingSize, setServingSize] = useState("1 serving")
-  const [barcode, setBarcode] = useState("")
-
-  // Auto-expand when barcode is scanned
-  useEffect(() => {
-    if (initialBarcode) {
-      setIsExpanded(true)
-      setBarcode(initialBarcode)
-    }
-  }, [initialBarcode])
-
-  const getFoodData = (): Omit<FoodItem, "id" | "isCustom"> => ({
-    name: name.trim(),
-    calories: parseFloat(calories) || 0,
-    protein: parseFloat(protein) || 0,
-    carbs: parseFloat(carbs) || 0,
-    fat: parseFloat(fat) || 0,
-    fiber: parseFloat(fiber) || 0,
-    sugar: parseFloat(sugar) || 0,
-    servingSize,
-    barcode: barcode.trim() || undefined,
-  })
-
-  const resetForm = () => {
-    setName("")
-    setCalories("")
-    setProtein("")
-    setCarbs("")
-    setFat("")
-    setFiber("")
-    setSugar("")
-    setServingSize("1 serving")
-    setBarcode("")
-    setIsExpanded(false)
-    onClearBarcode?.()
-  }
-
-  const handleSave = () => {
-    if (!name.trim()) return
-    onSave(getFoodData())
-    resetForm()
-  }
-
-  const handleSaveAndAdd = () => {
-    if (!name.trim()) return
-    onSaveAndAdd(getFoodData())
-    resetForm()
-  }
-
-  if (!isExpanded) {
-    return (
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={() => setIsExpanded(true)}
-      >
-        <Plus className="mr-2 h-4 w-4" />
-        Create New Food
-      </Button>
-    )
-  }
-
-  return (
-    <div className="space-y-4 rounded-lg border p-4">
-      <div className="flex items-center justify-between">
-        <p className="font-medium">
-          {initialBarcode ? "Create Food (Scanned)" : "Create New Food"}
-        </p>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          onClick={() => {
-            setIsExpanded(false)
-            onClearBarcode?.()
-          }}
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {barcode && (
-        <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
-          <ScanBarcode className="h-4 w-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Barcode:</span>
-          <span className="font-mono">{barcode}</span>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Name</label>
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Food name"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Calories</label>
-          <Input
-            type="number"
-            value={calories}
-            onChange={(e) => setCalories(e.target.value)}
-            placeholder="0"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Serving Size</label>
-          <Input
-            value={servingSize}
-            onChange={(e) => setServingSize(e.target.value)}
-            placeholder="1 serving"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Protein (g)</label>
-          <Input
-            type="number"
-            value={protein}
-            onChange={(e) => setProtein(e.target.value)}
-            placeholder="0"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Carbs (g)</label>
-          <Input
-            type="number"
-            value={carbs}
-            onChange={(e) => setCarbs(e.target.value)}
-            placeholder="0"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Fat (g)</label>
-          <Input
-            type="number"
-            value={fat}
-            onChange={(e) => setFat(e.target.value)}
-            placeholder="0"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Fiber (g)</label>
-          <Input
-            type="number"
-            value={fiber}
-            onChange={(e) => setFiber(e.target.value)}
-            placeholder="0"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Sugar (g)</label>
-          <Input
-            type="number"
-            value={sugar}
-            onChange={(e) => setSugar(e.target.value)}
-            placeholder="0"
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="flex-1"
-          disabled={!name.trim()}
-          onClick={handleSave}
-        >
-          Save Only
-        </Button>
-        <Button
-          type="button"
-          className="flex-1"
-          disabled={!name.trim()}
-          onClick={handleSaveAndAdd}
-        >
-          Save & Add
-        </Button>
-      </div>
     </div>
   )
 }

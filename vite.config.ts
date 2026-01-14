@@ -89,6 +89,7 @@ export default defineConfig({
           "vendor-react": ["react", "react-dom", "react-router-dom"],
           "vendor-recharts": ["recharts"],
           "vendor-utils": ["zustand", "date-fns", "uuid"],
+          "vendor-barcode": ["html5-qrcode"],
         },
       },
     },

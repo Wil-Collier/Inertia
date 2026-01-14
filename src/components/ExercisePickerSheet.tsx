@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react"
-import { Search, X } from "lucide-react"
+import { useState, useMemo, useEffect } from "react"
+import { Search, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sheet"
 import { ExerciseInfoButton } from "@/components/ExerciseInfoSheet"
 import { useExerciseStore } from "@/stores/exerciseStore"
+import { ensureExercisesLoaded } from "@/data/exerciseLoader"
 import type { MuscleGroup } from "@/lib/types"
 
 const muscleGroups: MuscleGroup[] = [
@@ -47,10 +48,22 @@ export function ExercisePickerSheet({
   onSelect,
   addedExerciseIds = [],
 }: ExercisePickerSheetProps) {
-  const { exercises } = useExerciseStore()
+  const { exercises, isLoaded, setDefaultExercises } = useExerciseStore()
   const [selectedMuscleGroup, setSelectedMuscleGroup] =
     useState<MuscleGroup | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isLoadingExercises, setIsLoadingExercises] = useState(false)
+
+  // Load exercises when sheet opens
+  useEffect(() => {
+    if (open && !isLoaded) {
+      setIsLoadingExercises(true)
+      ensureExercisesLoaded(setDefaultExercises, isLoaded)
+        .finally(() => {
+          setIsLoadingExercises(false)
+        })
+    }
+  }, [open, isLoaded, setDefaultExercises])
 
   // Filter exercises by search query and muscle group
   const filteredExercises = useMemo(() => {
@@ -141,64 +154,76 @@ export function ExercisePickerSheet({
             ))}
           </div>
 
-          {/* Result count */}
-          <p className="mb-2 text-xs text-muted-foreground">
-            {filteredExercises.length} exercise{filteredExercises.length !== 1 ? "s" : ""}
-            {searchQuery && ` matching "${searchQuery}"`}
-          </p>
+          {/* Loading State */}
+          {isLoadingExercises ? (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Loading exercises...</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Result count */}
+              <p className="mb-2 text-xs text-muted-foreground">
+                {filteredExercises.length} exercise{filteredExercises.length !== 1 ? "s" : ""}
+                {searchQuery && ` matching "${searchQuery}"`}
+              </p>
 
-          {/* Exercise List */}
-          <ScrollArea className="flex-1 overflow-hidden">
-            <div className="space-y-6 pr-4">
-              {filteredExercises.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground">
-                  <p>No exercises found</p>
-                  {searchQuery && (
-                    <p className="mt-1 text-sm">
-                      Try a different search term or filter
-                    </p>
+              {/* Exercise List */}
+              <ScrollArea className="flex-1 overflow-hidden">
+                <div className="space-y-6 pr-4">
+                  {filteredExercises.length === 0 ? (
+                    <div className="py-8 text-center text-muted-foreground">
+                      <p>No exercises found</p>
+                      {searchQuery && (
+                        <p className="mt-1 text-sm">
+                          Try a different search term or filter
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    (Object.keys(exercisesByGroup) as MuscleGroup[]).map((group) => (
+                    <div key={group}>
+                      <h3 className="mb-2 text-sm font-medium text-muted-foreground">
+                        {muscleGroupLabels[group]}
+                      </h3>
+                      <div className="space-y-1">
+                        {exercisesByGroup[group].map((exercise) => {
+                          const isAdded = addedExerciseIds.includes(exercise.id)
+                          return (
+                            <div
+                              key={exercise.id}
+                              className={`flex w-full items-center justify-between rounded-lg p-3 transition-colors ${
+                                isAdded
+                                  ? "bg-primary/10"
+                                  : "hover:bg-muted"
+                              }`}
+                            >
+                              <button
+                                className={`flex-1 text-left font-medium ${isAdded ? "text-primary" : ""}`}
+                                onClick={() => !isAdded && handleSelect(exercise.id)}
+                                disabled={isAdded}
+                              >
+                                {exercise.name}
+                              </button>
+                              <div className="flex items-center gap-1">
+                                <ExerciseInfoButton exercise={exercise} />
+                                {isAdded && (
+                                  <span className="text-xs text-primary">Added</span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))
                   )}
                 </div>
-              ) : (
-                (Object.keys(exercisesByGroup) as MuscleGroup[]).map((group) => (
-                <div key={group}>
-                  <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-                    {muscleGroupLabels[group]}
-                  </h3>
-                  <div className="space-y-1">
-                    {exercisesByGroup[group].map((exercise) => {
-                      const isAdded = addedExerciseIds.includes(exercise.id)
-                      return (
-                        <div
-                          key={exercise.id}
-                          className={`flex w-full items-center justify-between rounded-lg p-3 transition-colors ${
-                            isAdded
-                              ? "bg-primary/10"
-                              : "hover:bg-muted"
-                          }`}
-                        >
-                          <button
-                            className={`flex-1 text-left font-medium ${isAdded ? "text-primary" : ""}`}
-                            onClick={() => !isAdded && handleSelect(exercise.id)}
-                            disabled={isAdded}
-                          >
-                            {exercise.name}
-                          </button>
-                          <div className="flex items-center gap-1">
-                            <ExerciseInfoButton exercise={exercise} />
-                            {isAdded && (
-                              <span className="text-xs text-primary">Added</span>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))
-              )}
-            </div>
-          </ScrollArea>
+              </ScrollArea>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { format, subDays, startOfWeek, eachDayOfInterval, parseISO } from "date-fns"
 import { Trophy, TrendingUp, Dumbbell, Calendar, Scale, Trash2, TrendingDown, Minus, Activity, Award } from "lucide-react"
 import {
@@ -16,7 +16,7 @@ import {
   Radar,
 } from "recharts"
 import type { MuscleGroup } from "@/lib/types"
-import { muscleGroupLabels } from "@/data/defaultExercises"
+import { muscleGroupLabels } from "@/lib/muscleGroups"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -26,6 +26,7 @@ import { StreakDisplay } from "@/components/StreakDisplay"
 import { AchievementCard } from "@/components/AchievementCard"
 import { useWorkoutStore } from "@/stores/workoutStore"
 import { useExerciseStore } from "@/stores/exerciseStore"
+import { ensureExercisesLoaded } from "@/data/exerciseLoader"
 import { useBodyWeightStore, getTodayDate } from "@/stores/bodyWeightStore"
 import { useAchievementsStore } from "@/stores/achievementsStore"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
@@ -34,7 +35,7 @@ import { toast } from "sonner"
 
 export function ProgressPage() {
   const { workouts, personalRecords, calculateOneRepMax, getExerciseHistory } = useWorkoutStore()
-  const { getExercise, exercises } = useExerciseStore()
+  const { getExercise, exercises, isLoaded, setDefaultExercises } = useExerciseStore()
   const {
     entries: weightEntries,
     addEntry: addWeightEntry,
@@ -46,6 +47,13 @@ export function ProgressPage() {
 
   const [newWeight, setNewWeight] = useState("")
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null)
+
+  // Load exercises on mount
+  useEffect(() => {
+    if (!isLoaded) {
+      ensureExercisesLoaded(setDefaultExercises, isLoaded)
+    }
+  }, [isLoaded, setDefaultExercises])
 
   // Calculate weekly volume data
   const weeklyData = useMemo(() => {

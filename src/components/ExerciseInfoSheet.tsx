@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { getExerciseInstructions } from "@/data/exerciseInstructions"
-import { muscleGroupLabels } from "@/data/defaultExercises"
+import { muscleGroupLabels } from "@/lib/muscleGroups"
 import type { Exercise } from "@/lib/types"
 
 interface ExerciseInfoSheetProps {

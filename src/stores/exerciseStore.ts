@@ -1,23 +1,25 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import type { Exercise, MuscleGroup } from "@/lib/types"
-import { defaultExercises } from "@/data/defaultExercises"
 import { v4 as uuidv4 } from "uuid"
 
 interface ExerciseStore {
   exercises: Exercise[]
+  isLoaded: boolean
   addExercise: (name: string, muscleGroup: MuscleGroup, isWeighted?: boolean, isTimeBased?: boolean) => Exercise
   updateExercise: (id: string, updates: Partial<Omit<Exercise, "id">>) => void
   deleteExercise: (id: string) => void
   getExercise: (id: string) => Exercise | undefined
   getExercisesByMuscleGroup: (muscleGroup: MuscleGroup) => Exercise[]
+  setDefaultExercises: (exercises: Exercise[]) => void
   resetToDefaults: () => void
 }
 
 export const useExerciseStore = create<ExerciseStore>()(
   persist(
     (set, get) => ({
-      exercises: defaultExercises,
+      exercises: [],
+      isLoaded: false,
 
       addExercise: (name, muscleGroup, isWeighted = true, isTimeBased = false) => {
         const newExercise: Exercise = {
@@ -56,23 +58,44 @@ export const useExerciseStore = create<ExerciseStore>()(
         return get().exercises.filter((ex) => ex.muscleGroup === muscleGroup)
       },
 
+      setDefaultExercises: (defaultExercises) => {
+        set((state) => {
+          // Keep custom exercises, add defaults that don't exist
+          const customExercises = state.exercises.filter((ex) => ex.isCustom)
+          const existingIds = new Set(state.exercises.map((ex) => ex.id))
+          const newDefaults = defaultExercises.filter((ex) => !existingIds.has(ex.id))
+          
+          return {
+            exercises: [...defaultExercises.filter(ex => !ex.isCustom), ...customExercises, ...newDefaults.filter(ex => ex.isCustom)],
+            isLoaded: true,
+          }
+        })
+      },
+
       resetToDefaults: () => {
-        set({ exercises: defaultExercises })
+        // This will be called after loading defaults
+        set((state) => ({
+          exercises: state.exercises.filter((ex) => !ex.isCustom),
+          isLoaded: false,
+        }))
       },
     }),
     {
       name: "training-app-exercises",
-      version: 4,
+      version: 5,
+      partialize: (state) => ({
+        exercises: state.exercises.filter((ex) => ex.isCustom),
+      }),
       migrate: (persistedState, version) => {
         const state = persistedState as ExerciseStore
-        if (version < 4) {
-          // Version 4: Complete exercise library overhaul
-          // Replace old default exercises with new 873-exercise database
-          // Keep only user's custom exercises
-          const customExercises = state.exercises.filter((ex) => ex.isCustom)
+        if (version < 5) {
+          // Version 5: Lazy loading - keep only custom exercises in localStorage
+          // Default exercises will be loaded dynamically
+          const customExercises = state.exercises?.filter((ex) => ex.isCustom) || []
           return {
             ...state,
-            exercises: [...defaultExercises, ...customExercises],
+            exercises: customExercises,
+            isLoaded: false,
           }
         }
         return state
