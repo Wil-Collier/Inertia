@@ -62,35 +62,17 @@ export const useExerciseStore = create<ExerciseStore>()(
     }),
     {
       name: "training-app-exercises",
-      version: 3,
+      version: 4,
       migrate: (persistedState, version) => {
         const state = persistedState as ExerciseStore
-        if (version < 2) {
-          // Add isWeighted to existing exercises (default to true for weighted)
-          // Match against defaultExercises to get correct isWeighted value
-          const defaultExerciseMap = new Map(
-            defaultExercises.map((e) => [e.id, e.isWeighted])
-          )
+        if (version < 4) {
+          // Version 4: Complete exercise library overhaul
+          // Replace old default exercises with new 873-exercise database
+          // Keep only user's custom exercises
+          const customExercises = state.exercises.filter((ex) => ex.isCustom)
           return {
             ...state,
-            exercises: state.exercises.map((ex) => ({
-              ...ex,
-              isWeighted: defaultExerciseMap.get(ex.id) ?? true,
-            })),
-          }
-        }
-        if (version < 3) {
-          // Add isTimeBased to existing exercises
-          // Match against defaultExercises to get correct isTimeBased value
-          const defaultExerciseMap = new Map(
-            defaultExercises.map((e) => [e.id, e.isTimeBased])
-          )
-          return {
-            ...state,
-            exercises: state.exercises.map((ex) => ({
-              ...ex,
-              isTimeBased: defaultExerciseMap.get(ex.id) ?? false,
-            })),
+            exercises: [...defaultExercises, ...customExercises],
           }
         }
         return state
