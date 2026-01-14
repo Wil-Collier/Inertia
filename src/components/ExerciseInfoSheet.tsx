@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Info, Play, CheckCircle2, Lightbulb, ExternalLink } from "lucide-react"
+import { Info, CheckCircle2 } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -20,8 +20,6 @@ interface ExerciseInfoSheetProps {
 }
 
 export function ExerciseInfoSheet({ exercise, open, onOpenChange }: ExerciseInfoSheetProps) {
-  const [showVideo, setShowVideo] = useState(false)
-
   if (!exercise) return null
 
   const instructions = getExerciseInstructions(exercise.id)
@@ -43,55 +41,6 @@ export function ExerciseInfoSheet({ exercise, open, onOpenChange }: ExerciseInfo
 
         <ScrollArea className="flex-1 px-4 pb-4">
           <div className="space-y-6">
-            {/* YouTube Video */}
-            {instructions?.youtubeId && (
-              <div className="space-y-2">
-                <h3 className="flex items-center gap-2 text-sm font-medium">
-                  <Play className="h-4 w-4 text-red-500" />
-                  Video Demo
-                </h3>
-                {showVideo ? (
-                  <div className="aspect-video w-full overflow-hidden rounded-lg bg-muted">
-                    <iframe
-                      src={`https://www.youtube.com/embed/${instructions.youtubeId}?rel=0`}
-                      title={`${exercise.name} demonstration`}
-                      className="h-full w-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowVideo(true)}
-                    className="group relative aspect-video w-full overflow-hidden rounded-lg bg-muted"
-                  >
-                    <img
-                      src={`https://img.youtube.com/vi/${instructions.youtubeId}/hqdefault.jpg`}
-                      alt={`${exercise.name} video thumbnail`}
-                      className="h-full w-full object-cover transition-opacity group-hover:opacity-80"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-transform group-hover:scale-110">
-                        <Play className="h-8 w-8 fill-current" />
-                      </div>
-                    </div>
-                    <span className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 text-xs text-white">
-                      Tap to play
-                    </span>
-                  </button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-muted-foreground"
-                  onClick={() => window.open(`https://www.youtube.com/watch?v=${instructions.youtubeId}`, "_blank")}
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Open in YouTube
-                </Button>
-              </div>
-            )}
-
             {/* Instructions */}
             {instructions?.instructions && instructions.instructions.length > 0 && (
               <div className="space-y-3">
@@ -109,24 +58,6 @@ export function ExerciseInfoSheet({ exercise, open, onOpenChange }: ExerciseInfo
                     </li>
                   ))}
                 </ol>
-              </div>
-            )}
-
-            {/* Tips */}
-            {instructions?.tips && instructions.tips.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="flex items-center gap-2 text-sm font-medium">
-                  <Lightbulb className="h-4 w-4 text-yellow-500" />
-                  Pro Tips
-                </h3>
-                <ul className="space-y-2">
-                  {instructions.tips.map((tip, index) => (
-                    <li key={index} className="flex gap-3 text-sm">
-                      <span className="text-yellow-500">•</span>
-                      <span className="text-muted-foreground">{tip}</span>
-                    </li>
-                  ))}
-                </ul>
               </div>
             )}
 

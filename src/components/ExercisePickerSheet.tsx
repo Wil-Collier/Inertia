@@ -100,7 +100,7 @@ export function ExercisePickerSheet({
           <SheetTitle>Add Exercise</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 flex h-[calc(80vh-80px)] flex-col">
+        <div className="flex h-[calc(80vh-80px)] flex-col px-4">
           {/* Search Input */}
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

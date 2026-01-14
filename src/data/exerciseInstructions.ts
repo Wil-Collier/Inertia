@@ -5,8 +5,6 @@ import { getExerciseFromDatabase } from "./exerciseDatabase"
 
 export interface ExerciseInstruction {
   instructions: string[]
-  tips: string[]
-  youtubeId?: string
 }
 
 // Helper function to get instructions for an exercise
@@ -19,8 +17,6 @@ export function getExerciseInstructions(
   if (exercise && exercise.instructions.length > 0) {
     return {
       instructions: exercise.instructions,
-      tips: [], // The JSON doesn't have separate tips
-      youtubeId: undefined, // YouTube IDs not available in JSON
     }
   }
 
