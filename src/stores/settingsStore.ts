@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { UserSettings, ThemeMode, NutritionGoals, WeightUnit } from "@/lib/types"
+import type { UserSettings, ThemeMode, NutritionGoals, WeightUnit, DistanceUnit, UnitPreferences } from "@/lib/types"
 
 interface SettingsStore {
   settings: UserSettings
@@ -9,8 +9,15 @@ interface SettingsStore {
   updateNutritionGoal: (key: keyof NutritionGoals, value: number) => void
   setRestTimerDuration: (seconds: number) => void
   setWeightUnit: (unit: WeightUnit) => void
+  setDistanceUnit: (unit: DistanceUnit) => void
+  setUnitPreferences: (prefs: Partial<UnitPreferences>) => void
   setNotificationsEnabled: (enabled: boolean) => void
   resetSettings: () => void
+}
+
+const defaultUnitPreferences: UnitPreferences = {
+  weight: "lbs",
+  distance: "mi",
 }
 
 const defaultSettings: UserSettings = {
@@ -25,6 +32,7 @@ const defaultSettings: UserSettings = {
   },
   restTimerDuration: 90,
   weightUnit: "lbs",
+  unitPreferences: defaultUnitPreferences,
   notificationsEnabled: false,
 }
 
@@ -65,7 +73,31 @@ export const useSettingsStore = create<SettingsStore>()(
 
       setWeightUnit: (unit) => {
         set((state) => ({
-          settings: { ...state.settings, weightUnit: unit },
+          settings: {
+            ...state.settings,
+            weightUnit: unit,
+            unitPreferences: { ...state.settings.unitPreferences, weight: unit },
+          },
+        }))
+      },
+
+      setDistanceUnit: (unit) => {
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            unitPreferences: { ...state.settings.unitPreferences, distance: unit },
+          },
+        }))
+      },
+
+      setUnitPreferences: (prefs) => {
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            unitPreferences: { ...state.settings.unitPreferences, ...prefs },
+            // Keep weightUnit in sync for backward compatibility
+            ...(prefs.weight && { weightUnit: prefs.weight }),
+          },
         }))
       },
 
@@ -81,7 +113,7 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: "training-app-settings",
-      version: 5,
+      version: 6,
       migrate: (persistedState, version) => {
         const state = persistedState as SettingsStore
         if (version < 2) {
@@ -125,6 +157,20 @@ export const useSettingsStore = create<SettingsStore>()(
             settings: {
               ...state.settings,
               notificationsEnabled: state.settings.notificationsEnabled ?? false,
+            },
+          }
+        }
+        if (version < 6) {
+          // Add unit preferences (migrate from legacy weightUnit)
+          const existingWeightUnit = state.settings.weightUnit ?? "lbs"
+          return {
+            ...state,
+            settings: {
+              ...state.settings,
+              unitPreferences: {
+                weight: existingWeightUnit,
+                distance: existingWeightUnit === "kg" ? "km" : "mi",
+              },
             },
           }
         }

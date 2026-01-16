@@ -26,12 +26,13 @@ import {
 } from "@/components/ui/dialog"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
 import { ExerciseInfoButton } from "@/components/ExerciseInfoSheet"
-import { useWorkoutStore } from "@/stores/workoutStore"
+import { useWorkoutStore } from "@/stores/workout"
 import { useExerciseStore } from "@/stores/exerciseStore"
 import { useSettingsStore } from "@/stores/settingsStore"
 import { useRestTimer } from "@/hooks/useRestTimer"
 import { useCountdownTimer } from "@/hooks/useCountdownTimer"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
+import { useElapsedTime } from "@/hooks/useElapsedTime"
 import { playDingSound, unlockAudio } from "@/lib/audio"
 import { cn } from "@/lib/utils"
 import { format, parseISO } from "date-fns"
@@ -98,6 +99,9 @@ export function ActiveWorkout() {
   }
 
   const { workout } = activeSession
+
+  // Track elapsed time for the workout
+  const elapsed = useElapsedTime({ startedAt: activeSession.startedAt })
 
   const handleFinish = () => {
     const completed = finishWorkout()
@@ -231,6 +235,10 @@ export function ActiveWorkout() {
             <p className="font-medium">
               {completedSets} / {totalSets} sets
             </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Elapsed</p>
+            <p className="font-medium font-mono">{elapsed.formattedTime}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Exercises</p>

@@ -111,7 +111,8 @@ export interface UserSettings {
   theme: ThemeMode
   nutritionGoals: NutritionGoals
   restTimerDuration: number // seconds
-  weightUnit: WeightUnit // lbs or kg for workout weights
+  weightUnit: WeightUnit // lbs or kg for workout weights (legacy, use unitPreferences)
+  unitPreferences: UnitPreferences // comprehensive unit preferences
   notificationsEnabled: boolean // whether to show rest timer notifications
 }
 
@@ -133,6 +134,13 @@ export interface ActiveWorkoutSession {
 
 // Body Weight Tracking
 export type WeightUnit = "lbs" | "kg"
+export type DistanceUnit = "mi" | "km"
+
+// Unit System Preferences
+export interface UnitPreferences {
+  weight: WeightUnit
+  distance: DistanceUnit
+}
 
 export interface WeightEntry {
   id: string

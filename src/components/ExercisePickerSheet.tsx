@@ -24,15 +24,7 @@ const muscleGroups: MuscleGroup[] = [
   "cardio",
 ]
 
-const muscleGroupLabels: Record<MuscleGroup, string> = {
-  chest: "Chest",
-  back: "Back",
-  shoulders: "Shoulders",
-  arms: "Arms",
-  legs: "Legs",
-  core: "Core",
-  cardio: "Cardio",
-}
+import { muscleGroupLabels } from "@/lib/muscleGroups"
 
 interface ExercisePickerSheetProps {
   open: boolean

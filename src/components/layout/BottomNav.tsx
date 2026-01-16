@@ -7,7 +7,7 @@ import {
   Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useWorkoutStore } from "@/stores/workoutStore"
+import { useWorkoutStore } from "@/stores/workout"
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },

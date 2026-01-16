@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { Layout } from "@/components/layout/Layout"
 import { PageErrorBoundary } from "@/components/PageErrorBoundary"
+import { PageLoader } from "@/components/ui/PageLoader"
 
 // Lazy load pages for code-splitting
 const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })))
@@ -14,14 +15,6 @@ const NutritionPage = lazy(() => import("@/pages/NutritionPage").then((m) => ({ 
 const NutritionHistoryPage = lazy(() => import("@/pages/NutritionHistoryPage").then((m) => ({ default: m.NutritionHistoryPage })))
 const ProgressPage = lazy(() => import("@/pages/ProgressPage").then((m) => ({ default: m.ProgressPage })))
 const SettingsPage = lazy(() => import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })))
-
-function PageLoader() {
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-    </div>
-  )
-}
 
 export function App() {
   return (

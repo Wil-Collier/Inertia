@@ -29,7 +29,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
-import { useWorkoutStore } from "@/stores/workoutStore"
+import { useWorkoutStore } from "@/stores/workout"
 import { useExerciseStore } from "@/stores/exerciseStore"
 import type { WorkoutTemplate } from "@/lib/types"
 

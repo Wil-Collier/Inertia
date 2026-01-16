@@ -8,7 +8,7 @@ import {
   Trash2,
   Target,
   Timer,
-  Scale,
+  Ruler,
   Bell,
   BellOff,
 } from "lucide-react"
@@ -32,10 +32,10 @@ import {
   isNotificationSupported,
 } from "@/services/notifications"
 import { toast } from "sonner"
-import type { ThemeMode, WeightUnit } from "@/lib/types"
+import type { ThemeMode, WeightUnit, DistanceUnit } from "@/lib/types"
 
 export function SettingsPage() {
-  const { settings, updateNutritionGoal, setRestTimerDuration, setWeightUnit, setNotificationsEnabled } = useSettingsStore()
+  const { settings, updateNutritionGoal, setRestTimerDuration, setWeightUnit, setDistanceUnit, setNotificationsEnabled } = useSettingsStore()
   const { theme, setTheme } = useTheme()
   const [showClearDialog, setShowClearDialog] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -105,6 +105,11 @@ export function SettingsPage() {
   const weightUnitOptions: { value: WeightUnit; label: string }[] = [
     { value: "lbs", label: "Pounds (lbs)" },
     { value: "kg", label: "Kilograms (kg)" },
+  ]
+
+  const distanceUnitOptions: { value: DistanceUnit; label: string }[] = [
+    { value: "mi", label: "Miles (mi)" },
+    { value: "km", label: "Kilometers (km)" },
   ]
 
   return (
@@ -190,29 +195,51 @@ export function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Body Weight Settings */}
+        {/* Units */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Scale className="h-4 w-4" />
-              Body Weight
+              <Ruler className="h-4 w-4" />
+              Units
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Weight Unit</Label>
+              <Label>Weight</Label>
               <div className="flex gap-2">
-                  {weightUnitOptions.map(({ value, label }) => (
-                    <Button
-                      key={value}
-                      variant={settings.weightUnit === value ? "default" : "outline"}
-                      className="flex-1"
-                      onClick={() => setWeightUnit(value)}
-                    >
-                      {label}
-                    </Button>
-                  ))}
+                {weightUnitOptions.map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={settings.unitPreferences.weight === value ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => setWeightUnit(value)}
+                  >
+                    {label}
+                  </Button>
+                ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Used for body weight and workout weights
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Distance</Label>
+              <div className="flex gap-2">
+                {distanceUnitOptions.map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={settings.unitPreferences.distance === value ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => setDistanceUnit(value)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Used for running, walking, and cardio distances
+              </p>
             </div>
           </CardContent>
         </Card>

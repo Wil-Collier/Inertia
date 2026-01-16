@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react"
 import { format, startOfWeek, eachDayOfInterval } from "date-fns"
-import { useWorkoutStore } from "@/stores/workoutStore"
+import { useWorkoutStore } from "@/stores/workout"
 import { useNutritionStore } from "@/stores/nutritionStore"
 import { useAchievementsStore } from "@/stores/achievementsStore"
 import { useExerciseStore } from "@/stores/exerciseStore"

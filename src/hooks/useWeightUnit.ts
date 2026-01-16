@@ -70,10 +70,12 @@ export function getDisplayWeight(storedWeight: number, displayUnit: WeightUnit):
 
 /**
  * Hook for weight unit preferences and conversions
+ * Uses unitPreferences.weight from settings (falls back to legacy weightUnit)
  */
 export function useWeightUnit() {
   const { settings } = useSettingsStore()
-  const unit = settings.weightUnit
+  // Use unitPreferences.weight, fall back to legacy weightUnit for compatibility
+  const unit = settings.unitPreferences?.weight ?? settings.weightUnit
 
   return {
     /** Current weight unit preference */

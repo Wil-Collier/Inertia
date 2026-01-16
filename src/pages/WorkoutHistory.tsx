@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatDuration } from "@/lib/utils"
-import { useWorkoutStore } from "@/stores/workoutStore"
+import { useWorkoutStore } from "@/stores/workout"
 import { useExerciseStore } from "@/stores/exerciseStore"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import type { Workout } from "@/lib/types"

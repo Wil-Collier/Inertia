@@ -1,8 +1,11 @@
 import { useExerciseStore } from "@/stores/exerciseStore"
-import { useWorkoutStore } from "@/stores/workoutStore"
+import { useWorkoutStore } from "@/stores/workout"
 import { useNutritionStore } from "@/stores/nutritionStore"
 import { useSettingsStore } from "@/stores/settingsStore"
 import { useBodyWeightStore } from "@/stores/bodyWeightStore"
+import { useAchievementsStore } from "@/stores/achievementsStore"
+import { useRestTimerStore } from "@/stores/restTimerStore"
+import { defaultTemplates } from "@/data/defaultTemplates"
 
 interface ExportData {
   version: number
@@ -18,6 +21,10 @@ interface ExportData {
   bodyWeight?: {
     entries: ReturnType<typeof useBodyWeightStore.getState>["entries"]
   }
+  achievements?: {
+    unlockedAchievements: ReturnType<typeof useAchievementsStore.getState>["unlockedAchievements"]
+    streaks: ReturnType<typeof useAchievementsStore.getState>["streaks"]
+  }
 }
 
 export function exportAllData(): string {
@@ -26,6 +33,7 @@ export function exportAllData(): string {
   const nutritionState = useNutritionStore.getState()
   const settingsState = useSettingsStore.getState()
   const bodyWeightState = useBodyWeightStore.getState()
+  const achievementState = useAchievementsStore.getState()
 
   const data: ExportData = {
     version: 1,
@@ -40,6 +48,10 @@ export function exportAllData(): string {
     settings: settingsState.settings,
     bodyWeight: {
       entries: bodyWeightState.entries,
+    },
+    achievements: {
+      unlockedAchievements: achievementState.unlockedAchievements,
+      streaks: achievementState.streaks,
     },
   }
 
@@ -78,7 +90,7 @@ export async function importData(file: File): Promise<{ success: boolean; messag
     if (data.workouts || data.templates || data.personalRecords) {
       useWorkoutStore.setState({
         workouts: data.workouts || [],
-        templates: data.templates || [],
+        templates: data.templates || defaultTemplates,
         personalRecords: data.personalRecords || {},
       })
     }
@@ -110,6 +122,20 @@ export async function importData(file: File): Promise<{ success: boolean; messag
       }
     }
 
+    if (data.achievements) {
+      useAchievementsStore.setState({
+        unlockedAchievements: data.achievements.unlockedAchievements || [],
+        streaks: data.achievements.streaks || {
+          currentWorkoutStreak: 0,
+          longestWorkoutStreak: 0,
+          lastWorkoutDate: null,
+          currentNutritionStreak: 0,
+          longestNutritionStreak: 0,
+          lastNutritionDate: null,
+        },
+      })
+    }
+
     return { success: true, message: "Data imported successfully" }
   } catch (error) {
     console.error("Import error:", error)
@@ -124,13 +150,14 @@ export function clearAllData(): void {
   localStorage.removeItem("training-app-nutrition")
   localStorage.removeItem("training-app-settings")
   localStorage.removeItem("training-app-bodyweight")
+  localStorage.removeItem("training-app-achievements")
 
   // Reset stores to defaults
   useExerciseStore.getState().resetToDefaults()
   useSettingsStore.getState().resetSettings()
   useWorkoutStore.setState({
     workouts: [],
-    templates: [],
+    templates: defaultTemplates,
     activeSession: null,
     personalRecords: {},
   })
@@ -142,4 +169,16 @@ export function clearAllData(): void {
   useBodyWeightStore.setState({
     entries: [],
   })
+  useAchievementsStore.setState({
+    unlockedAchievements: [],
+    streaks: {
+      currentWorkoutStreak: 0,
+      longestWorkoutStreak: 0,
+      lastWorkoutDate: null,
+      currentNutritionStreak: 0,
+      longestNutritionStreak: 0,
+      lastNutritionDate: null,
+    },
+  })
+  useRestTimerStore.getState().reset()
 }

@@ -25,21 +25,6 @@ export const useWorkoutStore = create<WorkoutStore>()(
     {
       name: "training-app-workouts",
       version: 2,
-      migrate: (persistedState, version) => {
-        const state = persistedState as WorkoutStore
-        if (version < 2) {
-          // Add default templates if they don't exist
-          const existingTemplateIds = new Set(state.templates.map((t) => t.id))
-          const newTemplates = defaultTemplates.filter(
-            (t) => !existingTemplateIds.has(t.id)
-          )
-          return {
-            ...state,
-            templates: [...state.templates, ...newTemplates],
-          }
-        }
-        return state
-      },
     }
   )
 )
