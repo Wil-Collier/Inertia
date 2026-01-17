@@ -7,7 +7,6 @@ import type {
   ActiveWorkoutSession,
   PersonalRecord,
   LastPerformance,
-  ProgressionSuggestion,
 } from "@/lib/types"
 
 // Re-export types for consumers
@@ -19,7 +18,6 @@ export type {
   ActiveWorkoutSession,
   PersonalRecord,
   LastPerformance,
-  ProgressionSuggestion,
 }
 
 // ============================================
@@ -88,25 +86,11 @@ export interface HistorySlice {
   getExerciseHistory: (exerciseId: string) => ExerciseHistoryEntry[]
 }
 
-// ============================================
-// Progression Slice Types
-// ============================================
-
-export interface ProgressionSlice {
-  getProgressionSuggestion: (exerciseId: string, isTimeBased?: boolean) => ProgressionSuggestion | null
-  applyProgressionSuggestion: (workoutExerciseId: string, suggestion: ProgressionSuggestion) => void
-}
-
-// ============================================
-// Combined Store Type
-// ============================================
-
 export interface WorkoutStore extends 
   WorkoutState,
   SessionSlice,
   TemplateSlice,
-  HistorySlice,
-  ProgressionSlice {}
+  HistorySlice {}
 
 // ============================================
 // Slice Creator Type

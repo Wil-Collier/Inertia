@@ -4,7 +4,6 @@ import type { WorkoutStore } from "./types"
 import { createSessionSlice } from "./sessionSlice"
 import { createTemplateSlice } from "./templateSlice"
 import { createHistorySlice } from "./historySlice"
-import { createProgressionSlice } from "./progressionSlice"
 import { defaultTemplates } from "@/data/defaultTemplates"
 
 export const useWorkoutStore = create<WorkoutStore>()(
@@ -20,7 +19,6 @@ export const useWorkoutStore = create<WorkoutStore>()(
       ...createSessionSlice(...args),
       ...createTemplateSlice(...args),
       ...createHistorySlice(...args),
-      ...createProgressionSlice(...args),
     }),
     {
       name: "training-app-workouts",

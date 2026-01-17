@@ -8,7 +8,6 @@ export type {
   SessionSlice,
   TemplateSlice,
   HistorySlice,
-  ProgressionSlice,
   ExerciseHistoryEntry,
   Workout,
   WorkoutTemplate,
@@ -17,5 +16,4 @@ export type {
   ActiveWorkoutSession,
   PersonalRecord,
   LastPerformance,
-  ProgressionSuggestion,
 } from "./types"

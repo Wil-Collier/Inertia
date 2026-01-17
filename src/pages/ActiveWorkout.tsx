@@ -10,7 +10,6 @@ import {
   ChevronUp,
   Play,
   Pause,
-  TrendingUp,
   StickyNote,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
@@ -51,8 +50,6 @@ export function ActiveWorkout() {
     toggleSetComplete,
     createTemplate,
     updateExerciseNotes,
-    getProgressionSuggestion,
-    applyProgressionSuggestion,
   } = useWorkoutStore()
 
   const { getExercise } = useExerciseStore()
@@ -251,14 +248,7 @@ export function ActiveWorkout() {
           const exercise = getExercise(workoutExercise.exerciseId)
           const isExpanded = expandedExercises.has(workoutExercise.id)
           const hasLastPerformance = !!workoutExercise.lastPerformanceDate
-          const isWeightedExercise = exercise?.isWeighted && !exercise?.isTimeBased
-          const isTimeBasedExercise = exercise?.isTimeBased ?? false
           
-          // Get smart progression suggestion
-          const suggestion = hasLastPerformance 
-            ? getProgressionSuggestion(workoutExercise.exerciseId, isTimeBasedExercise)
-            : null
-
           return (
             <Card key={workoutExercise.id}>
               <CardHeader
@@ -272,12 +262,6 @@ export function ActiveWorkout() {
                         {exercise?.name || "Unknown Exercise"}
                       </CardTitle>
                       {exercise && <ExerciseInfoButton exercise={exercise} />}
-                      {/* Ready to progress badge */}
-                      {suggestion?.type === "increase" && (
-                        <span className="ml-1 inline-flex items-center rounded-full bg-green-500/10 px-1.5 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400">
-                          Ready
-                        </span>
-                      )}
                     </div>
                     {hasLastPerformance && (
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -286,50 +270,6 @@ export function ActiveWorkout() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {/* Smart progression button for weighted exercises with history */}
-                    {hasLastPerformance && isWeightedExercise && suggestion && (
-                      <Button
-                        size="sm"
-                        variant={suggestion.type === "increase" ? "default" : "outline"}
-                        className={cn(
-                          "h-7 px-2 text-xs font-medium",
-                          suggestion.type === "increase" && "bg-green-600 hover:bg-green-700"
-                        )}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          applyProgressionSuggestion(workoutExercise.id, suggestion)
-                        }}
-                        title={suggestion.reason}
-                      >
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        {suggestion.type === "increase" 
-                          ? `Try ${weightUnit.format(suggestion.suggestedWeight, { showUnit: false })} ${weightUnit.unitLabel}`
-                          : weightUnit.formatIncrement(suggestion.increment)
-                        }
-                      </Button>
-                    )}
-                    {/* Smart progression button for time-based exercises */}
-                    {hasLastPerformance && isTimeBasedExercise && suggestion && (
-                      <Button
-                        size="sm"
-                        variant={suggestion.type === "increase" ? "default" : "outline"}
-                        className={cn(
-                          "h-7 px-2 text-xs font-medium",
-                          suggestion.type === "increase" && "bg-green-600 hover:bg-green-700"
-                        )}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          applyProgressionSuggestion(workoutExercise.id, suggestion)
-                        }}
-                        title={suggestion.reason}
-                      >
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        {suggestion.suggestedDuration 
-                          ? `Try ${Math.floor(suggestion.suggestedDuration / 60)}:${(suggestion.suggestedDuration % 60).toString().padStart(2, '0')}`
-                          : `+${suggestion.increment}s`
-                        }
-                      </Button>
-                    )}
                     {/* Notes indicator */}
                     {workoutExercise.notes && (
                       <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />

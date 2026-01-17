@@ -105,19 +105,5 @@ export function useWeightUnit() {
      */
     toStorage: (displayWeight: number) =>
       unit === "kg" ? displayWeight * KG_TO_LBS : displayWeight,
-
-    /**
-     * Format weight increment for progression buttons
-     */
-    formatIncrement: (incrementLbs: number) => {
-      if (unit === "kg") {
-        // Convert and round to nice kg increments (1, 2, 2.5, 5, etc.)
-        const kg = incrementLbs * LBS_TO_KG
-        // Round to nearest 0.5 kg
-        const rounded = Math.round(kg * 2) / 2
-        return `${rounded} ${unit}`
-      }
-      return `${incrementLbs} ${unit}`
-    },
   }
 }

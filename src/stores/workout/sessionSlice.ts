@@ -14,10 +14,6 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
           const lastPerformance = get().getLastPerformance(te.exerciseId)
 
           if (lastPerformance && lastPerformance.sets.length > 0) {
-            // Get progression suggestion to auto-apply smart weight
-            const suggestion = get().getProgressionSuggestion(te.exerciseId)
-            const useProgressedWeight = suggestion?.type === "increase"
-
             // Use last performance data, but match template set count
             const targetSetCount = te.targetSets
             const lastSets = lastPerformance.sets
@@ -34,11 +30,7 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
                 return {
                   id: uuidv4(),
                   reps: baseReps,
-                  // Apply suggested progression if ready
-                  weight:
-                    useProgressedWeight && suggestion
-                      ? suggestion.suggestedWeight
-                      : baseWeight,
+                  weight: baseWeight,
                   completed: false,
                 }
               }),
@@ -135,11 +127,7 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
       let newExercise: WorkoutExercise
 
       if (lastPerformance && lastPerformance.sets.length > 0) {
-        // Get progression suggestion for smart weight pre-fill
-        const suggestion = get().getProgressionSuggestion(exerciseId)
-        const useProgressedWeight = suggestion?.type === "increase"
-
-        // Pre-fill with last performance data, applying progression if suggested
+        // Pre-fill with last performance data
         newExercise = {
           id: uuidv4(),
           exerciseId,
@@ -147,10 +135,7 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
           sets: lastPerformance.sets.map((s) => ({
             id: uuidv4(),
             reps: s.reps,
-            weight:
-              useProgressedWeight && suggestion
-                ? suggestion.suggestedWeight
-                : s.weight,
+            weight: s.weight,
             completed: false,
           })),
         }

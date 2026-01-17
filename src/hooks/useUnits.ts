@@ -120,14 +120,6 @@ export function useUnits() {
       toDisplay: (stored: number) => getDisplayWeight(stored, unitPreferences.weight),
       toStorage: (display: number) =>
         unitPreferences.weight === "kg" ? display * KG_TO_LBS : display,
-      formatIncrement: (incrementLbs: number) => {
-        if (unitPreferences.weight === "kg") {
-          const kg = incrementLbs * LBS_TO_KG
-          const rounded = Math.round(kg * 2) / 2
-          return `${rounded} ${unitPreferences.weight}`
-        }
-        return `${incrementLbs} ${unitPreferences.weight}`
-      },
     },
 
     // Distance utilities
