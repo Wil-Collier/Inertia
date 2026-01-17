@@ -57,10 +57,10 @@ export function MealEntryItem({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{food.name}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm font-bold truncate">{food.name}</p>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-tight">
             {quantity !== 1 ? `${quantity}x ` : ""}
-            {food.servingSize} • {adjustedCalories} kcal
+            {food.servingSize} • <span className="text-primary font-bold">{adjustedCalories} kcal</span>
           </p>
         </div>
         <ChevronDown
@@ -103,8 +103,7 @@ export function MealEntryItem({
           </div>
 
           {/* Macro Details */}
-          <div className="rounded-md bg-background/50 p-3 space-y-2">
-            <p className="text-sm font-medium">Nutrition Info</p>
+          <div className="rounded-md bg-background/50 p-3">
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Calories</span>
@@ -132,11 +131,6 @@ export function MealEntryItem({
               </div>
             </div>
           </div>
-
-          {/* Per serving info */}
-          <p className="text-xs text-muted-foreground text-center">
-            Per serving ({food.servingSize}): {food.calories} kcal • P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g
-          </p>
         </div>
       )}
     </div>

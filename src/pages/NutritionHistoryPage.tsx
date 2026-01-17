@@ -106,42 +106,42 @@ export function NutritionHistoryPage() {
         {/* Summary Stats */}
         <div className="grid grid-cols-2 gap-3">
           <Card>
-            <CardContent className="py-3">
-              <p className="text-sm text-muted-foreground">Avg. Calories</p>
+            <CardContent className="py-4">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Avg. Calories</p>
               <div className="flex items-center gap-2">
-                <p className="text-2xl font-bold">{averages.calories}</p>
+                <p className="text-4xl font-black tracking-tighter">{averages.calories}</p>
                 {caloriesTrend !== null && (
                   <span
-                    className={`flex items-center text-xs ${
+                    className={`flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                       caloriesTrend > 0
-                        ? "text-green-500"
+                        ? "bg-green-500/10 text-green-500"
                         : caloriesTrend < 0
-                          ? "text-red-500"
-                          : "text-muted-foreground"
+                          ? "bg-red-500/10 text-red-500"
+                          : "bg-muted text-muted-foreground"
                     }`}
                   >
                     {caloriesTrend > 0 ? (
-                      <TrendingUp className="h-3 w-3" />
+                      <TrendingUp className="h-3 w-3 mr-0.5" />
                     ) : caloriesTrend < 0 ? (
-                      <TrendingDown className="h-3 w-3" />
+                      <TrendingDown className="h-3 w-3 mr-0.5" />
                     ) : (
-                      <Minus className="h-3 w-3" />
+                      <Minus className="h-3 w-3 mr-0.5" />
                     )}
                     {Math.abs(caloriesTrend)}%
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] font-medium text-muted-foreground/60 italic mt-1">
                 Goal: {nutritionGoals.calories} kcal
               </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="py-3">
-              <p className="text-sm text-muted-foreground">Days Logged</p>
-              <p className="text-2xl font-bold">{daysWithData}</p>
-              <p className="text-xs text-muted-foreground">
+            <CardContent className="py-4">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Days Logged</p>
+              <p className="text-4xl font-black tracking-tighter">{daysWithData}</p>
+              <p className="text-[10px] font-medium text-muted-foreground/60 italic mt-1">
                 of {dailyData.length} days
               </p>
             </CardContent>
@@ -150,8 +150,8 @@ export function NutritionHistoryPage() {
 
         {/* Macro Averages */}
         <Card>
-          <CardHeader className="py-3">
-            <CardTitle className="text-base">Daily Averages</CardTitle>
+          <CardHeader className="py-4">
+            <CardTitle className="text-xs font-black uppercase italic tracking-widest text-muted-foreground">Daily Averages</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-3 gap-4">
@@ -209,8 +209,8 @@ export function NutritionHistoryPage() {
 
           <TabsContent value="calories" className="mt-4">
             <Card>
-              <CardHeader className="py-3">
-                <CardTitle className="text-base">Daily Calories</CardTitle>
+              <CardHeader className="py-4">
+                <CardTitle className="text-xs font-black uppercase italic tracking-widest text-muted-foreground">Daily Calories</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
                 {daysWithData > 0 ? (
@@ -268,8 +268,8 @@ export function NutritionHistoryPage() {
 
           <TabsContent value="macros" className="mt-4">
             <Card>
-              <CardHeader className="py-3">
-                <CardTitle className="text-base">Macro Trends</CardTitle>
+              <CardHeader className="py-4">
+                <CardTitle className="text-xs font-black uppercase italic tracking-widest text-muted-foreground">Macro Trends</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
                 {daysWithData > 0 ? (
@@ -365,18 +365,14 @@ function MacroStat({
   unit: string
   color: string
 }) {
-  const percentage = goal > 0 ? Math.round((value / goal) * 100) : 0
-
   return (
-    <div className="text-center">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-lg font-bold ${color}`}>
-        {value}
-        {unit}
+    <div className="text-center space-y-1">
+      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
+      <p className={`text-2xl font-black tracking-tighter ${color}`}>
+        {value}{unit}
       </p>
-      <p className="text-xs text-muted-foreground">
-        {percentage}% of {goal}
-        {unit}
+      <p className="text-[10px] font-medium text-muted-foreground/60 italic">
+        Goal: {goal}{unit}
       </p>
     </div>
   )

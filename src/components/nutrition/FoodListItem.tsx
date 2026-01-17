@@ -1,6 +1,7 @@
 import { useState } from "react"
-import { Star, Trash2, Plus, Minus, Check } from "lucide-react"
+import { Star, Trash2, Plus, Minus, Check, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import type { FoodItem } from "@/lib/types"
 
 interface FoodListItemProps {
@@ -55,86 +56,128 @@ export function FoodListItem({
   }
 
   return (
-    <div className="rounded-lg border overflow-hidden">
+    <div className={cn(
+      "rounded-xl border transition-all duration-200 overflow-hidden",
+      isExpanded ? "border-primary shadow-sm bg-primary/[0.01]" : "bg-card hover:bg-muted/50"
+    )}>
       <div
-        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50"
+        className="flex items-center gap-3 p-3 cursor-pointer"
         onClick={handleToggleExpand}
       >
-        <div className="flex-1">
-          <p className="font-medium">{food.name}</p>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold truncate">{food.name}</p>
           {food.brand && (
-            <p className="text-xs text-muted-foreground">{food.brand}</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{food.brand}</p>
           )}
-          <p className="text-sm text-muted-foreground">
-            {food.calories} kcal • P: {food.protein}g • C: {food.carbs}g • F:{" "}
-            {food.fat}g
-          </p>
-          <p className="text-xs text-muted-foreground">{food.servingSize}</p>
+          <div className="flex items-baseline gap-1 mt-0.5">
+            <span className="text-sm font-black italic text-primary">
+              {food.calories} <span className="text-[9px] font-bold text-muted-foreground uppercase not-italic tracking-tighter">kcal</span>
+            </span>
+            <span className="text-[10px] font-medium text-muted-foreground uppercase ml-1">{food.servingSize}</span>
+          </div>
         </div>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          onClick={(e: React.MouseEvent) => {
-            e.stopPropagation()
-            onToggleFavorite()
-          }}
-        >
-          <Star
-            className={`h-4 w-4 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`}
-          />
-        </Button>
-        {showDelete && onDelete && (
+
+        <div className="flex items-center gap-1 border-l pl-2">
           <Button
             size="icon-sm"
             variant="ghost"
+            className="h-8 w-8 text-muted-foreground"
             onClick={(e: React.MouseEvent) => {
               e.stopPropagation()
-              onDelete()
+              onToggleFavorite()
             }}
           >
-            <Trash2 className="h-4 w-4 text-destructive" />
+            <Star
+              className={cn("h-4 w-4", isFavorite && "fill-yellow-500 text-yellow-500")}
+            />
           </Button>
-        )}
+          {showDelete && onDelete && (
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform duration-200 ml-1",
+              isExpanded && "rotate-180 text-primary"
+            )}
+          />
+        </div>
       </div>
 
       {isExpanded && (
-        <div className="border-t bg-muted/30 p-3 space-y-3">
-          {/* Quantity Selector */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Servings</span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={decrementQuantity}
-                disabled={quantity <= 0.5}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-12 text-center font-medium">{quantity}</span>
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={incrementQuantity}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
+        <div className="p-3 pt-0 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="rounded-lg bg-muted/30 border border-primary/10 p-4 space-y-4">
+            {/* Quantity Selector */}
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Number of Servings</span>
+              <div className="flex items-center gap-3">
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  className="h-8 w-8 rounded-full"
+                  onClick={decrementQuantity}
+                  disabled={quantity <= 0.5}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </Button>
+                <span className="w-8 text-center font-black italic text-lg">{quantity}</span>
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  className="h-8 w-8 rounded-full bg-primary/5 border-primary/20"
+                  onClick={incrementQuantity}
+                >
+                  <Plus className="h-3.5 w-3.5 text-primary" />
+                </Button>
+              </div>
             </div>
-          </div>
 
-          {/* Adjusted Macros */}
-          <div className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{adjustedCalories} kcal</span>
-            {" • "}P: {adjustedProtein}g • C: {adjustedCarbs}g • F: {adjustedFat}g
-            <br />
-            Fiber: {adjustedFiber}g • Sugar: {adjustedSugar}g
-          </div>
+            {/* Total Calories Display */}
+            <div className="flex items-center justify-center py-2">
+              <span className="text-4xl font-black italic tracking-tighter text-primary">
+                {adjustedCalories} <span className="text-sm font-bold text-muted-foreground uppercase not-italic tracking-tighter">kcal</span>
+              </span>
+            </div>
 
-          {/* Add Button */}
-          <Button className="w-full" onClick={handleAdd}>
-            <Check className="mr-2 h-4 w-4" />
-            Add {quantity > 1 ? `${quantity} servings` : ""}
-          </Button>
+            {/* Macro Ribbon */}
+            <div className="flex divide-x border border-primary/10 rounded-lg overflow-hidden bg-background/40">
+              <div className="flex-1 flex flex-col items-center py-1.5">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Prot</span>
+                <span className="text-xs font-black italic">{adjustedProtein}g</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center py-1.5">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Carb</span>
+                <span className="text-xs font-black italic">{adjustedCarbs}g</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center py-1.5">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Fat</span>
+                <span className="text-xs font-black italic">{adjustedFat}g</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center py-1.5">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Fib</span>
+                <span className="text-xs font-black italic text-muted-foreground/80">{adjustedFiber}g</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center py-1.5">
+                <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Sug</span>
+                <span className="text-xs font-black italic text-muted-foreground/80">{adjustedSugar}g</span>
+              </div>
+            </div>
+
+            {/* Add Button */}
+            <Button className="w-full font-black uppercase italic tracking-widest h-10" onClick={handleAdd}>
+              <Check className="mr-2 h-4 w-4" />
+              Add to Meal
+            </Button>
+          </div>
         </div>
       )}
     </div>

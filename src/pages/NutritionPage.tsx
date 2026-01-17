@@ -15,6 +15,18 @@ import {
   BookmarkPlus,
   Bookmark,
   History,
+  Beef,
+  Wheat,
+  Droplets,
+  Leaf,
+  Candy,
+  Coffee,
+  Utensils,
+  Moon,
+  Cookie,
+  Flame,
+  TrendingUp,
+  type LucideIcon,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -48,11 +60,11 @@ const BarcodeScanner = lazy(() =>
   import("@/components/BarcodeScanner").then((m) => ({ default: m.BarcodeScanner }))
 )
 
-const mealTypes: { type: MealType; label: string }[] = [
-  { type: "breakfast", label: "Breakfast" },
-  { type: "lunch", label: "Lunch" },
-  { type: "dinner", label: "Dinner" },
-  { type: "snack", label: "Snacks" },
+const mealTypes: { type: MealType; label: string; icon: LucideIcon }[] = [
+  { type: "breakfast", label: "Breakfast", icon: Coffee },
+  { type: "lunch", label: "Lunch", icon: Utensils },
+  { type: "dinner", label: "Dinner", icon: Moon },
+  { type: "snack", label: "Snacks", icon: Cookie },
 ]
 
 export function NutritionPage() {
@@ -224,7 +236,7 @@ export function NutritionPage() {
                 className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-muted transition-colors"
               >
                 <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{displayDate}</span>
+                <span className="text-lg font-black tracking-tight">{displayDate}</span>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="center">
                 <Calendar
@@ -257,25 +269,33 @@ export function NutritionPage() {
         </div>
 
         {/* Macro Summary */}
-        <Card>
-          <CardContent className="py-4">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold">{Math.round(totals.calories)}</p>
-                <p className="text-sm text-muted-foreground">
-                  of {nutritionGoals.calories} kcal
+        <Card className="overflow-hidden">
+          <CardContent className="py-6">
+            <div className="mb-6 flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-5xl font-black tracking-tighter">{Math.round(totals.calories)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Calories Consumed
+                  </p>
+                  {totals.calories > nutritionGoals.calories && (
+                    <TrendingUp className="h-3 w-3 text-destructive" />
+                  )}
+                </div>
+                <p className="text-xs font-medium text-muted-foreground/60 italic">
+                  Daily Goal: {nutritionGoals.calories} kcal
                 </p>
               </div>
-              <div className="h-20 w-20">
-                <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
+              <div className="relative h-24 w-24">
+                <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90 drop-shadow-sm">
                   <circle
                     cx="18"
                     cy="18"
                     r="16"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="2.5"
-                    className="text-muted"
+                    strokeWidth="3.5"
+                    className="text-muted/50"
                   />
                   <circle
                     cx="18"
@@ -283,15 +303,18 @@ export function NutritionPage() {
                     r="16"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeDasharray={`${Math.min(
+                    strokeWidth="3.5"
+                    strokeDasharray={`${nutritionGoals.calories > 0 ? Math.min(
                       (totals.calories / nutritionGoals.calories) * 100,
                       100
-                    )} 100`}
+                    ) : 0} 100`}
                     strokeLinecap="round"
-                    className="text-primary"
+                    className="text-orange-500 transition-all duration-1000 ease-out"
                   />
                 </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Flame className="h-8 w-8 text-orange-500/20" />
+                </div>
               </div>
             </div>
 
@@ -301,18 +324,21 @@ export function NutritionPage() {
                 value={totals.protein}
                 goal={nutritionGoals.protein}
                 color="bg-blue-500"
+                icon={Beef}
               />
               <MacroBar
                 label="Carbs"
                 value={totals.carbs}
                 goal={nutritionGoals.carbs}
                 color="bg-green-500"
+                icon={Wheat}
               />
               <MacroBar
                 label="Fat"
                 value={totals.fat}
                 goal={nutritionGoals.fat}
                 color="bg-yellow-500"
+                icon={Droplets}
               />
             </div>
             <div className="grid grid-cols-2 gap-4 mt-3">
@@ -321,19 +347,21 @@ export function NutritionPage() {
                 value={totals.fiber}
                 goal={nutritionGoals.fiber}
                 color="bg-orange-500"
+                icon={Leaf}
               />
               <MacroBar
                 label="Sugar"
                 value={totals.sugar}
                 goal={nutritionGoals.sugar}
                 color="bg-pink-500"
+                icon={Candy}
               />
             </div>
           </CardContent>
         </Card>
 
         {/* Meals */}
-        {mealTypes.map(({ type, label }) => {
+        {mealTypes.map(({ type, label, icon: Icon }) => {
           const entries = getEntriesByMealType(selectedDate, type)
           const mealCalories = entries.reduce((sum, e) => {
             const food = getFood(e.foodId)
@@ -341,16 +369,20 @@ export function NutritionPage() {
           }, 0)
 
           return (
-            <Card key={type}>
+            <Card key={type} className="overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between py-3">
-                <CardTitle className="text-base">{label}</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-[10px] font-black uppercase italic tracking-widest text-muted-foreground">
+                  <Icon className="h-4 w-4 text-primary" />
+                  {label}
+                </CardTitle>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    {Math.round(mealCalories)} kcal
+                  <span className="text-sm font-black italic">
+                    {Math.round(mealCalories)} <span className="text-[10px] font-bold text-muted-foreground uppercase not-italic tracking-tighter">kcal</span>
                   </span>
                   <Button
                     size="icon-sm"
                     variant="ghost"
+                    className="h-8 w-8 rounded-full bg-background/50"
                     onClick={() => openAddSheet(type)}
                   >
                     <Plus className="h-4 w-4" />

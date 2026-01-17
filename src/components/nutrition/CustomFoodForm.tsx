@@ -114,26 +114,28 @@ export function CustomFoodForm({
       )}
 
       <div className="space-y-2">
-        <label className="text-sm font-medium">Name</label>
+        <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Name</label>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Food name"
+          className="font-bold"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Calories</label>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Calories</label>
           <Input
             type="number"
             value={calories}
             onChange={(e) => setCalories(e.target.value)}
             placeholder="0"
+            className="font-black italic"
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Serving Size</label>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Serving Size</label>
           <Input
             value={servingSize}
             onChange={(e) => setServingSize(e.target.value)}
@@ -144,7 +146,7 @@ export function CustomFoodForm({
 
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Protein (g)</label>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Protein (g)</label>
           <Input
             type="number"
             value={protein}
@@ -153,7 +155,7 @@ export function CustomFoodForm({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Carbs (g)</label>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Carbs (g)</label>
           <Input
             type="number"
             value={carbs}
@@ -162,7 +164,7 @@ export function CustomFoodForm({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Fat (g)</label>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Fat (g)</label>
           <Input
             type="number"
             value={fat}
@@ -174,7 +176,7 @@ export function CustomFoodForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Fiber (g)</label>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Fiber (g)</label>
           <Input
             type="number"
             value={fiber}
@@ -183,7 +185,7 @@ export function CustomFoodForm({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Sugar (g)</label>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Sugar (g)</label>
           <Input
             type="number"
             value={sugar}
