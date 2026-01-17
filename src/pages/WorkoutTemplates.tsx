@@ -86,17 +86,14 @@ export function WorkoutTemplates() {
   }
 
   const handleSaveEdit = async () => {
-    if (!editingTemplate || !editName.trim()) return
+    if (!editingTemplate || !editName.trim()) return false
 
     try {
       await updateTemplate(editingTemplate.id, { name: editName.trim() })
-      // Refresh the editing template
-      const updated = templates.find((t) => t.id === editingTemplate.id)
-      if (updated) {
-        setEditingTemplate({ ...updated, name: editName.trim() })
-      }
+      return true
     } catch {
       // Store already toasts
+      return false
     }
   }
 
@@ -310,24 +307,21 @@ export function WorkoutTemplates() {
             <SheetTitle>Edit Template</SheetTitle>
           </SheetHeader>
 
-          {editingTemplate && (
-            <div className="flex flex-col gap-4 h-[calc(85vh-100px)] p-4">
-              {/* Template Name */}
-              <div className="flex gap-2 mx-auto w-full max-w-lg">
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Template name"
-                  className="flex-1"
-                />
-                <Button onClick={handleSaveEdit} disabled={!editName.trim()}>
-                  Save
-                </Button>
-              </div>
+              {editingTemplate && (
+                <div className="flex flex-col gap-4 h-[calc(85vh-100px)] p-4">
+                  {/* Template Name */}
+                  <div className="flex gap-2 mx-auto w-full max-w-lg">
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Template name"
+                      className="flex-1"
+                    />
+                  </div>
 
-              {/* Exercises List */}
-              <ScrollArea className="flex-1 overflow-hidden">
-                <div className="mx-auto w-full max-w-lg space-y-3">
+                  {/* Exercises List */}
+                  <ScrollArea className="flex-1 overflow-hidden">
+                    <div className="mx-auto w-full max-w-lg space-y-3">
                   {editingTemplate.exercises.length === 0 ? (
                     <div className="rounded-lg border border-dashed p-6 text-center">
                       <Dumbbell className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
@@ -412,20 +406,36 @@ export function WorkoutTemplates() {
                     })
                   )}
 
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setIsAddExerciseOpen(true)}
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setIsAddExerciseOpen(true)}
+                    >
+                      <Plus className="mr-1 h-4 w-4" />
+                      Add Exercise
+                    </Button>
+                  </div>
+                </ScrollArea>
+                <div className="pt-2">
+                  <Button 
+                    className="w-full" 
+                    disabled={!editName.trim()}
+                    onClick={async () => {
+                      if (editName.trim() !== editingTemplate.name) {
+                        const success = await handleSaveEdit()
+                        if (!success) return
+                      }
+                      setEditingTemplate(null)
+                    }}
                   >
-                    <Plus className="mr-1 h-4 w-4" />
-                    Add Exercise
+                    Save
                   </Button>
                 </div>
-              </ScrollArea>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
+
 
       {/* Add Exercise Sheet */}
       <ExercisePickerSheet
