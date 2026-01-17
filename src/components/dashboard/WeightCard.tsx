@@ -48,7 +48,7 @@ export function WeightCard() {
       <CardContent className="p-0">
         <div className="flex items-center justify-between p-4">
           <Link to="/progress" className="flex items-center gap-3 flex-1 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20 transition-colors">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-category-bodyweight/10 text-category-bodyweight group-hover:bg-category-bodyweight/20 transition-colors">
               <Scale className="h-5 w-5" />
             </div>
             <div>
@@ -68,13 +68,13 @@ export function WeightCard() {
                 <div className="flex items-center gap-1 text-xs">
                   {weightChange > 0 ? (
                     <>
-                      <TrendingUp className="h-3 w-3 text-red-500" />
-                      <span className="text-red-500">+{weightChange.toFixed(1)}</span>
+                      <TrendingUp className="h-3 w-3 text-trend-negative" />
+                      <span className="text-trend-negative">+{weightChange.toFixed(1)}</span>
                     </>
                   ) : weightChange < 0 ? (
                     <>
-                      <TrendingDown className="h-3 w-3 text-green-500" />
-                      <span className="text-green-500">{weightChange.toFixed(1)}</span>
+                      <TrendingDown className="h-3 w-3 text-trend-positive" />
+                      <span className="text-trend-positive">{weightChange.toFixed(1)}</span>
                     </>
                   ) : (
                     <>

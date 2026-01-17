@@ -95,7 +95,7 @@ export function Dashboard() {
           </Link>
 
           <Link to="/nutrition">
-            <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-none bg-orange-500 text-white shadow-md">
+            <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-none bg-category-nutrition text-white shadow-md">
               <CardContent className="flex flex-col items-center justify-center gap-2 py-6 text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
                   <Plus className="h-6 w-6" />
@@ -110,7 +110,7 @@ export function Dashboard() {
         <Card className="overflow-hidden">
           <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="flex items-center gap-2 text-base font-bold">
-              <Flame className="h-5 w-5 text-orange-500" />
+              <Flame className="h-5 w-5 text-category-nutrition" />
               Nutrition
             </CardTitle>
             <Link to="/nutrition" className="text-xs text-primary font-bold flex items-center gap-1">
@@ -145,11 +145,11 @@ export function Dashboard() {
                     strokeWidth="4"
                     strokeDasharray={`${calorieProgress} 100`}
                     strokeLinecap="round"
-                    className="text-orange-500 transition-all duration-1000 ease-out"
+                    className="text-category-nutrition transition-all duration-1000 ease-out"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Utensils className="h-6 w-6 text-orange-500/50" />
+                  <Utensils className="h-6 w-6 text-category-nutrition/50" />
                 </div>
               </div>
             </div>
@@ -159,19 +159,19 @@ export function Dashboard() {
                 label="Protein" 
                 value={totals.protein} 
                 goal={settings.nutritionGoals.protein} 
-                color="bg-blue-500" 
+                color="bg-macro-protein" 
               />
               <CompactMacro 
                 label="Carbs" 
                 value={totals.carbs} 
                 goal={settings.nutritionGoals.carbs} 
-                color="bg-green-500" 
+                color="bg-macro-carbs" 
               />
               <CompactMacro 
                 label="Fat" 
                 value={totals.fat} 
                 goal={settings.nutritionGoals.fat} 
-                color="bg-yellow-500" 
+                color="bg-macro-fat" 
               />
             </div>
           </CardContent>

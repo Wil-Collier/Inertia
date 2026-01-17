@@ -415,7 +415,7 @@ function BodyWeightTab({
             <p className="mt-2 text-sm text-muted-foreground">
               Current: {latestEntry.weight} {preferredUnit}
               {weightChange !== 0 && (
-                <span className={weightChange > 0 ? "text-red-500" : "text-green-500"}>
+                <span className={weightChange > 0 ? "text-trend-negative" : "text-trend-positive"}>
                   {" "}({weightChange > 0 ? "+" : ""}{weightChange.toFixed(1)})
                 </span>
               )}
@@ -492,9 +492,9 @@ function BodyWeightTab({
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
                         {change > 0 ? (
-                          <TrendingUp className="h-4 w-4 text-red-500" />
+                          <TrendingUp className="h-4 w-4 text-trend-negative" />
                         ) : change < 0 ? (
-                          <TrendingDown className="h-4 w-4 text-green-500" />
+                          <TrendingDown className="h-4 w-4 text-trend-positive" />
                         ) : (
                           <Minus className="h-4 w-4 text-muted-foreground" />
                         )}
@@ -853,7 +853,7 @@ function MuscleBalanceTab({
               return (
                 <div key={item.muscleGroup} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
-                    <span className={isUndertrained ? "text-orange-500" : ""}>
+                    <span className={isUndertrained ? "text-destructive" : ""}>
                       {item.muscle}
                       {isUndertrained && " (Low)"}
                     </span>
@@ -864,7 +864,7 @@ function MuscleBalanceTab({
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                     <div
                       className={`h-full rounded-full transition-all ${
-                        isUndertrained ? "bg-orange-500" : "bg-primary"
+                        isUndertrained ? "bg-destructive" : "bg-primary"
                       }`}
                       style={{ width: `${percentage}%` }}
                     />

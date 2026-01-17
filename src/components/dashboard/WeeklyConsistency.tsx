@@ -42,7 +42,7 @@ export function WeeklyConsistency({ workoutDates, nutritionDates }: WeeklyConsis
                 <ActivityIndicator 
                   active={day.hasNutrition} 
                   icon={Utensils} 
-                  color="bg-orange-500" 
+                  color="bg-calories" 
                 />
               </div>
               {isSameDay(day.date, new Date()) && (

@@ -38,6 +38,35 @@
     --sidebar-accent-foreground: oklch(0.99 0.02 95);
     --sidebar-border: oklch(0.92 0.004 286.32);
     --sidebar-ring: oklch(0.705 0.015 286.067);
+
+    /* Macros */
+    --macro-protein: oklch(0.65 0.12 250);
+    --macro-carbs: oklch(0.65 0.12 150);
+    --macro-fat: oklch(0.65 0.20 90);
+    --macro-fiber: oklch(0.65 0.12 290);
+    --macro-sugar: oklch(0.65 0.12 10);
+    --calories: oklch(0.60 0.18 30);
+
+    /* Muscle Groups */
+    --muscle-chest: oklch(0.60 0.13 30);
+    --muscle-back: oklch(0.60 0.13 230);
+    --muscle-shoulders: oklch(0.60 0.13 280);
+    --muscle-arms: oklch(0.60 0.13 60);
+    --muscle-legs: oklch(0.60 0.13 140);
+    --muscle-core: oklch(0.60 0.13 100);
+    --muscle-cardio: oklch(0.60 0.13 340);
+
+    /* Trends & State */
+    --trend-positive: var(--macro-carbs);
+    --trend-negative: var(--destructive);
+
+    /* Achievement Categories */
+    --category-consistency: var(--macro-protein);
+    --category-volume: var(--macro-fiber);
+    --category-strength: var(--macro-fat);
+    --category-nutrition: var(--calories);
+    --category-variety: var(--muscle-shoulders);
+    --category-bodyweight: var(--macro-protein);
 }
 
 .dark {
@@ -72,6 +101,23 @@
     --sidebar-accent-foreground: oklch(0.28 0.07 46);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.552 0.016 285.938);
+
+    /* Macros - Dark */
+    --macro-protein: oklch(0.70 0.12 250);
+    --macro-carbs: oklch(0.70 0.12 150);
+    --macro-fat: oklch(0.70 0.20 90);
+    --macro-fiber: oklch(0.70 0.12 290);
+    --macro-sugar: oklch(0.70 0.12 10);
+    --calories: oklch(0.65 0.18 30);
+
+    /* Muscle Groups - Dark */
+    --muscle-chest: oklch(0.65 0.13 30);
+    --muscle-back: oklch(0.65 0.13 230);
+    --muscle-shoulders: oklch(0.65 0.13 280);
+    --muscle-arms: oklch(0.65 0.13 60);
+    --muscle-legs: oklch(0.65 0.13 140);
+    --muscle-core: oklch(0.65 0.13 100);
+    --muscle-cardio: oklch(0.65 0.13 340);
 }
 
 @theme inline {
@@ -89,6 +135,36 @@
     --color-chart-3: var(--chart-3);
     --color-chart-2: var(--chart-2);
     --color-chart-1: var(--chart-1);
+
+    /* Macros */
+    --color-macro-protein: var(--macro-protein);
+    --color-macro-carbs: var(--macro-carbs);
+    --color-macro-fat: var(--macro-fat);
+    --color-macro-fiber: var(--macro-fiber);
+    --color-macro-sugar: var(--macro-sugar);
+    --color-calories: var(--calories);
+
+    /* Muscle Groups */
+    --color-muscle-chest: var(--muscle-chest);
+    --color-muscle-back: var(--muscle-back);
+    --color-muscle-shoulders: var(--muscle-shoulders);
+    --color-muscle-arms: var(--muscle-arms);
+    --color-muscle-legs: var(--muscle-legs);
+    --color-muscle-core: var(--muscle-core);
+    --color-muscle-cardio: var(--muscle-cardio);
+
+    /* Trends & State */
+    --color-trend-positive: var(--trend-positive);
+    --color-trend-negative: var(--trend-negative);
+
+    /* Achievement Categories */
+    --color-category-consistency: var(--category-consistency);
+    --color-category-volume: var(--category-volume);
+    --color-category-strength: var(--category-strength);
+    --color-category-nutrition: var(--category-nutrition);
+    --color-category-variety: var(--category-variety);
+    --color-category-bodyweight: var(--category-bodyweight);
+
     --color-ring: var(--ring);
     --color-input: var(--input);
     --color-border: var(--border);

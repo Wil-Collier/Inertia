@@ -11,13 +11,13 @@ export const muscleGroupLabels: Record<MuscleGroup, string> = {
 }
 
 export const muscleGroupColors: Record<MuscleGroup, string> = {
-  chest: "bg-red-500",
-  back: "bg-blue-500",
-  shoulders: "bg-purple-500",
-  arms: "bg-orange-500",
-  legs: "bg-green-500",
-  core: "bg-yellow-500",
-  cardio: "bg-pink-500",
+  chest: "bg-muscle-chest",
+  back: "bg-muscle-back",
+  shoulders: "bg-muscle-shoulders",
+  arms: "bg-muscle-arms",
+  legs: "bg-muscle-legs",
+  core: "bg-muscle-core",
+  cardio: "bg-muscle-cardio",
 }
 
 export const muscleGroups: MuscleGroup[] = [

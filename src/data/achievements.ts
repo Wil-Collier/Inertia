@@ -188,19 +188,19 @@ export const categoryLabels: Record<AchievementCategory, string> = {
 }
 
 export const categoryColors: Record<AchievementCategory, string> = {
-  consistency: "text-blue-500",
-  volume: "text-orange-500",
-  strength: "text-yellow-500",
-  nutrition: "text-green-500",
-  variety: "text-purple-500",
+  consistency: "text-category-consistency",
+  volume: "text-category-volume",
+  strength: "text-category-strength",
+  nutrition: "text-category-nutrition",
+  variety: "text-category-variety",
 }
 
 export const categoryBgColors: Record<AchievementCategory, string> = {
-  consistency: "bg-blue-500/10",
-  volume: "bg-orange-500/10",
-  strength: "bg-yellow-500/10",
-  nutrition: "bg-green-500/10",
-  variety: "bg-purple-500/10",
+  consistency: "bg-category-consistency/10",
+  volume: "bg-category-volume/10",
+  strength: "bg-category-strength/10",
+  nutrition: "bg-category-nutrition/10",
+  variety: "bg-category-variety/10",
 }
 
 // Helper to get achievement by ID

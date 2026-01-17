@@ -280,7 +280,7 @@ export function NutritionPage() {
                     Calories Consumed
                   </p>
                   {totals.calories > nutritionGoals.calories && (
-                    <TrendingUp className="h-3 w-3 text-destructive" />
+                    <TrendingUp className="h-3 w-3 text-trend-negative" />
                   )}
                 </div>
                 <p className="text-xs font-medium text-muted-foreground/60 italic">
@@ -310,11 +310,11 @@ export function NutritionPage() {
                       100
                     ) : 0} 100`}
                     strokeLinecap="round"
-                    className="text-orange-500 transition-all duration-1000 ease-out"
+                    className="text-calories transition-all duration-1000 ease-out"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Flame className="h-8 w-8 text-orange-500/20" />
+                  <Flame className="h-8 w-8 text-calories/20" />
                 </div>
               </div>
             </div>
@@ -324,21 +324,21 @@ export function NutritionPage() {
                 label="Protein"
                 value={totals.protein}
                 goal={nutritionGoals.protein}
-                color="bg-blue-500"
+                color="bg-macro-protein"
                 icon={Beef}
               />
               <MacroBar
                 label="Carbs"
                 value={totals.carbs}
                 goal={nutritionGoals.carbs}
-                color="bg-green-500"
+                color="bg-macro-carbs"
                 icon={Wheat}
               />
               <MacroBar
                 label="Fat"
                 value={totals.fat}
                 goal={nutritionGoals.fat}
-                color="bg-yellow-500"
+                color="bg-macro-fat"
                 icon={Droplets}
               />
             </div>
@@ -347,14 +347,14 @@ export function NutritionPage() {
                 label="Fiber"
                 value={totals.fiber}
                 goal={nutritionGoals.fiber}
-                color="bg-orange-500"
+                color="bg-macro-fiber"
                 icon={Leaf}
               />
               <MacroBar
                 label="Sugar"
                 value={totals.sugar}
                 goal={nutritionGoals.sugar}
-                color="bg-pink-500"
+                color="bg-macro-sugar"
                 icon={Candy}
               />
             </div>

@@ -114,9 +114,9 @@ export function NutritionHistoryPage() {
                   <span
                     className={`flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                       caloriesTrend > 0
-                        ? "bg-green-500/10 text-green-500"
+                        ? "bg-trend-positive/10 text-trend-positive"
                         : caloriesTrend < 0
-                          ? "bg-red-500/10 text-red-500"
+                          ? "bg-trend-negative/10 text-trend-negative"
                           : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -160,21 +160,21 @@ export function NutritionHistoryPage() {
                 value={averages.protein}
                 goal={nutritionGoals.protein}
                 unit="g"
-                color="text-blue-500"
+                color="text-macro-protein"
               />
               <MacroStat
                 label="Carbs"
                 value={averages.carbs}
                 goal={nutritionGoals.carbs}
                 unit="g"
-                color="text-green-500"
+                color="text-macro-carbs"
               />
               <MacroStat
                 label="Fat"
                 value={averages.fat}
                 goal={nutritionGoals.fat}
                 unit="g"
-                color="text-yellow-500"
+                color="text-macro-fat"
               />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-4">
@@ -183,14 +183,14 @@ export function NutritionHistoryPage() {
                 value={averages.fiber}
                 goal={nutritionGoals.fiber}
                 unit="g"
-                color="text-orange-500"
+                color="text-macro-fiber"
               />
               <MacroStat
                 label="Sugar"
                 value={averages.sugar}
                 goal={nutritionGoals.sugar}
                 unit="g"
-                color="text-pink-500"
+                color="text-macro-sugar"
               />
             </div>
           </CardContent>
@@ -251,7 +251,7 @@ export function NutritionHistoryPage() {
                         />
                         <Bar
                           dataKey="calories"
-                          fill="hsl(var(--primary))"
+                          fill="var(--calories)"
                           radius={[4, 4, 0, 0]}
                         />
                       </BarChart>
@@ -308,7 +308,7 @@ export function NutritionHistoryPage() {
                           type="monotone"
                           dataKey="protein"
                           name="Protein"
-                          stroke="#3b82f6"
+                          stroke="var(--macro-protein)"
                           strokeWidth={2}
                           dot={false}
                         />
@@ -316,7 +316,7 @@ export function NutritionHistoryPage() {
                           type="monotone"
                           dataKey="carbs"
                           name="Carbs"
-                          stroke="#22c55e"
+                          stroke="var(--macro-carbs)"
                           strokeWidth={2}
                           dot={false}
                         />
@@ -324,7 +324,7 @@ export function NutritionHistoryPage() {
                           type="monotone"
                           dataKey="fat"
                           name="Fat"
-                          stroke="#eab308"
+                          stroke="var(--macro-fat)"
                           strokeWidth={2}
                           dot={false}
                         />
