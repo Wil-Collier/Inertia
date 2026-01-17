@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { useNavigate, Navigate } from "react-router-dom"
 import {
   Plus,
+  Minus,
   Check,
   Trash2,
   Timer,
@@ -384,17 +385,43 @@ export function ActiveWorkout() {
                           )
                         ) : (
                           /* Reps input for non-time-based exercises */
-                          <Input
-                            type="number"
-                            value={set.reps || ""}
-                            onChange={(e) => {
-                              const reps = parseInt(e.target.value) || 0
-                              updateSet(workoutExercise.id, set.id, { reps })
-                            }}
-                            placeholder="reps"
-                            className="h-9"
-                            disabled={set.completed}
-                          />
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              className="h-9 w-9 border shrink-0"
+                              disabled={set.completed || (set.reps || 0) <= 0}
+                              onClick={() => {
+                                const reps = Math.max(0, (set.reps || 0) - 1)
+                                updateSet(workoutExercise.id, set.id, { reps })
+                              }}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <Input
+                              type="number"
+                              value={set.reps || ""}
+                              onChange={(e) => {
+                                const reps = parseInt(e.target.value) || 0
+                                updateSet(workoutExercise.id, set.id, { reps })
+                              }}
+                              placeholder="reps"
+                              className="h-9 text-center"
+                              disabled={set.completed}
+                            />
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              className="h-9 w-9 border shrink-0"
+                              disabled={set.completed}
+                              onClick={() => {
+                                const reps = (set.reps || 0) + 1
+                                updateSet(workoutExercise.id, set.id, { reps })
+                              }}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
                         )}
 
                         {/* Action buttons */}
