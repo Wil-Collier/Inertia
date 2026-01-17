@@ -92,14 +92,16 @@ export function ActiveWorkout() {
     unlockAudio()
   }, [])
 
+  // Track elapsed time for the workout
+  const elapsed = useElapsedTime({
+    startedAt: activeSession?.startedAt ?? new Date().toISOString(),
+  })
+
   if (!activeSession) {
     return <Navigate to="/workout" replace />
   }
 
   const { workout } = activeSession
-
-  // Track elapsed time for the workout
-  const elapsed = useElapsedTime({ startedAt: activeSession.startedAt })
 
   const handleFinish = async () => {
     try {
