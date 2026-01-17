@@ -217,8 +217,9 @@ export function NutritionPage() {
         title="Nutrition"
         rightAction={
           <Link to="/nutrition/history">
-            <Button variant="ghost" size="icon">
-              <History className="h-5 w-5" />
+            <Button variant="ghost" size="sm" className="font-bold gap-1.5">
+              <History className="h-4 w-4" />
+              History
             </Button>
           </Link>
         }

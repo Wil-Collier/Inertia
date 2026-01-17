@@ -39,7 +39,7 @@ export function Header({
         className
       )}
     >
-      <div className="flex h-14 items-center gap-2 px-4">
+      <div className="flex h-11 items-center gap-2 px-4">
         {showBack && (
           <Button
             variant="ghost"

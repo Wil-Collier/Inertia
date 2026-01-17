@@ -10,7 +10,6 @@ const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default:
 const WorkoutPage = lazy(() => import("@/pages/WorkoutPage").then((m) => ({ default: m.WorkoutPage })))
 const ActiveWorkout = lazy(() => import("@/pages/ActiveWorkout").then((m) => ({ default: m.ActiveWorkout })))
 const WorkoutHistory = lazy(() => import("@/pages/WorkoutHistory").then((m) => ({ default: m.WorkoutHistory })))
-const WorkoutCalendar = lazy(() => import("@/pages/WorkoutCalendar").then((m) => ({ default: m.WorkoutCalendar })))
 const WorkoutTemplates = lazy(() => import("@/pages/WorkoutTemplates").then((m) => ({ default: m.WorkoutTemplates })))
 const NutritionPage = lazy(() => import("@/pages/NutritionPage").then((m) => ({ default: m.NutritionPage })))
 const NutritionHistoryPage = lazy(() => import("@/pages/NutritionHistoryPage").then((m) => ({ default: m.NutritionHistoryPage })))
@@ -28,7 +27,6 @@ export function App() {
               <Route path="/workout" element={<PageErrorBoundary><WorkoutPage /></PageErrorBoundary>} />
               <Route path="/workout/active" element={<PageErrorBoundary><ActiveWorkout /></PageErrorBoundary>} />
               <Route path="/workout/history" element={<PageErrorBoundary><WorkoutHistory /></PageErrorBoundary>} />
-              <Route path="/workout/calendar" element={<PageErrorBoundary><WorkoutCalendar /></PageErrorBoundary>} />
               <Route path="/workout/templates" element={<PageErrorBoundary><WorkoutTemplates /></PageErrorBoundary>} />
               <Route path="/nutrition" element={<PageErrorBoundary><NutritionPage /></PageErrorBoundary>} />
               <Route path="/nutrition/history" element={<PageErrorBoundary><NutritionHistoryPage /></PageErrorBoundary>} />

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react"
 import { useNavigate, Link, Navigate } from "react-router-dom"
-import { Plus, Dumbbell, Clock, LayoutTemplate, CalendarDays, ChevronRight } from "lucide-react"
+import { Plus, Dumbbell, Clock, LayoutTemplate, History, ChevronRight } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -83,13 +83,11 @@ export function WorkoutPage() {
         title="Workout"
         rightAction={
           <div className="flex gap-1">
-            <Link to="/workout/calendar">
-              <Button variant="ghost" size="icon">
-                <CalendarDays className="h-5 w-5" />
-              </Button>
-            </Link>
             <Link to="/workout/history">
-              <Button variant="ghost" size="sm" className="font-bold">History</Button>
+              <Button variant="ghost" size="sm" className="font-bold gap-1.5">
+                <History className="h-4 w-4" />
+                History
+              </Button>
             </Link>
           </div>
         }
