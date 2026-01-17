@@ -4,6 +4,7 @@ import { Layout } from "@/components/layout/Layout"
 import { PageErrorBoundary } from "@/components/PageErrorBoundary"
 import { PageLoader } from "@/components/ui/PageLoader"
 import { AppInitializer } from "@/components/AppInitializer"
+import { DevSeedingHandler } from "@/components/DevSeedingHandler"
 
 // Lazy load pages for code-splitting
 const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })))
@@ -19,6 +20,7 @@ const SettingsPage = lazy(() => import("@/pages/SettingsPage").then((m) => ({ de
 export function App() {
   return (
     <BrowserRouter>
+      <DevSeedingHandler />
       <AppInitializer>
         <Suspense fallback={<PageLoader />}>
           <Routes>
