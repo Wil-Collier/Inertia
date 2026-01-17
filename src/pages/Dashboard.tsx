@@ -83,11 +83,11 @@ export function Dashboard() {
         <div className="grid grid-cols-2 gap-3">
           <Link to={activeSession ? "/workout/active" : "/workout"}>
             <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-none bg-primary text-primary-foreground shadow-md">
-              <CardContent className="flex flex-col items-center justify-center gap-2 py-6 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
-                  <Dumbbell className="h-6 w-6" />
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
+                  <Dumbbell className="h-5 w-5" />
                 </div>
-                <span className="font-bold">
+                <span className="font-bold text-sm leading-tight">
                   {activeSession ? "Continue" : "Start"} Workout
                 </span>
               </CardContent>
@@ -96,11 +96,11 @@ export function Dashboard() {
 
           <Link to="/nutrition">
             <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-none bg-category-nutrition text-white shadow-md">
-              <CardContent className="flex flex-col items-center justify-center gap-2 py-6 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
-                  <Plus className="h-6 w-6" />
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
+                  <Plus className="h-5 w-5" />
                 </div>
-                <span className="font-bold">Log Meal</span>
+                <span className="font-bold text-sm leading-tight">Log Meal</span>
               </CardContent>
             </Card>
           </Link>
