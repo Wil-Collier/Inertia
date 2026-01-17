@@ -5,7 +5,6 @@ import { Dumbbell, Utensils, Clock, Flame, Target, Trophy, Plus, ChevronRight } 
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
-import { StreakBadge } from "@/components/StreakDisplay"
 import { useWorkoutStore } from "@/stores/workout"
 import { useNutritionStore, getTodayDate } from "@/stores/nutritionStore"
 import { useSettingsStore } from "@/stores/settingsStore"
@@ -43,15 +42,16 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col pb-20">
-      <Header title="Dashboard" />
+      <Header
+        title="Dashboard"
+        rightAction={
+          <span className="text-xs text-muted-foreground font-medium">
+            {todayFormatted}
+          </span>
+        }
+      />
 
       <div className="space-y-4 p-4">
-        {/* Date display with streak */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground font-medium">{todayFormatted}</p>
-          <StreakBadge />
-        </div>
-
         {/* Active Workout Banner */}
         {activeSession && (
           <Link to="/workout/active" className="block animate-in fade-in slide-in-from-top-4 duration-500">
