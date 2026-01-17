@@ -713,14 +713,14 @@ function MuscleBalanceTab({
 }) {
   const [timeRange, setTimeRange] = useState<7 | 30 | 90>(30)
 
-  // Calculate sets per muscle group
+  // Calculate workout frequency per muscle group
   const muscleData = useMemo(() => {
     const cutoff = subDays(new Date(), timeRange)
     const cutoffStr = format(cutoff, "yyyy-MM-dd")
 
     const recentWorkouts = workouts.filter((w) => w.date >= cutoffStr)
 
-    const volumeByGroup: Record<MuscleGroup, number> = {
+    const frequencyByGroup: Record<MuscleGroup, number> = {
       chest: 0,
       back: 0,
       shoulders: 0,
@@ -731,32 +731,42 @@ function MuscleBalanceTab({
     }
 
     recentWorkouts.forEach((workout) => {
+      // Track which muscle groups were hit in this specific workout
+      const trainedInThisWorkout = new Set<MuscleGroup>()
+
       workout.exercises.forEach((ex) => {
         const exercise = getExercise(ex.exerciseId)
-        if (exercise) {
-          const completedSets = ex.sets.filter((s) => s.completed).length
-          volumeByGroup[exercise.muscleGroup] += completedSets
+        const hasCompletedSets = ex.sets.some((s) => s.completed)
+        
+        if (exercise && hasCompletedSets) {
+          trainedInThisWorkout.add(exercise.muscleGroup)
         }
+      })
+
+      // Increment counter for each muscle group trained
+      trainedInThisWorkout.forEach((mg) => {
+        frequencyByGroup[mg]++
       })
     })
 
     // Get max for scaling
-    const maxSets = Math.max(...MUSCLE_GROUPS.map((mg) => volumeByGroup[mg]), 1)
+    const maxFreq = Math.max(...MUSCLE_GROUPS.map((mg) => frequencyByGroup[mg]), 1)
 
     return MUSCLE_GROUPS.map((mg) => ({
       muscle: muscleGroupLabels[mg],
       muscleGroup: mg,
-      sets: volumeByGroup[mg],
-      fullMark: maxSets,
+      frequency: frequencyByGroup[mg],
+      fullMark: maxFreq,
     }))
   }, [workouts, getExercise, timeRange])
 
-  const totalSets = muscleData.reduce((sum, d) => sum + d.sets, 0)
-  const hasData = totalSets > 0
+  // Total "muscle-workouts" (sum of all frequencies) to calculate percentages
+  const totalMuscleHits = muscleData.reduce((sum, d) => sum + d.frequency, 0)
+  const hasData = totalMuscleHits > 0
 
-  // Find undertrained muscle groups (less than 50% of average)
-  const avgSets = totalSets / MUSCLE_GROUPS.length
-  const undertrainedGroups = muscleData.filter((d) => d.sets < avgSets * 0.5 && avgSets > 0)
+  // Find undertrained muscle groups (less than 50% of average frequency)
+  const avgFreq = totalMuscleHits / MUSCLE_GROUPS.length
+  const undertrainedGroups = muscleData.filter((d) => d.frequency < avgFreq * 0.5 && avgFreq > 0)
 
   return (
     <>
@@ -780,7 +790,7 @@ function MuscleBalanceTab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Activity className="h-4 w-4" />
-            Muscle Group Balance
+            Muscle Group Frequency
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -800,12 +810,19 @@ function MuscleBalanceTab({
                   className="text-muted-foreground"
                 />
                 <Radar
-                  name="Sets"
-                  dataKey="sets"
+                  name="Workouts"
+                  dataKey="frequency"
                   stroke="hsl(var(--primary))"
                   fill="hsl(var(--primary))"
                   fillOpacity={0.5}
                   strokeWidth={2}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--background))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                  }}
                 />
               </RadarChart>
             </ResponsiveContainer>
@@ -823,12 +840,14 @@ function MuscleBalanceTab({
       {/* Breakdown Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Sets per Muscle Group</CardTitle>
+          <CardTitle className="text-base">Workouts per Muscle Group</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {muscleData.map((item) => {
-              const percentage = totalSets > 0 ? (item.sets / totalSets) * 100 : 0
+              // Percentage based on total "hits" (e.g. if I did chest 5 times and back 5 times, total is 10, chest is 50%)
+              // This shows relative focus
+              const percentage = totalMuscleHits > 0 ? (item.frequency / totalMuscleHits) * 100 : 0
               const isUndertrained = undertrainedGroups.some((u) => u.muscleGroup === item.muscleGroup)
 
               return (
@@ -839,7 +858,7 @@ function MuscleBalanceTab({
                       {isUndertrained && " (Low)"}
                     </span>
                     <span className="font-medium">
-                      {item.sets} sets ({percentage.toFixed(0)}%)
+                      {item.frequency} workouts ({percentage.toFixed(0)}%)
                     </span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -858,7 +877,7 @@ function MuscleBalanceTab({
           {undertrainedGroups.length > 0 && (
             <p className="mt-4 text-sm text-muted-foreground">
               Consider adding more{" "}
-              {undertrainedGroups.map((g) => g.muscle.toLowerCase()).join(", ")} exercises to
+              {undertrainedGroups.map((g) => g.muscle.toLowerCase()).join(", ")} sessions to
               balance your training.
             </p>
           )}
