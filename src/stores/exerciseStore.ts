@@ -6,6 +6,8 @@ import { loadDefaultExercises } from "@/data/exerciseLoader"
 
 import { toast } from "sonner"
 
+let initPromise: Promise<void> | null = null
+
 interface ExerciseStore {
   exercises: Exercise[]
   isLoaded: boolean
@@ -24,21 +26,49 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
   init: async () => {
     if (get().isLoaded) return
-    try {
-      const stored = await db.exercises.toArray()
-      if (stored.length > 0) {
-        set({ exercises: stored, isLoaded: true })
-      } else {
-        // Seed defaults
-        const defaults = await loadDefaultExercises()
-        // Ensure defaults have ID? loadDefaultExercises maps ID.
-        await db.exercises.bulkAdd(defaults)
-        set({ exercises: defaults, isLoaded: true })
+    if (initPromise) return initPromise
+
+    initPromise = (async () => {
+      try {
+        const stored = await db.exercises.toArray()
+        if (stored.length > 0) {
+          set({ exercises: stored, isLoaded: true })
+        } else {
+          // Seed defaults
+          const defaults = await loadDefaultExercises()
+          // Check if data was added while we were loading defaults (double-check locking)
+          const currentCount = await db.exercises.count()
+          if (currentCount > 0) {
+             const existing = await db.exercises.toArray()
+             set({ exercises: existing, isLoaded: true })
+             return
+          }
+          
+          // Ensure defaults have ID? loadDefaultExercises maps ID.
+          await db.exercises.bulkAdd(defaults)
+          set({ exercises: defaults, isLoaded: true })
+        }
+      } catch (error) {
+        console.error("Failed to init exercise store:", error)
+        // If it's a constraint error, it means another tab/window/process beat us to it.
+        // We should try to read the data again.
+        if (error instanceof Error && error.name === 'BulkError') {
+           try {
+             const stored = await db.exercises.toArray()
+             set({ exercises: stored, isLoaded: true })
+             return
+           } catch (retryError) {
+             console.error("Failed to recover from race condition:", retryError)
+           }
+        }
+        
+        set({ isLoaded: true })
+      } finally {
+        initPromise = null
       }
-    } catch (error) {
-      console.error("Failed to init exercise store:", error)
-      set({ isLoaded: true })
-    }
+    })()
+    
+    return initPromise
   },
 
   addExercise: async (name, muscleGroup, isWeighted = true, isTimeBased = false) => {

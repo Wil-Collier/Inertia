@@ -6,6 +6,8 @@ import { createHistorySlice } from "./historySlice"
 import { defaultTemplates } from "@/data/defaultTemplates"
 import { db } from "@/services/db"
 
+let initPromise: Promise<void> | null = null
+
 export const useWorkoutStore = create<WorkoutStore>((set, get, api) => ({
   // Initial state
   workouts: [],
@@ -16,39 +18,57 @@ export const useWorkoutStore = create<WorkoutStore>((set, get, api) => ({
 
   init: async () => {
     if (get().isInitialized) return
-    try {
-      const [templates, sessions, prs, activeSessionData] = await Promise.all([
-        db.workoutTemplates.toArray(),
-        db.workoutSessions.orderBy("date").reverse().toArray(),
-        db.personalRecords.toArray(),
-        db.activeSession.get("current")
-      ])
+    if (initPromise) return initPromise
 
-      const prRecord: Record<string, PersonalRecord> = {}
-      prs.forEach((pr) => {
-        prRecord[pr.exerciseId] = pr
-      })
+    initPromise = (async () => {
+      try {
+        const [templates, sessions, prs, activeSessionData] = await Promise.all([
+          db.workoutTemplates.toArray(),
+          db.workoutSessions.orderBy("date").reverse().toArray(),
+          db.personalRecords.toArray(),
+          db.activeSession.get("current")
+        ])
 
-      set({
-        workouts: sessions,
-        templates: templates.length > 0 ? templates : defaultTemplates,
-        personalRecords: prRecord,
-        activeSession: activeSessionData ? { 
-          workout: activeSessionData.workout, 
-          startedAt: activeSessionData.startedAt,
-          templateId: activeSessionData.templateId
-        } : null,
-        isInitialized: true,
-      })
+        const prRecord: Record<string, PersonalRecord> = {}
+        prs.forEach((pr) => {
+          prRecord[pr.exerciseId] = pr
+        })
 
-      // If no templates, save defaults
-      if (templates.length === 0) {
-        await db.workoutTemplates.bulkAdd(defaultTemplates)
+        set({
+          workouts: sessions,
+          templates: templates.length > 0 ? templates : defaultTemplates,
+          personalRecords: prRecord,
+          activeSession: activeSessionData ? { 
+            workout: activeSessionData.workout, 
+            startedAt: activeSessionData.startedAt,
+            templateId: activeSessionData.templateId
+          } : null,
+          isInitialized: true,
+        })
+
+        // If no templates, save defaults
+        if (templates.length === 0) {
+          // Double check count before writing
+          const count = await db.workoutTemplates.count()
+          if (count === 0) {
+            await db.workoutTemplates.bulkAdd(defaultTemplates)
+          }
+        }
+      } catch (error) {
+        console.error("Failed to init workout store:", error)
+        
+        // Recover from race condition on bulkAdd
+        if (error instanceof Error && error.name === 'BulkError') {
+             // Just ignore, as it means data exists
+        }
+        
+        set({ isInitialized: true })
+      } finally {
+        initPromise = null
       }
-    } catch (error) {
-      console.error("Failed to init workout store:", error)
-      set({ isInitialized: true })
-    }
+    })()
+
+    return initPromise
   },
 
   // Combine all slices
