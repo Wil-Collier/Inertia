@@ -3,6 +3,7 @@ import { Search, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { toast } from "sonner"
 import {
   Sheet,
   SheetContent,
@@ -11,7 +12,6 @@ import {
 } from "@/components/ui/sheet"
 import { ExerciseInfoButton } from "@/components/ExerciseInfoSheet"
 import { useExerciseStore } from "@/stores/exerciseStore"
-import { ensureExercisesLoaded } from "@/data/exerciseLoader"
 import type { MuscleGroup } from "@/lib/types"
 
 const muscleGroups: MuscleGroup[] = [
@@ -40,22 +40,19 @@ export function ExercisePickerSheet({
   onSelect,
   addedExerciseIds = [],
 }: ExercisePickerSheetProps) {
-  const { exercises, isLoaded, setDefaultExercises } = useExerciseStore()
+  const { exercises, isLoaded, init } = useExerciseStore()
   const [selectedMuscleGroup, setSelectedMuscleGroup] =
     useState<MuscleGroup | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [isLoadingExercises, setIsLoadingExercises] = useState(false)
 
-  // Load exercises when sheet opens
+  // Ensure loaded when sheet opens
   useEffect(() => {
     if (open && !isLoaded) {
-      setIsLoadingExercises(true)
-      ensureExercisesLoaded(setDefaultExercises, isLoaded)
-        .finally(() => {
-          setIsLoadingExercises(false)
-        })
+      init().catch(() => {
+        toast.error("Failed to load exercises")
+      })
     }
-  }, [open, isLoaded, setDefaultExercises])
+  }, [open, isLoaded, init])
 
   // Filter exercises by search query and muscle group
   const filteredExercises = useMemo(() => {
@@ -147,7 +144,7 @@ export function ExercisePickerSheet({
           </div>
 
           {/* Loading State */}
-          {isLoadingExercises ? (
+          {!isLoaded ? (
             <div className="flex flex-1 items-center justify-center">
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

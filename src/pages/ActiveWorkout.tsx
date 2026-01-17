@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react"
+import { toast } from "sonner"
 import { useNavigate, Navigate } from "react-router-dom"
 import {
   Plus,
@@ -100,17 +101,25 @@ export function ActiveWorkout() {
   // Track elapsed time for the workout
   const elapsed = useElapsedTime({ startedAt: activeSession.startedAt })
 
-  const handleFinish = () => {
-    const completed = finishWorkout()
-    if (completed && saveAsTemplate && templateName.trim()) {
-      createTemplate(templateName.trim(), completed)
+  const handleFinish = async () => {
+    try {
+      const completed = await finishWorkout()
+      if (completed && saveAsTemplate && templateName.trim()) {
+        await createTemplate(templateName.trim(), completed)
+      }
+      navigate("/workout")
+    } catch {
+      toast.error("Failed to finish workout")
     }
-    navigate("/workout")
   }
 
-  const handleCancel = () => {
-    cancelWorkout()
-    navigate("/workout")
+  const handleCancel = async () => {
+    try {
+      await cancelWorkout()
+      navigate("/workout")
+    } catch {
+      toast.error("Failed to cancel workout")
+    }
   }
 
   const toggleExpanded = (id: string) => {
@@ -125,11 +134,18 @@ export function ActiveWorkout() {
     })
   }
 
-  const handleAddExercise = (exerciseId: string) => {
-    addExerciseToWorkout(exerciseId)
-    // Expand the newly added exercise
+  const handleAddExercise = async (exerciseId: string) => {
+    try {
+      await addExerciseToWorkout(exerciseId)
+    } catch {
+      toast.error("Failed to add exercise")
+      return
+    }
+
+    // Expand the newly added exercise (read latest state to avoid stale closure)
     setTimeout(() => {
-      const newExercise = workout.exercises[workout.exercises.length - 1]
+      const latestWorkout = useWorkoutStore.getState().activeSession?.workout
+      const newExercise = latestWorkout?.exercises.at(-1)
       if (newExercise) {
         setExpandedExercises((prev) => new Set([...prev, newExercise.id]))
       }
@@ -172,13 +188,14 @@ export function ActiveWorkout() {
     return false
   }
 
-  const handleBack = () => {
+  const handleBack = async () => {
     if (hasChanges()) {
       setShowCancelDialog(true)
-    } else {
-      // No changes, just cancel without confirmation
-      handleCancel()
+      return
     }
+
+    // No changes, just cancel without confirmation
+    await handleCancel()
   }
 
   return (
@@ -334,11 +351,10 @@ export function ActiveWorkout() {
                           <Input
                             type="number"
                             value={set.weight || ""}
-                            onChange={(e) =>
-                              updateSet(workoutExercise.id, set.id, {
-                                weight: parseFloat(e.target.value) || 0,
-                              })
-                            }
+                            onChange={(e) => {
+                              const weight = parseFloat(e.target.value) || 0
+                              updateSet(workoutExercise.id, set.id, { weight })
+                            }}
                             placeholder={weightUnit.unitLabel}
                             className="h-9"
                             disabled={set.completed}
@@ -369,11 +385,10 @@ export function ActiveWorkout() {
                           <Input
                             type="number"
                             value={set.reps || ""}
-                            onChange={(e) =>
-                              updateSet(workoutExercise.id, set.id, {
-                                reps: parseInt(e.target.value) || 0,
-                              })
-                            }
+                            onChange={(e) => {
+                              const reps = parseInt(e.target.value) || 0
+                              updateSet(workoutExercise.id, set.id, { reps })
+                            }}
                             placeholder="reps"
                             className="h-9"
                             disabled={set.completed}
@@ -457,13 +472,15 @@ export function ActiveWorkout() {
                     )
                   })}
 
-                  {/* Add Set & Remove Exercise */}
+                   {/* Add Set & Remove Exercise */}
                   <div className="flex gap-2 pt-2">
                     <Button
                       variant="outline"
                       size="sm"
                       className="flex-1"
-                      onClick={() => addSet(workoutExercise.id)}
+                      onClick={() => {
+                        addSet(workoutExercise.id)
+                      }}
                     >
                       <Plus className="mr-1 h-3 w-3" />
                       Add Set
@@ -471,9 +488,9 @@ export function ActiveWorkout() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() =>
+                      onClick={() => {
                         removeExerciseFromWorkout(workoutExercise.id)
-                      }
+                      }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -487,9 +504,9 @@ export function ActiveWorkout() {
                     </div>
                     <Input
                       value={workoutExercise.notes || ""}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         updateExerciseNotes(workoutExercise.id, e.target.value)
-                      }
+                      }}
                       placeholder="Add a note for this exercise..."
                       className="h-8 text-sm"
                     />

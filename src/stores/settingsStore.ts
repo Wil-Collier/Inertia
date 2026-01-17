@@ -1,18 +1,25 @@
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
 import type { UserSettings, ThemeMode, NutritionGoals, WeightUnit, DistanceUnit, UnitPreferences } from "@/lib/types"
+import { db } from "@/services/db"
+
+import { toast } from "sonner"
+
+// DB stores settings with an id field for the singleton pattern
+type SettingsDBEntry = UserSettings & { id: string }
 
 interface SettingsStore {
   settings: UserSettings
-  setTheme: (theme: ThemeMode) => void
-  setNutritionGoals: (goals: NutritionGoals) => void
-  updateNutritionGoal: (key: keyof NutritionGoals, value: number) => void
-  setRestTimerDuration: (seconds: number) => void
-  setWeightUnit: (unit: WeightUnit) => void
-  setDistanceUnit: (unit: DistanceUnit) => void
-  setUnitPreferences: (prefs: Partial<UnitPreferences>) => void
-  setNotificationsEnabled: (enabled: boolean) => void
-  resetSettings: () => void
+  isInitialized: boolean
+  loadSettings: () => Promise<void>
+  setTheme: (theme: ThemeMode) => Promise<void>
+  setNutritionGoals: (goals: NutritionGoals) => Promise<void>
+  updateNutritionGoal: (key: keyof NutritionGoals, value: number) => Promise<void>
+  setRestTimerDuration: (seconds: number) => Promise<void>
+  setWeightUnit: (unit: WeightUnit) => Promise<void>
+  setDistanceUnit: (unit: DistanceUnit) => Promise<void>
+  setUnitPreferences: (prefs: Partial<UnitPreferences>) => Promise<void>
+  setNotificationsEnabled: (enabled: boolean) => Promise<void>
+  resetSettings: () => Promise<void>
 }
 
 const defaultUnitPreferences: UnitPreferences = {
@@ -36,146 +43,164 @@ const defaultSettings: UserSettings = {
   notificationsEnabled: false,
 }
 
-export const useSettingsStore = create<SettingsStore>()(
-  persist(
-    (set) => ({
-      settings: defaultSettings,
+export const useSettingsStore = create<SettingsStore>((set, get) => ({
+  settings: defaultSettings,
+  isInitialized: false,
 
-      setTheme: (theme) => {
-        set((state) => ({
-          settings: { ...state.settings, theme },
-        }))
-      },
-
-      setNutritionGoals: (goals) => {
-        set((state) => ({
-          settings: { ...state.settings, nutritionGoals: goals },
-        }))
-      },
-
-      updateNutritionGoal: (key, value) => {
-        set((state) => ({
-          settings: {
-            ...state.settings,
-            nutritionGoals: {
-              ...state.settings.nutritionGoals,
-              [key]: value,
-            },
-          },
-        }))
-      },
-
-      setRestTimerDuration: (seconds) => {
-        set((state) => ({
-          settings: { ...state.settings, restTimerDuration: seconds },
-        }))
-      },
-
-      setWeightUnit: (unit) => {
-        set((state) => ({
-          settings: {
-            ...state.settings,
-            weightUnit: unit,
-            unitPreferences: { ...state.settings.unitPreferences, weight: unit },
-          },
-        }))
-      },
-
-      setDistanceUnit: (unit) => {
-        set((state) => ({
-          settings: {
-            ...state.settings,
-            unitPreferences: { ...state.settings.unitPreferences, distance: unit },
-          },
-        }))
-      },
-
-      setUnitPreferences: (prefs) => {
-        set((state) => ({
-          settings: {
-            ...state.settings,
-            unitPreferences: { ...state.settings.unitPreferences, ...prefs },
-            // Keep weightUnit in sync for backward compatibility
-            ...(prefs.weight && { weightUnit: prefs.weight }),
-          },
-        }))
-      },
-
-      setNotificationsEnabled: (enabled) => {
-        set((state) => ({
-          settings: { ...state.settings, notificationsEnabled: enabled },
-        }))
-      },
-
-      resetSettings: () => {
-        set({ settings: defaultSettings })
-      },
-    }),
-    {
-      name: "training-app-settings",
-      version: 6,
-      migrate: (persistedState, version) => {
-        const state = persistedState as SettingsStore
-        if (version < 2) {
-          // Add fiber and sugar goals if they don't exist
-          return {
-            ...state,
-            settings: {
-              ...state.settings,
-              nutritionGoals: {
-                ...state.settings.nutritionGoals,
-                fiber: state.settings.nutritionGoals.fiber ?? 30,
-                sugar: state.settings.nutritionGoals.sugar ?? 50,
-              },
-            },
-          }
-        }
-        if (version < 3) {
-          // Add rest timer duration setting
-          return {
-            ...state,
-            settings: {
-              ...state.settings,
-              restTimerDuration: state.settings.restTimerDuration ?? 90,
-            },
-          }
-        }
-        if (version < 4) {
-          // Add weight unit setting
-          return {
-            ...state,
-            settings: {
-              ...state.settings,
-              weightUnit: state.settings.weightUnit ?? "lbs",
-            },
-          }
-        }
-        if (version < 5) {
-          // Add notifications setting
-          return {
-            ...state,
-            settings: {
-              ...state.settings,
-              notificationsEnabled: state.settings.notificationsEnabled ?? false,
-            },
-          }
-        }
-        if (version < 6) {
-          // Add unit preferences (migrate from legacy weightUnit)
-          const existingWeightUnit = state.settings.weightUnit ?? "lbs"
-          return {
-            ...state,
-            settings: {
-              ...state.settings,
-              unitPreferences: {
-                weight: existingWeightUnit,
-                distance: existingWeightUnit === "kg" ? "km" : "mi",
-              },
-            },
-          }
-        }
-        return state
-      },
+  loadSettings: async () => {
+    try {
+      const saved = await db.settings.get("settings") as SettingsDBEntry | undefined
+      if (saved) {
+        // Strip the id field from the DB entry to get UserSettings
+        const { id: _id, ...settings } = saved
+        set({ settings: { ...defaultSettings, ...settings }, isInitialized: true })
+      } else {
+        // First run, save defaults
+        await db.settings.put({ ...defaultSettings, id: "settings" })
+        set({ isInitialized: true })
+      }
+    } catch (error) {
+      console.error("Failed to load settings:", error)
+      set({ isInitialized: true })
     }
-  )
-)
+  },
+
+  setTheme: async (theme) => {
+    try {
+      await db.settings.update("settings", { theme })
+      set((state) => ({ settings: { ...state.settings, theme } }))
+    } catch (error) {
+      console.error("Failed to set theme:", error)
+      toast.error("Failed to save theme setting")
+      throw error
+    }
+  },
+
+  setNutritionGoals: async (goals) => {
+    try {
+      await db.settings.update("settings", { nutritionGoals: goals })
+      set((state) => ({ settings: { ...state.settings, nutritionGoals: goals } }))
+    } catch (error) {
+      console.error("Failed to set nutrition goals:", error)
+      toast.error("Failed to save nutrition goals")
+      throw error
+    }
+  },
+
+  updateNutritionGoal: async (key, value) => {
+    const currentGoals = get().settings.nutritionGoals
+    const newGoals = { ...currentGoals, [key]: value }
+    try {
+      await db.settings.update("settings", { nutritionGoals: newGoals })
+      set((state) => ({
+        settings: {
+          ...state.settings,
+          nutritionGoals: newGoals,
+        },
+      }))
+    } catch (error) {
+      console.error("Failed to update nutrition goal:", error)
+      toast.error("Failed to save nutrition goal")
+      throw error
+    }
+  },
+
+  setRestTimerDuration: async (seconds) => {
+    try {
+      await db.settings.update("settings", { restTimerDuration: seconds })
+      set((state) => ({
+        settings: { ...state.settings, restTimerDuration: seconds },
+      }))
+    } catch (error) {
+      console.error("Failed to set rest timer:", error)
+      toast.error("Failed to save rest timer setting")
+      throw error
+    }
+  },
+
+  setWeightUnit: async (unit) => {
+    const newPrefs = { ...get().settings.unitPreferences, weight: unit }
+    try {
+      await db.settings.update("settings", { 
+        weightUnit: unit, 
+        unitPreferences: newPrefs 
+      })
+      set((state) => ({
+        settings: {
+          ...state.settings,
+          weightUnit: unit,
+          unitPreferences: newPrefs,
+        },
+      }))
+    } catch (error) {
+      console.error("Failed to set weight unit:", error)
+      toast.error("Failed to save weight unit setting")
+      throw error
+    }
+  },
+
+  setDistanceUnit: async (unit) => {
+    const newPrefs = { ...get().settings.unitPreferences, distance: unit }
+    try {
+      await db.settings.update("settings", { unitPreferences: newPrefs })
+      set((state) => ({
+        settings: {
+          ...state.settings,
+          unitPreferences: newPrefs,
+        },
+      }))
+    } catch (error) {
+      console.error("Failed to set distance unit:", error)
+      toast.error("Failed to save distance unit setting")
+      throw error
+    }
+  },
+
+  setUnitPreferences: async (prefs) => {
+    const newPrefs = { ...get().settings.unitPreferences, ...prefs }
+    const updates: Partial<UserSettings> = { unitPreferences: newPrefs }
+    if (prefs.weight) {
+      updates.weightUnit = prefs.weight
+    }
+    
+    try {
+      await db.settings.update("settings", updates)
+      set((state) => ({
+        settings: {
+          ...state.settings,
+          unitPreferences: newPrefs,
+          ...(prefs.weight && { weightUnit: prefs.weight }),
+        },
+      }))
+    } catch (error) {
+      console.error("Failed to set unit preferences:", error)
+      toast.error("Failed to save unit preferences")
+      throw error
+    }
+  },
+
+  setNotificationsEnabled: async (enabled) => {
+    try {
+      await db.settings.update("settings", { notificationsEnabled: enabled })
+      set((state) => ({
+        settings: { ...state.settings, notificationsEnabled: enabled },
+      }))
+    } catch (error) {
+      console.error("Failed to set notifications:", error)
+      toast.error("Failed to save notification setting")
+      throw error
+    }
+  },
+
+  resetSettings: async () => {
+    try {
+      await db.settings.put({ ...defaultSettings, id: "settings" })
+      set({ settings: defaultSettings })
+    } catch (error) {
+      console.error("Failed to reset settings:", error)
+      toast.error("Failed to reset settings")
+      throw error
+    }
+  },
+}))
+

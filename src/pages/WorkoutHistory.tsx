@@ -51,10 +51,14 @@ export function WorkoutHistory() {
     setExpandedWorkoutId((prev) => (prev === workoutId ? null : workoutId))
   }
 
-  const handleDelete = () => {
-    if (workoutToDelete) {
-      deleteWorkout(workoutToDelete.id)
+  const handleDelete = async () => {
+    if (!workoutToDelete) return
+
+    try {
+      await deleteWorkout(workoutToDelete.id)
       setWorkoutToDelete(null)
+    } catch {
+      // Store already toasts
     }
   }
 

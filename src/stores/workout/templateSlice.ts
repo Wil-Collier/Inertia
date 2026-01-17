@@ -1,8 +1,10 @@
 import { v4 as uuidv4 } from "uuid"
 import type { WorkoutSliceCreator, TemplateSlice, WorkoutTemplate } from "./types"
+import { db } from "@/services/db"
+import { toast } from "sonner"
 
 export const createTemplateSlice: WorkoutSliceCreator<TemplateSlice> = (set) => ({
-  createTemplate: (name, workout) => {
+  createTemplate: async (name, workout) => {
     const template: WorkoutTemplate = {
       id: uuidv4(),
       name,
@@ -16,24 +18,44 @@ export const createTemplateSlice: WorkoutSliceCreator<TemplateSlice> = (set) => 
         : [],
     }
 
-    set((state) => ({
-      templates: [...state.templates, template],
-    }))
-
-    return template
+    try {
+      await db.workoutTemplates.add(template)
+      set((state) => ({
+        templates: [...state.templates, template],
+      }))
+      return template
+    } catch (error) {
+      console.error("Failed to create template:", error)
+      toast.error("Failed to save template")
+      throw error
+    }
   },
 
-  updateTemplate: (id, updates) => {
-    set((state) => ({
-      templates: state.templates.map((t) =>
-        t.id === id ? { ...t, ...updates } : t
-      ),
-    }))
+  updateTemplate: async (id, updates) => {
+    try {
+      await db.workoutTemplates.update(id, updates)
+      set((state) => ({
+        templates: state.templates.map((t) =>
+          t.id === id ? { ...t, ...updates } : t
+        ),
+      }))
+    } catch (error) {
+      console.error("Failed to update template:", error)
+      toast.error("Failed to update template")
+      throw error
+    }
   },
 
-  deleteTemplate: (id) => {
-    set((state) => ({
-      templates: state.templates.filter((t) => t.id !== id),
-    }))
+  deleteTemplate: async (id) => {
+    try {
+      await db.workoutTemplates.delete(id)
+      set((state) => ({
+        templates: state.templates.filter((t) => t.id !== id),
+      }))
+    } catch (error) {
+      console.error("Failed to delete template:", error)
+      toast.error("Failed to delete template")
+      throw error
+    }
   },
 })

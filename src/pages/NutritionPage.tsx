@@ -139,19 +139,23 @@ export function NutritionPage() {
     return () => clearTimeout(timer)
   }, [searchQuery, handleSearch])
 
-  const handleAddFood = (food: FoodItem, qty: number) => {
-    let foodId = food.id
-    
-    // If it's from OpenFoodFacts and not in our database, add it
-    if (!food.isCustom && !foods.find((f) => f.id === food.id)) {
-      const newFood = addFood({ ...food })
-      foodId = newFood.id
+  const handleAddFood = async (food: FoodItem, qty: number) => {
+    try {
+      let foodId = food.id
+
+      // If it's from OpenFoodFacts and not in our database, add it
+      if (!food.isCustom && !foods.find((f) => f.id === food.id)) {
+        const newFood = await addFood({ ...food })
+        foodId = newFood.id
+      }
+
+      await addMealEntry(selectedDate, foodId, qty, selectedMealType)
+      setShowAddSheet(false)
+      setSearchQuery("")
+      setSearchResults([])
+    } catch {
+      // Store methods already toast; swallow to avoid unhandled rejections.
     }
-    
-    addMealEntry(selectedDate, foodId, qty, selectedMealType)
-    setShowAddSheet(false)
-    setSearchQuery("")
-    setSearchResults([])
   }
 
   const openAddSheet = (mealType: MealType) => {
@@ -365,10 +369,20 @@ export function NutritionPage() {
                           key={entry.id}
                           entry={entry}
                           food={food}
-                          onUpdateQuantity={(quantity) =>
-                            updateMealEntry(selectedDate, entry.id, { quantity })
-                          }
-                          onRemove={() => removeMealEntry(selectedDate, entry.id)}
+                          onUpdateQuantity={async (quantity) => {
+                            try {
+                              await updateMealEntry(selectedDate, entry.id, { quantity })
+                            } catch {
+                              // Store already toasts
+                            }
+                          }}
+                          onRemove={async () => {
+                            try {
+                              await removeMealEntry(selectedDate, entry.id)
+                            } catch {
+                              // Store already toasts
+                            }
+                          }}
                         />
                       )
                     })}
@@ -466,7 +480,13 @@ export function NutritionPage() {
                         key={food.id}
                         food={food}
                         onAdd={(qty) => handleAddFood(food, qty)}
-                        onToggleFavorite={() => toggleFavorite(food.id)}
+                        onToggleFavorite={async () => {
+                          try {
+                            await toggleFavorite(food.id)
+                          } catch {
+                            // Store already toasts
+                          }
+                        }}
                         isFavorite={food.isFavorite}
                       />
                     ))}
@@ -486,16 +506,25 @@ export function NutritionPage() {
             <TabsContent value="myfoods" className="mt-4">
               <ScrollArea className="h-[55vh]">
                 <div className="space-y-3">
-                  <CustomFoodForm
-                    onSave={(food) => {
-                      addFood(food)
-                      setScannedBarcode(null)
-                    }}
-                    onSaveAndAdd={(food) => {
-                      const newFood = addFood(food)
-                      handleAddFood(newFood, 1)
-                      setScannedBarcode(null)
-                    }}
+                    <CustomFoodForm
+                      onSave={async (food) => {
+                        try {
+                          await addFood(food)
+                          setScannedBarcode(null)
+                        } catch {
+                          // Store already toasts
+                        }
+                      }}
+                      onSaveAndAdd={async (food) => {
+                        try {
+                          const newFood = await addFood(food)
+                          await handleAddFood(newFood, 1)
+                          setScannedBarcode(null)
+                        } catch {
+                          // Store already toasts
+                        }
+                      }}
+
                     initialBarcode={scannedBarcode}
                     onClearBarcode={() => setScannedBarcode(null)}
                   />
@@ -508,9 +537,21 @@ export function NutritionPage() {
                           key={food.id}
                           food={food}
                           onAdd={(qty) => handleAddFood(food, qty)}
-                          onToggleFavorite={() => toggleFavorite(food.id)}
+                          onToggleFavorite={async () => {
+                            try {
+                              await toggleFavorite(food.id)
+                            } catch {
+                              // Store already toasts
+                            }
+                          }}
                           isFavorite={food.isFavorite}
-                          onDelete={() => deleteFood(food.id)}
+                          onDelete={async () => {
+                            try {
+                              await deleteFood(food.id)
+                            } catch {
+                              // Store already toasts
+                            }
+                          }}
                           showDelete
                         />
                       ))}
@@ -529,7 +570,13 @@ export function NutritionPage() {
                         key={food.id}
                         food={food}
                         onAdd={(qty) => handleAddFood(food, qty)}
-                        onToggleFavorite={() => toggleFavorite(food.id)}
+                        onToggleFavorite={async () => {
+                          try {
+                            await toggleFavorite(food.id)
+                          } catch {
+                            // Store already toasts
+                          }
+                        }}
                         isFavorite={true}
                       />
                     ))}
@@ -569,7 +616,13 @@ export function NutritionPage() {
                             <Button
                               size="icon-sm"
                               variant="ghost"
-                              onClick={() => deleteMealTemplate(template.id)}
+                              onClick={async () => {
+                                try {
+                                  await deleteMealTemplate(template.id)
+                                } catch {
+                                  // Store already toasts
+                                }
+                              }}
                             >
                               <Trash2 className="h-3 w-3 text-destructive" />
                             </Button>
@@ -593,10 +646,14 @@ export function NutritionPage() {
                           <Button
                             size="sm"
                             className="w-full"
-                            onClick={() => {
-                              applyMealTemplate(template.id, selectedDate, selectedMealType)
-                              setShowAddSheet(false)
-                              toast.success(`Applied "${template.name}"`)
+                            onClick={async () => {
+                              try {
+                                await applyMealTemplate(template.id, selectedDate, selectedMealType)
+                                setShowAddSheet(false)
+                                toast.success(`Applied "${template.name}"`)
+                              } catch {
+                                // Store already toasts
+                              }
                             }}
                           >
                             <Check className="mr-1 h-3 w-3" />
@@ -660,20 +717,24 @@ export function NutritionPage() {
               <Button
                 className="flex-1"
                 disabled={!newTemplateName.trim()}
-                onClick={() => {
-                  const entries = getEntriesByMealType(selectedDate, templateMealType)
-                  if (entries.length > 0) {
-                    saveMealTemplate(
-                      newTemplateName.trim(),
-                      entries.map((e) => ({
-                        foodId: e.foodId,
-                        quantity: e.quantity,
-                        mealType: e.mealType,
-                      }))
-                    )
-                    toast.success(`Saved "${newTemplateName.trim()}"`)
-                    setShowSaveTemplateDialog(false)
-                    setNewTemplateName("")
+                onClick={async () => {
+                  try {
+                    const entries = getEntriesByMealType(selectedDate, templateMealType)
+                    if (entries.length > 0) {
+                      await saveMealTemplate(
+                        newTemplateName.trim(),
+                        entries.map((e) => ({
+                          foodId: e.foodId,
+                          quantity: e.quantity,
+                          mealType: e.mealType,
+                        }))
+                      )
+                      toast.success(`Saved "${newTemplateName.trim()}"`)
+                      setShowSaveTemplateDialog(false)
+                      setNewTemplateName("")
+                    }
+                  } catch {
+                    // Store already toasts
                   }
                 }}
               >

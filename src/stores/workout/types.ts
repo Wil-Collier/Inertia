@@ -36,21 +36,21 @@ export interface WorkoutState {
 // ============================================
 
 export interface SessionSlice {
-  startWorkout: (name: string, templateId?: string) => void
-  cancelWorkout: () => void
-  finishWorkout: () => Workout | null
-  addExerciseToWorkout: (exerciseId: string) => void
-  removeExerciseFromWorkout: (workoutExerciseId: string) => void
-  addSet: (workoutExerciseId: string) => void
+  startWorkout: (name: string, templateId?: string) => Promise<void>
+  cancelWorkout: () => Promise<void>
+  finishWorkout: () => Promise<Workout | null>
+  addExerciseToWorkout: (exerciseId: string) => Promise<void>
+  removeExerciseFromWorkout: (workoutExerciseId: string) => Promise<void>
+  addSet: (workoutExerciseId: string) => Promise<void>
   updateSet: (
     workoutExerciseId: string,
     setId: string,
     updates: Partial<Omit<WorkoutSet, "id">>
-  ) => void
-  removeSet: (workoutExerciseId: string, setId: string) => void
-  toggleSetComplete: (workoutExerciseId: string, setId: string) => void
-  updateExerciseNotes: (workoutExerciseId: string, notes: string) => void
-  bumpExerciseWeight: (workoutExerciseId: string, increment: number) => void
+  ) => Promise<void>
+  removeSet: (workoutExerciseId: string, setId: string) => Promise<void>
+  toggleSetComplete: (workoutExerciseId: string, setId: string) => Promise<void>
+  updateExerciseNotes: (workoutExerciseId: string, notes: string) => Promise<void>
+  bumpExerciseWeight: (workoutExerciseId: string, increment: number) => Promise<void>
 }
 
 // ============================================
@@ -58,9 +58,9 @@ export interface SessionSlice {
 // ============================================
 
 export interface TemplateSlice {
-  createTemplate: (name: string, workout?: Workout) => WorkoutTemplate
-  updateTemplate: (id: string, updates: Partial<Omit<WorkoutTemplate, "id">>) => void
-  deleteTemplate: (id: string) => void
+  createTemplate: (name: string, workout?: Workout) => Promise<WorkoutTemplate>
+  updateTemplate: (id: string, updates: Partial<Omit<WorkoutTemplate, "id">>) => Promise<void>
+  deleteTemplate: (id: string) => Promise<void>
 }
 
 // ============================================
@@ -77,9 +77,8 @@ export interface ExerciseHistoryEntry {
 }
 
 export interface HistorySlice {
-  getWorkoutsByDate: (date: string) => Workout[]
   getWorkoutDates: () => string[]
-  deleteWorkout: (id: string) => void
+  deleteWorkout: (id: string) => Promise<void>
   getPersonalRecord: (exerciseId: string) => PersonalRecord | undefined
   calculateOneRepMax: (weight: number, reps: number) => number
   getLastPerformance: (exerciseId: string) => LastPerformance | null
@@ -90,7 +89,10 @@ export interface WorkoutStore extends
   WorkoutState,
   SessionSlice,
   TemplateSlice,
-  HistorySlice {}
+  HistorySlice {
+    isInitialized: boolean
+    init: () => Promise<void>
+  }
 
 // ============================================
 // Slice Creator Type

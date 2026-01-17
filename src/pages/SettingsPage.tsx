@@ -48,13 +48,13 @@ export function SettingsPage() {
 
     if (settings.notificationsEnabled) {
       // Disable notifications
-      setNotificationsEnabled(false)
+      await setNotificationsEnabled(false)
       toast.success("Notifications disabled")
     } else {
       // Request permission and enable
       const permission = await requestNotificationPermission()
       if (permission === "granted") {
-        setNotificationsEnabled(true)
+        await setNotificationsEnabled(true)
         toast.success("Notifications enabled")
       } else if (permission === "denied") {
         toast.error("Notification permission denied. Please enable in browser settings.")
@@ -90,10 +90,14 @@ export function SettingsPage() {
     }
   }
 
-  const handleClearData = () => {
-    clearAllData()
-    setShowClearDialog(false)
-    toast.success("All data cleared")
+  const handleClearData = async () => {
+    try {
+      await clearAllData()
+      setShowClearDialog(false)
+      toast.success("All data cleared")
+    } catch {
+      toast.error("Failed to clear data")
+    }
   }
 
   const themeOptions: { value: ThemeMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -129,7 +133,9 @@ export function SettingsPage() {
                   key={value}
                   variant={theme === value ? "default" : "outline"}
                   className="flex-1"
-                  onClick={() => setTheme(value)}
+                  onClick={() => {
+                    setTheme(value)
+                  }}
                 >
                   <Icon className="mr-2 h-4 w-4" />
                   {label}
@@ -155,9 +161,9 @@ export function SettingsPage() {
                 min={0}
                 max={600}
                 value={settings.restTimerDuration}
-                onChange={(e) =>
+                onChange={(e) => {
                   setRestTimerDuration(parseInt(e.target.value) || 0)
-                }
+                }}
               />
               <p className="text-xs text-muted-foreground">
                 Default rest time between sets (0-600 seconds)
@@ -212,7 +218,9 @@ export function SettingsPage() {
                     key={value}
                     variant={settings.unitPreferences.weight === value ? "default" : "outline"}
                     className="flex-1"
-                    onClick={() => setWeightUnit(value)}
+                    onClick={() => {
+                      setWeightUnit(value)
+                    }}
                   >
                     {label}
                   </Button>
@@ -231,7 +239,9 @@ export function SettingsPage() {
                     key={value}
                     variant={settings.unitPreferences.distance === value ? "default" : "outline"}
                     className="flex-1"
-                    onClick={() => setDistanceUnit(value)}
+                    onClick={() => {
+                      setDistanceUnit(value)
+                    }}
                   >
                     {label}
                   </Button>
@@ -258,9 +268,9 @@ export function SettingsPage() {
               <Input
                 type="number"
                 value={settings.nutritionGoals.calories}
-                onChange={(e) =>
+                onChange={(e) => {
                   updateNutritionGoal("calories", parseInt(e.target.value) || 0)
-                }
+                }}
               />
             </div>
 
@@ -270,9 +280,9 @@ export function SettingsPage() {
                 <Input
                   type="number"
                   value={settings.nutritionGoals.protein}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     updateNutritionGoal("protein", parseInt(e.target.value) || 0)
-                  }
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -280,9 +290,9 @@ export function SettingsPage() {
                 <Input
                   type="number"
                   value={settings.nutritionGoals.carbs}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     updateNutritionGoal("carbs", parseInt(e.target.value) || 0)
-                  }
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -290,9 +300,9 @@ export function SettingsPage() {
                 <Input
                   type="number"
                   value={settings.nutritionGoals.fat}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     updateNutritionGoal("fat", parseInt(e.target.value) || 0)
-                  }
+                  }}
                 />
               </div>
             </div>
@@ -303,9 +313,9 @@ export function SettingsPage() {
                 <Input
                   type="number"
                   value={settings.nutritionGoals.fiber}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     updateNutritionGoal("fiber", parseInt(e.target.value) || 0)
-                  }
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -313,9 +323,9 @@ export function SettingsPage() {
                 <Input
                   type="number"
                   value={settings.nutritionGoals.sugar}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     updateNutritionGoal("sugar", parseInt(e.target.value) || 0)
-                  }
+                  }}
                 />
               </div>
             </div>

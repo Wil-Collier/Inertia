@@ -118,7 +118,7 @@ export interface UserSettings {
 
 // Personal Records
 export interface PersonalRecord {
-  exerciseId: string
+  exerciseId: string // Primary key - one PR per exercise
   weight: number
   reps: number
   date: string

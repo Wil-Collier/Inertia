@@ -46,26 +46,38 @@ export function WorkoutTemplates() {
   const [editName, setEditName] = useState("")
   const [isAddExerciseOpen, setIsAddExerciseOpen] = useState(false)
 
-  const handleDelete = () => {
-    if (templateToDelete) {
-      deleteTemplate(templateToDelete.id)
+  const handleDelete = async () => {
+    if (!templateToDelete) return
+
+    try {
+      await deleteTemplate(templateToDelete.id)
       setTemplateToDelete(null)
+    } catch {
+      // Store already toasts
     }
   }
 
-  const handleCreate = () => {
-    if (newTemplateName.trim()) {
-      const template = createTemplate(newTemplateName.trim())
+  const handleCreate = async () => {
+    if (!newTemplateName.trim()) return
+
+    try {
+      const template = await createTemplate(newTemplateName.trim())
       setNewTemplateName("")
       setIsCreating(false)
       setEditingTemplate(template)
       setEditName(template.name)
+    } catch {
+      // Store already toasts
     }
   }
 
-  const handleStartFromTemplate = (template: WorkoutTemplate) => {
-    startWorkout(template.name, template.id)
-    navigate("/workout/active")
+  const handleStartFromTemplate = async (template: WorkoutTemplate) => {
+    try {
+      await startWorkout(template.name, template.id)
+      navigate("/workout/active")
+    } catch {
+      // Store already toasts
+    }
   }
 
   const handleEditOpen = (template: WorkoutTemplate) => {
@@ -73,59 +85,81 @@ export function WorkoutTemplates() {
     setEditName(template.name)
   }
 
-  const handleSaveEdit = () => {
-    if (editingTemplate && editName.trim()) {
-      updateTemplate(editingTemplate.id, { name: editName.trim() })
+  const handleSaveEdit = async () => {
+    if (!editingTemplate || !editName.trim()) return
+
+    try {
+      await updateTemplate(editingTemplate.id, { name: editName.trim() })
       // Refresh the editing template
       const updated = templates.find((t) => t.id === editingTemplate.id)
       if (updated) {
         setEditingTemplate({ ...updated, name: editName.trim() })
       }
+    } catch {
+      // Store already toasts
     }
   }
 
-  const handleAddExercise = (exerciseId: string) => {
-    if (editingTemplate) {
-      const updatedExercises = [
-        ...editingTemplate.exercises,
-        { exerciseId, targetSets: 3, targetReps: 10 },
-      ]
-      updateTemplate(editingTemplate.id, { exercises: updatedExercises })
+  const handleAddExercise = async (exerciseId: string) => {
+    if (!editingTemplate) {
+      setIsAddExerciseOpen(false)
+      return
+    }
+
+    const updatedExercises = [
+      ...editingTemplate.exercises,
+      { exerciseId, targetSets: 3, targetReps: 10 },
+    ]
+
+    try {
+      await updateTemplate(editingTemplate.id, { exercises: updatedExercises })
       setEditingTemplate({
         ...editingTemplate,
         exercises: updatedExercises,
       })
+      setIsAddExerciseOpen(false)
+    } catch {
+      // Store already toasts
     }
-    setIsAddExerciseOpen(false)
   }
 
-  const handleRemoveExercise = (exerciseId: string) => {
-    if (editingTemplate) {
-      const updatedExercises = editingTemplate.exercises.filter(
-        (e) => e.exerciseId !== exerciseId
-      )
-      updateTemplate(editingTemplate.id, { exercises: updatedExercises })
+  const handleRemoveExercise = async (exerciseId: string) => {
+    if (!editingTemplate) return
+
+    const updatedExercises = editingTemplate.exercises.filter(
+      (e) => e.exerciseId !== exerciseId
+    )
+
+    try {
+      await updateTemplate(editingTemplate.id, { exercises: updatedExercises })
       setEditingTemplate({
         ...editingTemplate,
         exercises: updatedExercises,
       })
+    } catch {
+      // Store already toasts
     }
   }
 
-  const handleUpdateTargets = (
+  const handleUpdateTargets = async (
     exerciseId: string,
     field: "targetSets" | "targetReps" | "targetWeight",
     value: number
   ) => {
-    if (editingTemplate) {
-      const updatedExercises = editingTemplate.exercises.map((e) =>
-        e.exerciseId === exerciseId ? { ...e, [field]: value } : e
-      )
-      updateTemplate(editingTemplate.id, { exercises: updatedExercises })
+    if (!editingTemplate) return
+
+    const updatedExercises = editingTemplate.exercises.map((e) =>
+      e.exerciseId === exerciseId ? { ...e, [field]: value } : e
+    )
+
+    try {
+      await updateTemplate(editingTemplate.id, { exercises: updatedExercises })
       setEditingTemplate({
         ...editingTemplate,
         exercises: updatedExercises,
       })
+    } catch {
+      // Store already toasts
     }
   }
 

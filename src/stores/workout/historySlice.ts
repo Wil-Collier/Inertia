@@ -1,19 +1,25 @@
 import type { WorkoutSliceCreator, HistorySlice, ExerciseHistoryEntry } from "./types"
+import { db } from "@/services/db"
+
+import { toast } from "sonner"
 
 export const createHistorySlice: WorkoutSliceCreator<HistorySlice> = (set, get) => ({
-  getWorkoutsByDate: (date) => {
-    return get().workouts.filter((w) => w.date === date)
-  },
-
   getWorkoutDates: () => {
     const dates = new Set(get().workouts.map((w) => w.date))
     return Array.from(dates).sort().reverse()
   },
 
-  deleteWorkout: (id) => {
-    set((state) => ({
-      workouts: state.workouts.filter((w) => w.id !== id),
-    }))
+  deleteWorkout: async (id) => {
+    try {
+      await db.workoutSessions.delete(id)
+      set((state) => ({
+        workouts: state.workouts.filter((w) => w.id !== id),
+      }))
+    } catch (error) {
+      console.error("Failed to delete workout:", error)
+      toast.error("Failed to delete workout history")
+      throw error
+    }
   },
 
   getPersonalRecord: (exerciseId) => {
