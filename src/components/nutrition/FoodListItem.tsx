@@ -1,5 +1,6 @@
 import { useState, useCallback, memo } from "react"
 import { Star, Trash2, Plus, Minus, Check } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import type { FoodItem } from "@/lib/types"
 
@@ -10,6 +11,8 @@ interface FoodListItemProps {
   isFavorite?: boolean
   onDelete?: () => void
   showDelete?: boolean
+  isExpanded: boolean
+  onToggleExpand: () => void
 }
 
 export const FoodListItem = memo(({
@@ -19,9 +22,10 @@ export const FoodListItem = memo(({
   isFavorite,
   onDelete,
   showDelete,
+  isExpanded,
+  onToggleExpand,
 }: FoodListItemProps) => {
   const [quantity, setQuantity] = useState(1)
-  const [isExpanded, setIsExpanded] = useState(false)
 
   const adjustedCalories = Math.round(food.calories * quantity)
   const adjustedProtein = Math.round(food.protein * quantity * 10) / 10
@@ -31,11 +35,11 @@ export const FoodListItem = memo(({
   const adjustedSugar = Math.round((food.sugar ?? 0) * quantity * 10) / 10
 
   const handleToggleExpand = useCallback(() => {
-    setIsExpanded(!isExpanded)
+    onToggleExpand()
     if (!isExpanded) {
       setQuantity(1)
     }
-  }, [isExpanded])
+  }, [isExpanded, onToggleExpand])
 
   const handleIncrementQuantity = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -50,9 +54,9 @@ export const FoodListItem = memo(({
   const handleAdd = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     onAdd(quantity)
-    setIsExpanded(false)
+    onToggleExpand()
     setQuantity(1)
-  }, [onAdd, quantity])
+  }, [onAdd, quantity, onToggleExpand])
 
   const handleToggleFavorite = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -101,46 +105,58 @@ export const FoodListItem = memo(({
         )}
       </div>
 
-      {isExpanded && (
-        <div className="border-t bg-muted/30 p-3 space-y-3">
-          {/* Quantity Selector */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Servings</span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={handleDecrementQuantity}
-                disabled={quantity <= 0.5}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-12 text-center font-medium">{quantity}</span>
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={handleIncrementQuantity}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
+          isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className={cn(
+            "border-t bg-muted/30 p-3 space-y-3 transition-transform duration-300 ease-in-out",
+            isExpanded ? "translate-y-0" : "-translate-y-2"
+          )}>
+            {/* Quantity Selector */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Servings</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  onClick={handleDecrementQuantity}
+                  disabled={quantity <= 0.5}
+                  tabIndex={isExpanded ? 0 : -1}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="w-12 text-center font-medium">{quantity}</span>
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  onClick={handleIncrementQuantity}
+                  tabIndex={isExpanded ? 0 : -1}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </div>
 
-          {/* Adjusted Macros */}
-          <div className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{adjustedCalories} kcal</span>
-            {" • "}P: {adjustedProtein}g • C: {adjustedCarbs}g • F: {adjustedFat}g
-            <br />
-            Fiber: {adjustedFiber}g • Sugar: {adjustedSugar}g
-          </div>
+            {/* Adjusted Macros */}
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{adjustedCalories} kcal</span>
+              {" • "}P: {adjustedProtein}g • C: {adjustedCarbs}g • F: {adjustedFat}g
+              <br />
+              Fiber: {adjustedFiber}g • Sugar: {adjustedSugar}g
+            </div>
 
-          {/* Add Button */}
-          <Button className="w-full" onClick={handleAdd}>
-            <Check className="mr-2 h-4 w-4" />
-            Add {quantity > 1 ? `${quantity} servings` : ""}
-          </Button>
+            {/* Add Button */}
+            <Button className="w-full" onClick={handleAdd} tabIndex={isExpanded ? 0 : -1}>
+              <Check className="mr-2 h-4 w-4" />
+              Add {quantity > 1 ? `${quantity} servings` : ""}
+            </Button>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 })

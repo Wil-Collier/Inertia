@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Search, X, ScanBarcode, Loader2, Bookmark, Trash2, Check } from "lucide-react"
 import {
   Sheet,
@@ -68,6 +69,17 @@ export function AddFoodSheet({
   onDeleteTemplate,
   onApplyTemplate,
 }: AddFoodSheetProps) {
+  const [expandedFoodId, setExpandedFoodId] = useState<string | null>(null)
+
+  const handleToggleExpand = (id: string) => {
+    setExpandedFoodId(current => current === id ? null : id)
+  }
+
+  // Reset expanded state when active tab changes or search query changes
+  // to avoid confusion or stuck states
+  // Although preserving it might be nice, standard behavior is usually reset
+  // Let's keep it simple first. 
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh]">
@@ -143,6 +155,8 @@ export function AddFoodSheet({
                       onAdd={(qty) => onAddFood(food, qty)}
                       onToggleFavorite={() => onToggleFavorite(food.id)}
                       isFavorite={food.isFavorite}
+                      isExpanded={expandedFoodId === food.id}
+                      onToggleExpand={() => handleToggleExpand(food.id)}
                     />
                   ))}
                 </div>
@@ -180,6 +194,8 @@ export function AddFoodSheet({
                         isFavorite={food.isFavorite}
                         onDelete={() => onDeleteFood(food.id)}
                         showDelete
+                        isExpanded={expandedFoodId === food.id}
+                        onToggleExpand={() => handleToggleExpand(food.id)}
                       />
                     ))}
                   </div>
@@ -199,6 +215,8 @@ export function AddFoodSheet({
                       onAdd={(qty) => onAddFood(food, qty)}
                       onToggleFavorite={() => onToggleFavorite(food.id)}
                       isFavorite={true}
+                      isExpanded={expandedFoodId === food.id}
+                      onToggleExpand={() => handleToggleExpand(food.id)}
                     />
                   ))}
                 </div>

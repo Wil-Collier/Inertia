@@ -88,7 +88,7 @@ export function CustomFoodForm({
   }
 
   return (
-    <div className="space-y-4 rounded-lg border p-4">
+    <div className="space-y-4 rounded-lg border p-4 animate-in fade-in slide-in-from-top-2 duration-300">
       <div className="flex items-center justify-between">
         <p className="font-medium">
           {initialBarcode ? "Create Food (Scanned)" : "Create New Food"}

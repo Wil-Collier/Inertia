@@ -199,9 +199,19 @@
   body {
     @apply font-sans bg-background text-foreground;
     -webkit-tap-highlight-color: transparent;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    }
+  body::-webkit-scrollbar {
+    display: none;
     }
   html {
     @apply font-sans;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    }
+  html::-webkit-scrollbar {
+    display: none;
     }
 }
 

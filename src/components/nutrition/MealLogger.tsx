@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Plus, BookmarkPlus, type LucideIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,12 @@ export function MealLogger({
   onRemoveEntry,
   onSaveTemplate,
 }: MealLoggerProps) {
+  const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null)
+
+  const handleToggleExpand = (id: string) => {
+    setExpandedEntryId(current => current === id ? null : id)
+  }
+
   return (
     <div className="space-y-4">
       {mealTypes.map(({ type, label, icon: Icon }) => {
@@ -69,6 +76,8 @@ export function MealLogger({
                         food={entry.food}
                         onUpdateQuantity={(quantity) => onUpdateQuantity(entry.id, quantity)}
                         onRemove={() => onRemoveEntry(entry.id)}
+                        isExpanded={expandedEntryId === entry.id}
+                        onToggleExpand={() => handleToggleExpand(entry.id)}
                       />
                     )
                   })}

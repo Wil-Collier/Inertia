@@ -50,9 +50,7 @@ export function ActiveWorkout() {
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
   const [templateName, setTemplateName] = useState("")
-  const [expandedExercises, setExpandedExercises] = useState<Set<string>>(
-    new Set()
-  )
+  const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null)
 
   // Handler for when rest timer completes
   const handleRestTimerComplete = useCallback(() => {
@@ -117,15 +115,7 @@ export function ActiveWorkout() {
   }, [cancelWorkout, navigate])
 
   const handleToggleExpanded = useCallback((id: string) => {
-    setExpandedExercises((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
+    setExpandedExerciseId((prev) => (prev === id ? null : id))
   }, [])
 
   const handleAddExercise = useCallback(async (exerciseId: string) => {
@@ -144,7 +134,7 @@ export function ActiveWorkout() {
     if (workout && workout.exercises.length > prevExerciseCount) {
       const newExercise = workout.exercises.at(-1)
       if (newExercise) {
-        setExpandedExercises((prev) => new Set([...prev, newExercise.id]))
+        setExpandedExerciseId(newExercise.id)
       }
     }
     setPrevExerciseCount(workout?.exercises.length ?? 0)
@@ -271,13 +261,13 @@ export function ActiveWorkout() {
 
         {/* Exercises */}
         {workout.exercises.map((workoutExercise) => (
-          <WorkoutExerciseCard
-            key={workoutExercise.id}
-            workoutExercise={workoutExercise}
-            exercise={exercisesById.get(workoutExercise.exerciseId)}
-            isExpanded={expandedExercises.has(workoutExercise.id)}
-            onToggleExpanded={handleToggleExpanded}
-            onAddSet={addSet}
+            <WorkoutExerciseCard
+              key={workoutExercise.id}
+              workoutExercise={workoutExercise}
+              exercise={exercisesById.get(workoutExercise.exerciseId)}
+              isExpanded={expandedExerciseId === workoutExercise.id}
+              onToggleExpanded={handleToggleExpanded}
+              onAddSet={addSet}
             onRemoveSet={removeSet}
             onUpdateSet={updateSet}
             onToggleSetComplete={toggleSetComplete}

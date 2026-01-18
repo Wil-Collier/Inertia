@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, memo } from "react"
 import { ChevronDown, Plus, Minus, Trash2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import type { FoodItem } from "@/lib/types"
 
@@ -8,6 +9,8 @@ interface MealEntryItemProps {
   food: FoodItem
   onUpdateQuantity: (quantity: number) => void
   onRemove: () => void
+  isExpanded: boolean
+  onToggleExpand: () => void
 }
 
 export const MealEntryItem = memo(({
@@ -15,8 +18,9 @@ export const MealEntryItem = memo(({
   food,
   onUpdateQuantity,
   onRemove,
+  isExpanded,
+  onToggleExpand,
 }: MealEntryItemProps) => {
-  const [isExpanded, setIsExpanded] = useState(false)
   const [quantity, setQuantity] = useState(entry.quantity)
 
   // Sync local state when entry changes
@@ -51,8 +55,8 @@ export const MealEntryItem = memo(({
   }, [onRemove])
 
   const handleToggleExpand = useCallback(() => {
-    setIsExpanded(!isExpanded)
-  }, [isExpanded])
+    onToggleExpand()
+  }, [onToggleExpand])
 
   return (
     <div className="rounded-lg bg-muted/50 overflow-hidden">
@@ -81,62 +85,74 @@ export const MealEntryItem = memo(({
         </Button>
       </div>
 
-      {isExpanded && (
-        <div className="border-t border-border/50 bg-muted/30 px-3 py-3 space-y-3">
-          {/* Quantity Selector */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Servings</span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={handleDecrementQuantity}
-                disabled={quantity <= 0.5}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-12 text-center font-medium">{quantity}</span>
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={handleIncrementQuantity}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
+          isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className={cn(
+            "border-t border-border/50 bg-muted/30 px-3 py-3 space-y-3 transition-transform duration-300 ease-in-out",
+            isExpanded ? "translate-y-0" : "-translate-y-2"
+          )}>
+            {/* Quantity Selector */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Servings</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  onClick={handleDecrementQuantity}
+                  disabled={quantity <= 0.5}
+                  tabIndex={isExpanded ? 0 : -1}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="w-12 text-center font-medium">{quantity}</span>
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  onClick={handleIncrementQuantity}
+                  tabIndex={isExpanded ? 0 : -1}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </div>
 
-          {/* Macro Details */}
-          <div className="rounded-md bg-background/50 p-3">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Calories</span>
-                <span className="font-medium">{adjustedCalories} kcal</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Protein</span>
-                <span className="font-medium">{adjustedProtein}g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Carbs</span>
-                <span className="font-medium">{adjustedCarbs}g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Fat</span>
-                <span className="font-medium">{adjustedFat}g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Fiber</span>
-                <span className="font-medium">{adjustedFiber}g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Sugar</span>
-                <span className="font-medium">{adjustedSugar}g</span>
+            {/* Macro Details */}
+            <div className="rounded-md bg-background/50 p-3">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Calories</span>
+                  <span className="font-medium">{adjustedCalories} kcal</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Protein</span>
+                  <span className="font-medium">{adjustedProtein}g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Carbs</span>
+                  <span className="font-medium">{adjustedCarbs}g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fat</span>
+                  <span className="font-medium">{adjustedFat}g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fiber</span>
+                  <span className="font-medium">{adjustedFiber}g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Sugar</span>
+                  <span className="font-medium">{adjustedSugar}g</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 })
