@@ -32,7 +32,7 @@ export function useProgressStatsDB() {
           return (
             exTotal +
             ex.sets
-              .filter((s) => s.completed)
+              .filter((s) => s.isCompleted)
               .reduce((setTotal, set) => {
                 return setTotal + set.weight * set.reps
               }, 0)

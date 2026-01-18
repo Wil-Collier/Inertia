@@ -31,14 +31,14 @@ export const MealEntryItem = memo(({
   const adjustedFiber = Math.round((food.fiber ?? 0) * quantity * 10) / 10
   const adjustedSugar = Math.round((food.sugar ?? 0) * quantity * 10) / 10
 
-  const incrementQuantity = useCallback((e: React.MouseEvent) => {
+  const handleIncrementQuantity = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     const newQty = Math.round((quantity + 0.5) * 10) / 10
     setQuantity(newQty)
     onUpdateQuantity(newQty)
   }, [quantity, onUpdateQuantity])
 
-  const decrementQuantity = useCallback((e: React.MouseEvent) => {
+  const handleDecrementQuantity = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     const newQty = Math.max(0.5, Math.round((quantity - 0.5) * 10) / 10)
     setQuantity(newQty)
@@ -50,11 +50,15 @@ export const MealEntryItem = memo(({
     onRemove()
   }, [onRemove])
 
+  const handleToggleExpand = useCallback(() => {
+    setIsExpanded(!isExpanded)
+  }, [isExpanded])
+
   return (
     <div className="rounded-lg bg-muted/50 overflow-hidden">
       <div
         className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/70 transition-colors"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={handleToggleExpand}
       >
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate">{food.name}</p>
@@ -86,7 +90,7 @@ export const MealEntryItem = memo(({
               <Button
                 size="icon-sm"
                 variant="outline"
-                onClick={decrementQuantity}
+                onClick={handleDecrementQuantity}
                 disabled={quantity <= 0.5}
               >
                 <Minus className="h-4 w-4" />
@@ -95,7 +99,7 @@ export const MealEntryItem = memo(({
               <Button
                 size="icon-sm"
                 variant="outline"
-                onClick={incrementQuantity}
+                onClick={handleIncrementQuantity}
               >
                 <Plus className="h-4 w-4" />
               </Button>

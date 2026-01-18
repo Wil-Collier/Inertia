@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
-import { WorkoutExerciseCard } from "@/components/workout/ActiveWorkoutComponents"
+import { WorkoutExerciseCard } from "@/components/workout/WorkoutExerciseCard"
 import { useWorkoutStore } from "@/stores/workout"
 import { useTemplatesDB } from "@/hooks/db/useWorkoutsDB"
 import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
@@ -29,19 +29,19 @@ import { playDingSound, unlockAudio } from "@/lib/audio"
 
 export function ActiveWorkout() {
   const navigate = useNavigate()
-  const activeSession = useWorkoutStore((s) => s.activeSession)
-  const finishWorkout = useWorkoutStore((s) => s.finishWorkout)
-  const cancelWorkout = useWorkoutStore((s) => s.cancelWorkout)
-  const addExerciseToWorkout = useWorkoutStore((s) => s.addExerciseToWorkout)
-  const removeExerciseFromWorkout = useWorkoutStore((s) => s.removeExerciseFromWorkout)
-  const addSet = useWorkoutStore((s) => s.addSet)
-  const updateSet = useWorkoutStore((s) => s.updateSet)
-  const removeSet = useWorkoutStore((s) => s.removeSet)
-  const toggleSetComplete = useWorkoutStore((s) => s.toggleSetComplete)
-  const createTemplate = useWorkoutStore((s) => s.createTemplate)
-  const updateExerciseNotes = useWorkoutStore((s) => s.updateExerciseNotes)
+  const activeSession = useWorkoutStore((state) => state.activeSession)
+  const finishWorkout = useWorkoutStore((state) => state.finishWorkout)
+  const cancelWorkout = useWorkoutStore((state) => state.cancelWorkout)
+  const addExerciseToWorkout = useWorkoutStore((state) => state.addExerciseToWorkout)
+  const removeExerciseFromWorkout = useWorkoutStore((state) => state.removeExerciseFromWorkout)
+  const addSet = useWorkoutStore((state) => state.addSet)
+  const updateSet = useWorkoutStore((state) => state.updateSet)
+  const removeSet = useWorkoutStore((state) => state.removeSet)
+  const toggleSetComplete = useWorkoutStore((state) => state.toggleSetComplete)
+  const createTemplate = useWorkoutStore((state) => state.createTemplate)
+  const updateExerciseNotes = useWorkoutStore((state) => state.updateExerciseNotes)
 
-  const restTimerDuration = useSettingsStore((s) => s.settings.restTimerDuration)
+  const restTimerDuration = useSettingsStore((state) => state.settings.restTimerDuration)
   const weightUnit = useWeightUnit()
   const templates = useTemplatesDB()
 
@@ -91,7 +91,7 @@ export function ActiveWorkout() {
     () => workout?.exercises.map(e => e.exerciseId) ?? [],
     [workout?.exercises]
   )
-  const exerciseMap = useExercisesByIdsDB(exerciseIds)
+  const exercisesById = useExercisesByIdsDB(exerciseIds)
 
   const handleFinish = useCallback(async () => {
     if (!finishWorkout || !createTemplate) return
@@ -116,7 +116,7 @@ export function ActiveWorkout() {
     }
   }, [cancelWorkout, navigate])
 
-  const toggleExpanded = useCallback((id: string) => {
+  const handleToggleExpanded = useCallback((id: string) => {
     setExpandedExercises((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -152,7 +152,7 @@ export function ActiveWorkout() {
 
   const completedSets = useMemo(() => {
     return workout?.exercises.reduce(
-      (sum, e) => sum + e.sets.filter((s) => s.completed).length,
+      (sum, e) => sum + e.sets.filter((s) => s.isCompleted).length,
       0
     ) ?? 0
   }, [workout?.exercises])
@@ -274,9 +274,9 @@ export function ActiveWorkout() {
           <WorkoutExerciseCard
             key={workoutExercise.id}
             workoutExercise={workoutExercise}
-            exercise={exerciseMap.get(workoutExercise.exerciseId)}
+            exercise={exercisesById.get(workoutExercise.exerciseId)}
             isExpanded={expandedExercises.has(workoutExercise.id)}
-            onToggleExpanded={toggleExpanded}
+            onToggleExpanded={handleToggleExpanded}
             onAddSet={addSet}
             onRemoveSet={removeSet}
             onUpdateSet={updateSet}
@@ -318,7 +318,7 @@ export function ActiveWorkout() {
 
       {/* Exercise Selection Sheet */}
       <ExercisePickerSheet
-        open={showExerciseSheet}
+        isOpen={showExerciseSheet}
         onOpenChange={setShowExerciseSheet}
         onSelect={handleAddExercise}
         addedExerciseIds={workout.exercises.map((e) => e.exerciseId)}

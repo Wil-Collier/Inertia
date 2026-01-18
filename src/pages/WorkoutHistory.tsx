@@ -28,7 +28,7 @@ export function WorkoutHistory() {
   const allExerciseIds = useMemo(() => {
     return [...new Set(workouts.flatMap(w => w.exercises.map(e => e.exerciseId)))]
   }, [workouts])
-  const exerciseMap = useExercisesByIdsDB(allExerciseIds)
+  const exercisesById = useExercisesByIdsDB(allExerciseIds)
 
   const weightUnit = useWeightUnit()
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null)
@@ -59,7 +59,7 @@ export function WorkoutHistory() {
     }, {})
   }, [sortedWorkouts])
 
-  const toggleExpand = useCallback((workoutId: string) => {
+  const handleToggleExpand = useCallback((workoutId: string) => {
     setExpandedWorkoutId((prev) => (prev === workoutId ? null : workoutId))
   }, [])
 
@@ -106,9 +106,9 @@ export function WorkoutHistory() {
                       key={workout.id}
                       workout={workout}
                       isExpanded={expandedWorkoutId === workout.id}
-                      onToggleExpand={toggleExpand}
+                      onToggleExpand={handleToggleExpand}
                       onDeleteRequest={setWorkoutToDelete}
-                      exerciseMap={exerciseMap}
+                      exercisesById={exercisesById}
                       weightUnit={weightUnit}
                     />
                   ))}

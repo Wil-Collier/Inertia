@@ -37,12 +37,12 @@ export const FoodListItem = memo(({
     }
   }, [isExpanded])
 
-  const incrementQuantity = useCallback((e: React.MouseEvent) => {
+  const handleIncrementQuantity = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     setQuantity((q) => Math.round((q + 0.5) * 10) / 10)
   }, [])
 
-  const decrementQuantity = useCallback((e: React.MouseEvent) => {
+  const handleDecrementQuantity = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     setQuantity((q) => Math.max(0.5, Math.round((q - 0.5) * 10) / 10))
   }, [])
@@ -53,6 +53,16 @@ export const FoodListItem = memo(({
     setIsExpanded(false)
     setQuantity(1)
   }, [onAdd, quantity])
+
+  const handleToggleFavorite = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onToggleFavorite()
+  }, [onToggleFavorite])
+
+  const handleDelete = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onDelete?.()
+  }, [onDelete])
 
   return (
     <div className="rounded-lg border overflow-hidden">
@@ -74,10 +84,7 @@ export const FoodListItem = memo(({
         <Button
           size="icon-sm"
           variant="ghost"
-          onClick={(e: React.MouseEvent) => {
-            e.stopPropagation()
-            onToggleFavorite()
-          }}
+          onClick={handleToggleFavorite}
         >
           <Star
             className={`h-4 w-4 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`}
@@ -87,10 +94,7 @@ export const FoodListItem = memo(({
           <Button
             size="icon-sm"
             variant="ghost"
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation()
-              onDelete()
-            }}
+            onClick={handleDelete}
           >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
@@ -106,7 +110,7 @@ export const FoodListItem = memo(({
               <Button
                 size="icon-sm"
                 variant="outline"
-                onClick={decrementQuantity}
+                onClick={handleDecrementQuantity}
                 disabled={quantity <= 0.5}
               >
                 <Minus className="h-4 w-4" />
@@ -115,7 +119,7 @@ export const FoodListItem = memo(({
               <Button
                 size="icon-sm"
                 variant="outline"
-                onClick={incrementQuantity}
+                onClick={handleIncrementQuantity}
               >
                 <Plus className="h-4 w-4" />
               </Button>

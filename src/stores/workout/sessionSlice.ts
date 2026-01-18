@@ -1,489 +1,348 @@
 import { v4 as uuidv4 } from "uuid"
 import { format } from "date-fns"
-import type { WorkoutSliceCreator, SessionSlice, Workout, WorkoutExercise } from "./types"
+import type { WorkoutSliceCreator, SessionSlice, Workout, WorkoutExercise, WorkoutSet, ActiveWorkoutSession } from "./types"
 import type { PersonalRecord } from "@/lib/types"
 import { db } from "@/services/db"
 import { getLastPerformance } from "@/services/workoutService"
 import { achievementService } from "@/services/achievementService"
+import { workoutSessionService } from "@/services/workoutSessionService"
 import { calculateOneRepMax } from "@/lib/workoutUtils"
 import { toast } from "sonner"
 
-export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) => ({
-  startWorkout: async (name, templateId) => {
-    const template = templateId
-      ? await db.workoutTemplates.get(templateId)
-      : undefined
-
-    const exercises: WorkoutExercise[] = template
-      ? await Promise.all(template.exercises.map(async (te) => {
-          // Check for last performance to enable progressive overload
-          const lastPerf = await getLastPerformance(te.exerciseId)
-
-          if (lastPerf && lastPerf.sets.length > 0) {
-            // Use last performance data, but match template set count
-            const targetSetCount = te.targetSets
-            const lastSets = lastPerf.sets
-
-            return {
-              id: uuidv4(),
-              exerciseId: te.exerciseId,
-              lastPerformanceDate: lastPerf.date,
-              sets: Array.from({ length: targetSetCount }, (_, i) => {
-                const lastSetData = lastSets[Math.min(i, lastSets.length - 1)]
-                const baseWeight = lastSetData?.weight ?? te.targetWeight ?? 0
-                const baseReps = lastSetData?.reps ?? te.targetReps ?? 0
-
-                return {
-                  id: uuidv4(),
-                  reps: baseReps,
-                  weight: baseWeight,
-                  completed: false,
-                }
-              }),
-            }
-          }
-
-          // No history - use template defaults
-          return {
-            id: uuidv4(),
-            exerciseId: te.exerciseId,
-            sets: Array.from({ length: te.targetSets }, () => ({
-              id: uuidv4(),
-              reps: te.targetReps ?? 0,
-              weight: te.targetWeight ?? 0,
-              completed: false,
-            })),
-          }
-        }))
-      : []
-
-    const workout: Workout = {
-      id: uuidv4(),
-      date: format(new Date(), "yyyy-MM-dd"),
-      name,
-      exercises,
-    }
-
-    const session = {
-      workout,
-      startedAt: new Date().toISOString(),
-      templateId,
-    }
-
-    try {
-      await db.activeSession.put({ id: "current", ...session })
-      set({ activeSession: session })
-    } catch (error) {
-      console.error("Failed to start workout:", error)
-      toast.error("Failed to start workout")
-      throw error
-    }
-  },
-
-  cancelWorkout: async () => {
-    try {
-      await db.activeSession.delete("current")
-      set({ activeSession: null })
-    } catch (error) {
-      console.error("Failed to cancel workout:", error)
-      toast.error("Failed to cancel workout")
-      throw error
-    }
-  },
-
-  finishWorkout: async () => {
-    const session = get().activeSession
-    if (!session) return null
-
-    const startTime = new Date(session.startedAt).getTime()
-    const endTime = Date.now()
-    const duration = Math.round((endTime - startTime) / 1000 / 60)
-
-    const completedWorkout: Workout = {
-      ...session.workout,
-      duration,
-      completedAt: new Date().toISOString(),
-      exerciseIds: session.workout.exercises.map(e => e.exerciseId),
-    }
-
-    // Calculate personal records
-    const prsToUpdate: Record<string, PersonalRecord> = {}
-
-    // We need to fetch current PRs to compare
-    const exerciseIds = completedWorkout.exercises.map(e => e.exerciseId)
-    const currentPrs = await db.personalRecords.where("exerciseId").anyOf(exerciseIds).toArray()
-    const prMap = new Map(currentPrs.map(pr => [pr.exerciseId, pr]))
-
-    completedWorkout.exercises.forEach((we) => {
-      we.sets
-        .filter((s) => s.completed && s.weight > 0 && s.reps > 0)
-        .forEach((s) => {
-          const oneRepMax = calculateOneRepMax(s.weight, s.reps)
-          const currentRecord = prMap.get(we.exerciseId)
-          const currentMax = currentRecord
-            ? calculateOneRepMax(currentRecord.weight, currentRecord.reps)
-            : 0
-
-          if (oneRepMax > currentMax) {
-            const newPr: PersonalRecord = {
-              exerciseId: we.exerciseId,
-              weight: s.weight,
-              reps: s.reps,
-              date: completedWorkout.date,
-              workoutId: completedWorkout.id,
-            }
-            prMap.set(we.exerciseId, newPr) // Update local map for next set of same exercise
-            prsToUpdate[we.exerciseId] = newPr
-          }
-        })
-    })
-
-    try {
-      // Use a transaction for the final completion
-      await db.transaction("rw", [db.workoutSessions, db.personalRecords, db.activeSession], async () => {
-        await db.workoutSessions.add(completedWorkout)
-        
-        if (Object.keys(prsToUpdate).length > 0) {
-          await db.personalRecords.bulkPut(Object.values(prsToUpdate))
-        }
-
-        await db.activeSession.delete("current")
-      })
-
-      set({
-        activeSession: null,
-      })
-
-      // Update achievements
-      achievementService.checkWorkoutAchievements()
-      achievementService.updateStreaks()
-
-      return completedWorkout
-    } catch (error) {
-      console.error("Failed to finish workout:", error)
-      toast.error("Failed to save completed workout")
-      throw error
-    }
-  },
-
-  addExerciseToWorkout: async (exerciseId) => {
-    // 1. Fetch last performance (async)
-    const lastPerf = await getLastPerformance(exerciseId)
+export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) => {
+  // Helper for optimistic updates with persistence
+  const withPersistence = async (
+    updater: (session: ActiveWorkoutSession) => ActiveWorkoutSession,
+    errorMsg: string = "Failed to save changes"
+  ) => {
     const previousSession = get().activeSession
-    
-    // 2. Optimistic update
+    if (!previousSession) return
+
+    // 1. Optimistic update
     set((state) => {
-      const session = state.activeSession
-      if (!session) return state
-
-      let newExercise: WorkoutExercise
-
-      if (lastPerf && lastPerf.sets.length > 0) {
-        newExercise = {
-          id: uuidv4(),
-          exerciseId,
-          lastPerformanceDate: lastPerf.date,
-          sets: lastPerf.sets.map((s) => ({
-            id: uuidv4(),
-            reps: s.reps,
-            weight: s.weight,
-            completed: false,
-          })),
-        }
-      } else {
-        newExercise = {
-          id: uuidv4(),
-          exerciseId,
-          sets: [
-            {
-              id: uuidv4(),
-              reps: 0,
-              weight: 0,
-              completed: false,
-            },
-          ],
-        }
-      }
-
-      const newSession = {
-        ...session,
-        workout: {
-          ...session.workout,
-          exercises: [...session.workout.exercises, newExercise],
-        },
-      }
-
-      return { activeSession: newSession }
+      if (!state.activeSession) return state
+      return { activeSession: updater(state.activeSession) }
     })
 
-    // 3. Persist to DB
+    // 2. Persist
     const currentSession = get().activeSession
     if (currentSession) {
       try {
-        await db.activeSession.put({ id: "current", ...currentSession })
+        await workoutSessionService.saveActiveSession(currentSession)
       } catch (error) {
-        console.error("Failed to persist new exercise:", error)
-        toast.error("Failed to save changes to database")
+        console.error(`${errorMsg}:`, error)
+        toast.error(errorMsg)
         set({ activeSession: previousSession })
       }
     }
-  },
+  }
 
-  removeExerciseFromWorkout: async (workoutExerciseId) => {
-    const previousSession = get().activeSession
-    set((state) => {
-      const session = state.activeSession
-      if (!session) return state
+  return {
+    startWorkout: async (name, templateId) => {
+      const template = templateId
+        ? await db.workoutTemplates.get(templateId)
+        : undefined
 
-      const newSession = {
+      const exercises: WorkoutExercise[] = template
+        ? await Promise.all(template.exercises.map(async (templateExercise) => {
+            const lastPerformance = await getLastPerformance(templateExercise.exerciseId)
+
+            if (lastPerformance && lastPerformance.sets.length > 0) {
+              const targetSetCount = templateExercise.targetSets
+              const lastPerformanceSets = lastPerformance.sets
+
+              return {
+                id: uuidv4(),
+                exerciseId: templateExercise.exerciseId,
+                lastPerformanceDate: lastPerformance.date,
+                sets: Array.from({ length: targetSetCount }, (_, i) => {
+                  const lastSetData = lastPerformanceSets[Math.min(i, lastPerformanceSets.length - 1)]
+                  const baseWeight = lastSetData?.weight ?? templateExercise.targetWeight ?? 0
+                  const baseReps = lastSetData?.reps ?? templateExercise.targetReps ?? 0
+
+                  return {
+                    id: uuidv4(),
+                    reps: baseReps,
+                    weight: baseWeight,
+                    isCompleted: false,
+                  }
+                }),
+              }
+            }
+
+            return {
+              id: uuidv4(),
+              exerciseId: templateExercise.exerciseId,
+              sets: Array.from({ length: templateExercise.targetSets }, () => ({
+                id: uuidv4(),
+                reps: templateExercise.targetReps ?? 0,
+                weight: templateExercise.targetWeight ?? 0,
+                isCompleted: false,
+              })),
+            }
+          }))
+        : []
+
+      const workout: Workout = {
+        id: uuidv4(),
+        date: format(new Date(), "yyyy-MM-dd"),
+        name,
+        exercises,
+      }
+
+      const session = {
+        workout,
+        startedAt: new Date().toISOString(),
+        templateId,
+      }
+
+      try {
+        await workoutSessionService.saveActiveSession(session)
+        set({ activeSession: session })
+      } catch (error) {
+        console.error("Failed to start workout:", error)
+        toast.error("Failed to start workout")
+        throw error
+      }
+    },
+
+    cancelWorkout: async () => {
+      try {
+        await workoutSessionService.deleteActiveSession()
+        set({ activeSession: null })
+      } catch (error) {
+        console.error("Failed to cancel workout:", error)
+        toast.error("Failed to cancel workout")
+        throw error
+      }
+    },
+
+    finishWorkout: async () => {
+      const session = get().activeSession
+      if (!session) return null
+
+      const startTime = new Date(session.startedAt).getTime()
+      const endTime = Date.now()
+      const duration = Math.round((endTime - startTime) / 1000 / 60)
+
+      const completedWorkout: Workout = {
+        ...session.workout,
+        duration,
+        completedAt: new Date().toISOString(),
+        exerciseIds: session.workout.exercises.map(e => e.exerciseId),
+      }
+
+      // Calculate personal records
+      const personalRecordsToUpdate: Record<string, PersonalRecord> = {}
+      const exerciseIds = completedWorkout.exercises.map(e => e.exerciseId)
+      const currentPersonalRecords = await db.personalRecords.where("exerciseId").anyOf(exerciseIds).toArray()
+      const personalRecordsMap = new Map(currentPersonalRecords.map(pr => [pr.exerciseId, pr]))
+
+      completedWorkout.exercises.forEach((workoutExercise) => {
+        workoutExercise.sets
+          .filter((set) => set.isCompleted && set.weight > 0 && set.reps > 0)
+          .forEach((set) => {
+            const calculatedOneRepMax = calculateOneRepMax(set.weight, set.reps)
+            const currentPersonalRecord = personalRecordsMap.get(workoutExercise.exerciseId)
+            const currentMax = currentPersonalRecord
+              ? calculateOneRepMax(currentPersonalRecord.weight, currentPersonalRecord.reps)
+              : 0
+
+            if (calculatedOneRepMax > currentMax) {
+              const newPersonalRecord: PersonalRecord = {
+                exerciseId: workoutExercise.exerciseId,
+                weight: set.weight,
+                reps: set.reps,
+                date: completedWorkout.date,
+                workoutId: completedWorkout.id,
+              }
+              personalRecordsMap.set(workoutExercise.exerciseId, newPersonalRecord)
+              personalRecordsToUpdate[workoutExercise.exerciseId] = newPersonalRecord
+            }
+          })
+      })
+
+      try {
+        await db.transaction("rw", [db.workoutSessions, db.personalRecords, db.activeSession], async () => {
+          await db.workoutSessions.add(completedWorkout)
+          
+          if (Object.keys(personalRecordsToUpdate).length > 0) {
+            await db.personalRecords.bulkPut(Object.values(personalRecordsToUpdate))
+          }
+
+          await workoutSessionService.deleteActiveSession()
+        })
+
+        set({ activeSession: null })
+
+        achievementService.checkWorkoutAchievements()
+        achievementService.updateStreaks()
+
+        return completedWorkout
+      } catch (error) {
+        console.error("Failed to finish workout:", error)
+        toast.error("Failed to save completed workout")
+        throw error
+      }
+    },
+
+    addExerciseToWorkout: async (exerciseId) => {
+      const lastPerformance = await getLastPerformance(exerciseId)
+      
+      await withPersistence((session: ActiveWorkoutSession) => {
+        let newExercise: WorkoutExercise
+
+        if (lastPerformance && lastPerformance.sets.length > 0) {
+          newExercise = {
+            id: uuidv4(),
+            exerciseId,
+            lastPerformanceDate: lastPerformance.date,
+            sets: lastPerformance.sets.map((set) => ({
+              id: uuidv4(),
+              reps: set.reps,
+              weight: set.weight,
+              isCompleted: false,
+            })),
+          }
+        } else {
+          newExercise = {
+            id: uuidv4(),
+            exerciseId,
+            sets: [{ id: uuidv4(), reps: 0, weight: 0, isCompleted: false }],
+          }
+        }
+
+        return {
+          ...session,
+          workout: {
+            ...session.workout,
+            exercises: [...session.workout.exercises, newExercise],
+          },
+        }
+      }, "Failed to add exercise")
+    },
+
+    removeExerciseFromWorkout: async (workoutExerciseId) => {
+      await withPersistence((session: ActiveWorkoutSession) => ({
         ...session,
         workout: {
           ...session.workout,
           exercises: session.workout.exercises.filter(
-            (e) => e.id !== workoutExerciseId
+            (workoutExercise: WorkoutExercise) => workoutExercise.id !== workoutExerciseId
           ),
         },
-      }
+      }), "Failed to remove exercise")
+    },
 
-      return { activeSession: newSession }
-    })
-
-    const currentSession = get().activeSession
-    if (currentSession) {
-      try {
-        await db.activeSession.put({ id: "current", ...currentSession })
-      } catch (error) {
-        console.error("Failed to persist removal:", error)
-        toast.error("Failed to save changes")
-        set({ activeSession: previousSession })
-      }
-    }
-  },
-
-  addSet: async (workoutExerciseId) => {
-    const previousSession = get().activeSession
-    set((state) => {
-      const session = state.activeSession
-      if (!session) return state
-
-      const newSession = {
+    addSet: async (workoutExerciseId) => {
+      await withPersistence((session: ActiveWorkoutSession) => ({
         ...session,
         workout: {
           ...session.workout,
-          exercises: session.workout.exercises.map((e) =>
-            e.id === workoutExerciseId
+          exercises: session.workout.exercises.map((workoutExercise: WorkoutExercise) =>
+            workoutExercise.id === workoutExerciseId
               ? {
-                  ...e,
+                  ...workoutExercise,
                   sets: [
-                    ...e.sets,
+                    ...workoutExercise.sets,
                     {
                       id: uuidv4(),
-                      reps: e.sets[e.sets.length - 1]?.reps ?? 0,
-                      weight: e.sets[e.sets.length - 1]?.weight ?? 0,
-                      completed: false,
+                      reps: workoutExercise.sets[workoutExercise.sets.length - 1]?.reps ?? 0,
+                      weight: workoutExercise.sets[workoutExercise.sets.length - 1]?.weight ?? 0,
+                      isCompleted: false,
                     },
                   ],
                 }
-              : e
+              : workoutExercise
           ),
         },
-      }
+      }), "Failed to add set")
+    },
 
-      return { activeSession: newSession }
-    })
-
-    const currentSession = get().activeSession
-    if (currentSession) {
-      try {
-        await db.activeSession.put({ id: "current", ...currentSession })
-      } catch (error) {
-        console.error("Failed to persist new set:", error)
-        toast.error("Failed to save changes")
-        set({ activeSession: previousSession })
-      }
-    }
-  },
-
-  updateSet: async (workoutExerciseId, setId, updates) => {
-    const previousSession = get().activeSession
-    set((state) => {
-      const session = state.activeSession
-      if (!session) return state
-
-      const newSession = {
+    updateSet: async (workoutExerciseId, setId, updates) => {
+      await withPersistence((session: ActiveWorkoutSession) => ({
         ...session,
         workout: {
           ...session.workout,
-          exercises: session.workout.exercises.map((e) =>
-            e.id === workoutExerciseId
+          exercises: session.workout.exercises.map((workoutExercise: WorkoutExercise) =>
+            workoutExercise.id === workoutExerciseId
               ? {
-                  ...e,
-                  sets: e.sets.map((s) =>
-                    s.id === setId ? { ...s, ...updates } : s
+                  ...workoutExercise,
+                  sets: workoutExercise.sets.map((set: WorkoutSet) =>
+                    set.id === setId ? { ...set, ...updates } : set
                   ),
                 }
-              : e
+              : workoutExercise
           ),
         },
-      }
+      }), "Failed to update set")
+    },
 
-      return { activeSession: newSession }
-    })
-
-    const currentSession = get().activeSession
-    if (currentSession) {
-      try {
-        await db.activeSession.put({ id: "current", ...currentSession })
-      } catch (error) {
-        console.error("Failed to persist set update:", error)
-        toast.error("Failed to save changes")
-        set({ activeSession: previousSession })
-      }
-    }
-  },
-
-  removeSet: async (workoutExerciseId, setId) => {
-    const previousSession = get().activeSession
-    set((state) => {
-      const session = state.activeSession
-      if (!session) return state
-
-      const newSession = {
+    removeSet: async (workoutExerciseId, setId) => {
+      await withPersistence((session: ActiveWorkoutSession) => ({
         ...session,
         workout: {
           ...session.workout,
-          exercises: session.workout.exercises.map((e) =>
-            e.id === workoutExerciseId
+          exercises: session.workout.exercises.map((workoutExercise: WorkoutExercise) =>
+            workoutExercise.id === workoutExerciseId
               ? {
-                  ...e,
-                  sets: e.sets.filter((s) => s.id !== setId),
+                  ...workoutExercise,
+                  sets: workoutExercise.sets.filter((set: WorkoutSet) => set.id !== setId),
                 }
-              : e
+              : workoutExercise
           ),
         },
-      }
+      }), "Failed to remove set")
+    },
 
-      return { activeSession: newSession }
-    })
-
-    const currentSession = get().activeSession
-    if (currentSession) {
-      try {
-        await db.activeSession.put({ id: "current", ...currentSession })
-      } catch (error) {
-        console.error("Failed to persist set removal:", error)
-        toast.error("Failed to save changes")
-        set({ activeSession: previousSession })
-      }
-    }
-  },
-
-  toggleSetComplete: async (workoutExerciseId, setId) => {
-    const previousSession = get().activeSession
-    set((state) => {
-      const session = state.activeSession
-      if (!session) return state
-
-      const newSession = {
+    toggleSetComplete: async (workoutExerciseId, setId) => {
+      await withPersistence((session: ActiveWorkoutSession) => ({
         ...session,
         workout: {
           ...session.workout,
-          exercises: session.workout.exercises.map((e) =>
-            e.id === workoutExerciseId
+          exercises: session.workout.exercises.map((workoutExercise: WorkoutExercise) =>
+            workoutExercise.id === workoutExerciseId
               ? {
-                  ...e,
-                  sets: e.sets.map((s) =>
-                    s.id === setId ? { ...s, completed: !s.completed } : s
+                  ...workoutExercise,
+                  sets: workoutExercise.sets.map((set: WorkoutSet) =>
+                    set.id === setId ? { ...set, isCompleted: !set.isCompleted } : set
                   ),
                 }
-              : e
+              : workoutExercise
           ),
         },
-      }
+      }), "Failed to toggle set")
+    },
 
-      return { activeSession: newSession }
-    })
-
-    const currentSession = get().activeSession
-    if (currentSession) {
-      try {
-        await db.activeSession.put({ id: "current", ...currentSession })
-      } catch (error) {
-        console.error("Failed to persist toggle:", error)
-        toast.error("Failed to save changes")
-        set({ activeSession: previousSession })
-      }
-    }
-  },
-
-  updateExerciseNotes: async (workoutExerciseId, notes) => {
-    const previousSession = get().activeSession
-    set((state) => {
-      const session = state.activeSession
-      if (!session) return state
-
-      const newSession = {
+    updateExerciseNotes: async (workoutExerciseId, notes) => {
+      await withPersistence((session: ActiveWorkoutSession) => ({
         ...session,
         workout: {
           ...session.workout,
-          exercises: session.workout.exercises.map((e) =>
-            e.id === workoutExerciseId ? { ...e, notes } : e
+          exercises: session.workout.exercises.map((workoutExercise: WorkoutExercise) =>
+            workoutExercise.id === workoutExerciseId ? { ...workoutExercise, notes } : workoutExercise
           ),
         },
-      }
+      }), "Failed to update notes")
+    },
 
-      return { activeSession: newSession }
-    })
-
-    const currentSession = get().activeSession
-    if (currentSession) {
-      try {
-        await db.activeSession.put({ id: "current", ...currentSession })
-      } catch (error) {
-        console.error("Failed to persist notes:", error)
-        toast.error("Failed to save changes")
-        set({ activeSession: previousSession })
-      }
-    }
-  },
-
-  bumpExerciseWeight: async (workoutExerciseId, increment) => {
-    const previousSession = get().activeSession
-    set((state) => {
-      const session = state.activeSession
-      if (!session) return state
-
-      const newSession = {
+    bumpExerciseWeight: async (workoutExerciseId, increment) => {
+      await withPersistence((session: ActiveWorkoutSession) => ({
         ...session,
         workout: {
           ...session.workout,
-          exercises: session.workout.exercises.map((e) =>
-            e.id === workoutExerciseId
+          exercises: session.workout.exercises.map((workoutExercise: WorkoutExercise) =>
+            workoutExercise.id === workoutExerciseId
               ? {
-                  ...e,
-                  sets: e.sets.map((s) =>
-                    s.completed
-                      ? s // Don't modify completed sets
-                      : { ...s, weight: s.weight + increment }
+                  ...workoutExercise,
+                  sets: workoutExercise.sets.map((set: WorkoutSet) =>
+                    set.isCompleted ? set : { ...set, weight: set.weight + increment }
                   ),
                 }
-              : e
+              : workoutExercise
           ),
         },
-      }
-
-      return { activeSession: newSession }
-    })
-
-    const currentSession = get().activeSession
-    if (currentSession) {
-      try {
-        await db.activeSession.put({ id: "current", ...currentSession })
-      } catch (error) {
-        console.error("Failed to persist weight bump:", error)
-        toast.error("Failed to save changes")
-        set({ activeSession: previousSession })
-      }
-    }
-  },
-})
+      }), "Failed to update weight")
+    },
+  }
+}

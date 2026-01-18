@@ -15,17 +15,17 @@ import type { Exercise } from "@/lib/types"
 
 interface ExerciseInfoSheetProps {
   exercise: Exercise | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  isOpen: boolean
+  onOpenChange: (isOpen: boolean) => void
 }
 
-export function ExerciseInfoSheet({ exercise, open, onOpenChange }: ExerciseInfoSheetProps) {
+export function ExerciseInfoSheet({ exercise, isOpen, onOpenChange }: ExerciseInfoSheetProps) {
   if (!exercise) return null
 
   const instructions = getExerciseInstructions(exercise.id)
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] max-h-[85vh] rounded-t-xl">
         <SheetHeader className="pb-0">
           <SheetTitle className="flex items-center gap-2">
@@ -90,7 +90,7 @@ export function ExerciseInfoButton({
   exercise: Exercise
   className?: string
 }) {
-  const [open, setOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const instructions = getExerciseInstructions(exercise.id)
 
   // Only show button if there are instructions available
@@ -104,13 +104,13 @@ export function ExerciseInfoButton({
         className={className}
         onClick={(e) => {
           e.stopPropagation()
-          setOpen(true)
+          setIsOpen(true)
         }}
         title="Exercise info"
       >
         <Info className="h-4 w-4" />
       </Button>
-      <ExerciseInfoSheet exercise={exercise} open={open} onOpenChange={setOpen} />
+      <ExerciseInfoSheet exercise={exercise} isOpen={isOpen} onOpenChange={setIsOpen} />
     </>
   )
 }

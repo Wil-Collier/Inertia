@@ -25,16 +25,16 @@ export function convertWeight(
 export function formatWeight(
   weight: number,
   displayUnit: WeightUnit,
-  options?: { showUnit?: boolean; decimals?: number }
+  options?: { shouldShowUnit?: boolean; decimals?: number }
 ): string {
-  const { showUnit = true, decimals = 1 } = options ?? {}
+  const { shouldShowUnit = true, decimals = 1 } = options ?? {}
   const converted = displayUnit === "kg" ? weight * LBS_TO_KG : weight
   const rounded =
     decimals === 0
       ? Math.round(converted)
       : parseFloat(converted.toFixed(decimals))
 
-  if (showUnit) {
+  if (shouldShowUnit) {
     return `${rounded} ${displayUnit}`
   }
   return String(rounded)
@@ -70,16 +70,16 @@ export function convertDistance(
 export function formatDistance(
   distance: number,
   displayUnit: DistanceUnit,
-  options?: { showUnit?: boolean; decimals?: number }
+  options?: { shouldShowUnit?: boolean; decimals?: number }
 ): string {
-  const { showUnit = true, decimals = 2 } = options ?? {}
+  const { shouldShowUnit = true, decimals = 2 } = options ?? {}
   const converted = displayUnit === "km" ? distance * MI_TO_KM : distance
   const rounded =
     decimals === 0
       ? Math.round(converted)
       : parseFloat(converted.toFixed(decimals))
 
-  if (showUnit) {
+  if (shouldShowUnit) {
     return `${rounded} ${displayUnit}`
   }
   return String(rounded)
@@ -114,7 +114,7 @@ export function useUnits() {
     weight: {
       unit: unitPreferences.weight,
       unitLabel: unitPreferences.weight,
-      format: (value: number, options?: { showUnit?: boolean; decimals?: number }) =>
+      format: (value: number, options?: { shouldShowUnit?: boolean; decimals?: number }) =>
         formatWeight(value, unitPreferences.weight, options),
       parse: (input: string | number) => parseWeight(input, unitPreferences.weight),
       toDisplay: (stored: number) => getDisplayWeight(stored, unitPreferences.weight),
@@ -126,7 +126,7 @@ export function useUnits() {
     distance: {
       unit: unitPreferences.distance,
       unitLabel: unitPreferences.distance,
-      format: (value: number, options?: { showUnit?: boolean; decimals?: number }) =>
+      format: (value: number, options?: { shouldShowUnit?: boolean; decimals?: number }) =>
         formatDistance(value, unitPreferences.distance, options),
       parse: (input: string | number) => parseDistance(input, unitPreferences.distance),
       toDisplay: (stored: number) => getDisplayDistance(stored, unitPreferences.distance),

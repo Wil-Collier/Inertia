@@ -51,7 +51,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
           store.reset()
           
           // Show notification if enabled
-          if (settings.notificationsEnabled && canShowNotifications()) {
+          if (settings.areNotificationsEnabled && canShowNotifications()) {
             showRestTimerNotification()
           }
           
@@ -77,7 +77,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
         intervalRef.current = null
       }
     }
-  }, [timer.isRunning, timer.isPaused, store, settings.notificationsEnabled])
+  }, [timer.isRunning, timer.isPaused, store, settings.areNotificationsEnabled])
 
   const start = useCallback(
     (customDuration?: number) => {

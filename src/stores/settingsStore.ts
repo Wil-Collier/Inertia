@@ -39,7 +39,7 @@ const defaultSettings: UserSettings = {
   },
   restTimerDuration: 90,
   unitPreferences: defaultUnitPreferences,
-  notificationsEnabled: false,
+  areNotificationsEnabled: false,
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -180,11 +180,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setNotificationsEnabled: async (enabled) => {
     const previousSettings = get().settings
     set((state) => ({
-      settings: { ...state.settings, notificationsEnabled: enabled }
+      settings: { ...state.settings, areNotificationsEnabled: enabled }
     }))
 
     try {
-      await db.settings.update("settings", { notificationsEnabled: enabled })
+      await db.settings.update("settings", { areNotificationsEnabled: enabled })
     } catch (error) {
       console.error("Failed to set notifications:", error)
       toast.error("Failed to save notification setting")

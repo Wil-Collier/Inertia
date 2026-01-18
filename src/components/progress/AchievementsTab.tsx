@@ -1,0 +1,122 @@
+import { useMemo, useState } from "react"
+import { Award } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { StreakDisplay } from "@/components/StreakDisplay"
+import { AchievementCard } from "@/components/AchievementCard"
+import { useAchievementsStore } from "@/stores/achievementsStore"
+import { achievements, categoryLabels } from "@/data/achievements"
+
+interface AchievementsTabProps {
+  totalWorkouts: number
+  totalVolume: number
+  prCount: number
+}
+
+export function AchievementsTab({
+  totalWorkouts,
+  totalVolume,
+  prCount,
+}: AchievementsTabProps) {
+  const { unlockedAchievements, getUnlockedAchievement } = useAchievementsStore()
+  const [showLocked, setShowLocked] = useState(true)
+
+  // Group achievements by category
+  const groupedAchievements = useMemo(() => {
+    const groups: Record<string, typeof achievements> = {}
+    for (const achievement of achievements) {
+      if (!groups[achievement.category]) {
+        groups[achievement.category] = []
+      }
+      groups[achievement.category].push(achievement)
+    }
+    return groups
+  }, [])
+
+  // Get progress for each achievement
+  const getProgress = (achievementId: string): number | undefined => {
+    switch (achievementId) {
+      case "first-workout":
+      case "ten-workouts":
+      case "fifty-workouts":
+      case "century-club":
+        return totalWorkouts
+      case "10k-club":
+      case "100k-crusher":
+      case "500k-beast":
+      case "million-pounder":
+        return totalVolume
+      case "first-pr":
+      case "pr-collector":
+      case "pr-master":
+        return prCount
+      default:
+        return undefined
+    }
+  }
+
+  const unlockedCount = unlockedAchievements.length
+  const totalCount = achievements.length
+
+  return (
+    <div className="space-y-4">
+      {/* Streaks */}
+      <StreakDisplay />
+
+      {/* Progress Summary */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500">
+              <Award className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {unlockedCount} / {totalCount}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Achievements Unlocked
+              </p>
+            </div>
+            <div className="ml-auto">
+              <Button
+                size="sm"
+                variant={showLocked ? "default" : "outline"}
+                onClick={() => setShowLocked(!showLocked)}
+              >
+                {showLocked ? "Hide Locked" : "Show All"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Achievements by Category */}
+      {Object.entries(groupedAchievements).map(([category, categoryAchievements]) => {
+        const visibleAchievements = showLocked
+          ? categoryAchievements
+          : categoryAchievements.filter((a) => getUnlockedAchievement(a.id))
+
+        if (visibleAchievements.length === 0) return null
+
+        return (
+          <div key={category} className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              {categoryLabels[category as keyof typeof categoryLabels]}
+            </h3>
+            <div className="space-y-2">
+              {visibleAchievements.map((achievement) => (
+                <AchievementCard
+                  key={achievement.id}
+                  achievement={achievement}
+                  unlocked={getUnlockedAchievement(achievement.id)}
+                  progress={getProgress(achievement.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

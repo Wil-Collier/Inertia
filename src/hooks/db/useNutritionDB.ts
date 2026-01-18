@@ -17,16 +17,16 @@ export function useDailyNutrition(date: string) {
     // Fetch foods for all entries to calculate totals
     const foodIds = [...new Set(log.entries.map((e) => e.foodId))]
     const foods = await db.foods.where("id").anyOf(foodIds).toArray()
-    const foodMap = new Map(foods.map((f) => [f.id, f]))
+    const foodsById = new Map(foods.map((f) => [f.id, f]))
 
     const entriesWithFood: MealEntryWithFood[] = log.entries.map(entry => ({
       ...entry,
-      food: foodMap.get(entry.foodId)
+      food: foodsById.get(entry.foodId)
     }))
 
     const totals = log.entries.reduce(
       (acc, entry) => {
-        const food = foodMap.get(entry.foodId)
+        const food = foodsById.get(entry.foodId)
         if (!food) return acc
         return {
           calories: acc.calories + food.calories * entry.quantity,
@@ -57,12 +57,12 @@ export function useNutritionHistory(startDate: string, endDate: string) {
     // Fetch all unique food IDs needed for these logs
     const foodIds = [...new Set(logs.flatMap((l) => l.entries.map((e) => e.foodId)))]
     const foods = await db.foods.where("id").anyOf(foodIds).toArray()
-    const foodMap = new Map(foods.map((f) => [f.id, f]))
+    const foodsById = new Map(foods.map((f) => [f.id, f]))
 
     const dailyTotals = logs.map((log) => {
       const totals = log.entries.reduce(
         (acc, entry) => {
-          const food = foodMap.get(entry.foodId)
+          const food = foodsById.get(entry.foodId)
           if (!food) return acc
           return {
             calories: acc.calories + food.calories * entry.quantity,

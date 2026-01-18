@@ -66,15 +66,15 @@ const ExerciseListItem = memo(({
 ExerciseListItem.displayName = "ExerciseListItem"
 
 interface ExercisePickerSheetProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  isOpen: boolean
+  onOpenChange: (isOpen: boolean) => void
   onSelect: (exerciseId: string) => void
   /** Array of exercise IDs that are already added (shown with "Added" indicator) */
   addedExerciseIds?: string[]
 }
 
 export function ExercisePickerSheet({
-  open,
+  isOpen,
   onOpenChange,
   onSelect,
   addedExerciseIds = [],
@@ -91,7 +91,7 @@ export function ExercisePickerSheet({
   // Ensure loaded when sheet opens
   useEffect(() => {
     let isMounted = true
-    if (open && !isLoaded) {
+    if (isOpen && !isLoaded) {
       init().catch(() => {
         if (isMounted) {
           toast.error("Failed to load exercises")
@@ -101,7 +101,7 @@ export function ExercisePickerSheet({
     return () => {
       isMounted = false
     }
-  }, [open, isLoaded, init])
+  }, [isOpen, isLoaded, init])
 
   // Debounce search query
   useEffect(() => {
@@ -131,12 +131,12 @@ export function ExercisePickerSheet({
   }, [onSelect, onOpenChange])
 
   return (
-    <Sheet open={open} onOpenChange={(isOpen) => {
-      if (!isOpen) {
+    <Sheet open={isOpen} onOpenChange={(open) => {
+      if (!open) {
         setSearchQuery("")
         setSelectedMuscleGroup(null)
       }
-      onOpenChange(isOpen)
+      onOpenChange(open)
     }}>
       <SheetContent side="bottom" className="h-[80vh]">
         <SheetHeader>

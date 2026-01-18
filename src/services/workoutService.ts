@@ -20,7 +20,7 @@ export async function getLastPerformance(exerciseId: string): Promise<LastPerfor
     if (workoutExercise) {
       // Get completed sets with meaningful data
       const completedSets = workoutExercise.sets
-        .filter((s) => s.completed)
+        .filter((s) => s.isCompleted)
         .map((s) => ({ weight: s.weight, reps: s.reps }))
 
       // If no completed sets, use all sets that have data

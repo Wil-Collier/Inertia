@@ -1,22 +1,7 @@
-import { useState, useRef } from "react"
-import {
-  Sun,
-  Moon,
-  Monitor,
-  Download,
-  Upload,
-  Trash2,
-  Target,
-  Timer,
-  Ruler,
-  Bell,
-  BellOff,
-} from "lucide-react"
+import { useState } from "react"
 import { Header } from "@/components/layout/Header"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -32,7 +17,13 @@ import {
   isNotificationSupported,
 } from "@/services/notifications"
 import { toast } from "sonner"
-import type { ThemeMode, WeightUnit, DistanceUnit } from "@/lib/types"
+
+// Internal Components
+import { AppearanceSettings } from "@/components/settings/AppearanceSettings"
+import { WorkoutSettings } from "@/components/settings/WorkoutSettings"
+import { UnitSettings } from "@/components/settings/UnitSettings"
+import { NutritionGoalSettings } from "@/components/settings/NutritionGoalSettings"
+import { DataManagement } from "@/components/settings/DataManagement"
 
 export function SettingsPage() {
   const updateNutritionGoal = useSettingsStore((s) => s.updateNutritionGoal)
@@ -43,7 +34,6 @@ export function SettingsPage() {
   const settings = useSettingsStore((s) => s.settings)
   const { theme, setTheme } = useTheme()
   const [showClearDialog, setShowClearDialog] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleToggleNotifications = async () => {
     if (!isNotificationSupported()) {
@@ -51,7 +41,7 @@ export function SettingsPage() {
       return
     }
 
-    if (settings.notificationsEnabled) {
+    if (settings.areNotificationsEnabled) {
       // Disable notifications
       await setNotificationsEnabled(false)
       toast.success("Notifications disabled")
@@ -90,9 +80,7 @@ export function SettingsPage() {
     }
 
     // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
+    e.target.value = ""
   }
 
   const handleClearData = async () => {
@@ -105,279 +93,44 @@ export function SettingsPage() {
     }
   }
 
-  const themeOptions: { value: ThemeMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
-  ]
-
-  const weightUnitOptions: { value: WeightUnit; label: string }[] = [
-    { value: "lbs", label: "Pounds (lbs)" },
-    { value: "kg", label: "Kilograms (kg)" },
-  ]
-
-  const distanceUnitOptions: { value: DistanceUnit; label: string }[] = [
-    { value: "mi", label: "Miles (mi)" },
-    { value: "km", label: "Kilometers (km)" },
-  ]
-
   return (
     <div className="flex flex-col">
       <Header title="Settings" />
 
       <div className="space-y-4 p-4">
         {/* Theme */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Appearance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              {themeOptions.map(({ value, label, icon: Icon }) => (
-                <Button
-                  key={value}
-                  variant={theme === value ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => {
-                    setTheme(value)
-                  }}
-                >
-                  <Icon className="mr-2 h-4 w-4" />
-                  {label}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <AppearanceSettings theme={theme} setTheme={setTheme} />
 
         {/* Workout Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Timer className="h-4 w-4" />
-              Workout
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Rest Timer Duration (seconds)</Label>
-              <Input
-                type="number"
-                min={0}
-                max={600}
-                value={settings.restTimerDuration}
-                onChange={(e) => {
-                  setRestTimerDuration(parseInt(e.target.value) || 0)
-                }}
-              />
-              <p className="text-xs text-muted-foreground">
-                Default rest time between sets (0-600 seconds)
-              </p>
-            </div>
-
-            {/* Notifications */}
-            <div className="space-y-2">
-              <Label>Rest Timer Notifications</Label>
-              <Button
-                variant={settings.notificationsEnabled ? "default" : "outline"}
-                className="w-full justify-start"
-                onClick={handleToggleNotifications}
-                disabled={!canEnableNotifications && !settings.notificationsEnabled}
-              >
-                {settings.notificationsEnabled ? (
-                  <>
-                    <Bell className="mr-2 h-4 w-4" />
-                    Notifications Enabled
-                  </>
-                ) : (
-                  <>
-                    <BellOff className="mr-2 h-4 w-4" />
-                    Notifications Disabled
-                  </>
-                )}
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                {notificationPermission === "denied" 
-                  ? "Notifications blocked. Please enable in browser settings."
-                  : "Get notified when rest timer completes (even when app is in background)"
-                }
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <WorkoutSettings
+          restTimerDuration={settings.restTimerDuration}
+          onRestTimerChange={setRestTimerDuration}
+          notificationsEnabled={settings.areNotificationsEnabled}
+          onToggleNotifications={handleToggleNotifications}
+          canEnableNotifications={canEnableNotifications}
+          notificationPermission={notificationPermission as NotificationPermission}
+        />
 
         {/* Units */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Ruler className="h-4 w-4" />
-              Units
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Weight</Label>
-              <div className="flex gap-2">
-                {weightUnitOptions.map(({ value, label }) => (
-                  <Button
-                    key={value}
-                    variant={settings.unitPreferences.weight === value ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => {
-                      setWeightUnit(value)
-                    }}
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Used for body weight and workout weights
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Distance</Label>
-              <div className="flex gap-2">
-                {distanceUnitOptions.map(({ value, label }) => (
-                  <Button
-                    key={value}
-                    variant={settings.unitPreferences.distance === value ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => {
-                      setDistanceUnit(value)
-                    }}
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Used for running, walking, and cardio distances
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <UnitSettings
+          weightUnit={settings.unitPreferences.weight}
+          distanceUnit={settings.unitPreferences.distance}
+          onWeightUnitChange={setWeightUnit}
+          onDistanceUnitChange={setDistanceUnit}
+        />
 
         {/* Nutrition Goals */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Target className="h-4 w-4" />
-              Daily Nutrition Goals
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Calories (kcal)</Label>
-              <Input
-                type="number"
-                value={settings.nutritionGoals.calories}
-                onChange={(e) => {
-                  updateNutritionGoal("calories", parseInt(e.target.value) || 0)
-                }}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label>Protein (g)</Label>
-                <Input
-                  type="number"
-                  value={settings.nutritionGoals.protein}
-                  onChange={(e) => {
-                    updateNutritionGoal("protein", parseInt(e.target.value) || 0)
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Carbs (g)</Label>
-                <Input
-                  type="number"
-                  value={settings.nutritionGoals.carbs}
-                  onChange={(e) => {
-                    updateNutritionGoal("carbs", parseInt(e.target.value) || 0)
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Fat (g)</Label>
-                <Input
-                  type="number"
-                  value={settings.nutritionGoals.fat}
-                  onChange={(e) => {
-                    updateNutritionGoal("fat", parseInt(e.target.value) || 0)
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Fiber (g)</Label>
-                <Input
-                  type="number"
-                  value={settings.nutritionGoals.fiber}
-                  onChange={(e) => {
-                    updateNutritionGoal("fiber", parseInt(e.target.value) || 0)
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Sugar (g)</Label>
-                <Input
-                  type="number"
-                  value={settings.nutritionGoals.sugar}
-                  onChange={(e) => {
-                    updateNutritionGoal("sugar", parseInt(e.target.value) || 0)
-                  }}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <NutritionGoalSettings
+          goals={settings.nutritionGoals}
+          onGoalChange={updateNutritionGoal}
+        />
 
         {/* Data Management */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Data Management</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={handleExport}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export Data (JSON)
-            </Button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json"
-              onChange={handleImport}
-              className="hidden"
-            />
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Import Data
-            </Button>
-
-            <Button
-              variant="destructive"
-              className="w-full justify-start"
-              onClick={() => setShowClearDialog(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Clear All Data
-            </Button>
-          </CardContent>
-        </Card>
+        <DataManagement
+          onExport={handleExport}
+          onImport={handleImport}
+          onClearAll={() => setShowClearDialog(true)}
+        />
 
         {/* About */}
         <Card>

@@ -21,7 +21,7 @@ export function WeightCard() {
   const addEntry = useBodyWeightStore((s) => s.addEntry)
   const sortedEntries = useBodyWeightDB(2)
   const weightUnit = useWeightUnit()
-  const [open, setOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const [weight, setWeight] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   
@@ -44,7 +44,7 @@ export function WeightCard() {
       await addEntry(val, getTodayDate())
       toast.success("Weight logged successfully!")
       setWeight("")
-      setOpen(false)
+      setIsOpen(false)
     } catch {
       // Error is handled by store
     } finally {
@@ -64,7 +64,7 @@ export function WeightCard() {
               <p className="text-sm font-medium">Body Weight</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold">
-                  {latestEntry ? weightUnit.format(latestEntry.weight, { showUnit: false }) : "--"}
+                  {latestEntry ? weightUnit.format(latestEntry.weight, { shouldShowUnit: false }) : "--"}
                 </span>
                 <span className="text-xs text-muted-foreground">{weightUnit.unitLabel}</span>
               </div>
@@ -95,7 +95,7 @@ export function WeightCard() {
               )}
             </div>
 
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger render={
                 <Button size="icon-sm" variant="outline" className="rounded-full shadow-sm">
                   <Plus className="h-4 w-4" />
@@ -123,7 +123,7 @@ export function WeightCard() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>Cancel</Button>
+                  <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>Cancel</Button>
                   <Button onClick={handleSave} disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Weight

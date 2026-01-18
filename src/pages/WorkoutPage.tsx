@@ -17,20 +17,21 @@ import { useTemplatesDB, useWorkoutDatesDB, useWorkoutStatsDB } from "@/hooks/db
 import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
 import { cn } from "@/lib/utils"
 import { format, subDays, startOfMonth, endOfMonth, parseISO } from "date-fns"
+import type { MuscleGroup } from "@/lib/types"
 
 export function WorkoutPage() {
   const navigate = useNavigate()
-  const activeSession = useWorkoutStore((s) => s.activeSession)
-  const startWorkout = useWorkoutStore((s) => s.startWorkout)
+  const activeSession = useWorkoutStore((state) => state.activeSession)
+  const startWorkout = useWorkoutStore((state) => state.startWorkout)
   
   const templates = useTemplatesDB()
   const workoutDates = useWorkoutDatesDB()
 
   // Resolve exercise names for templates
   const templateExerciseIds = useMemo(() => {
-    return [...new Set(templates.flatMap(t => t.exercises.map(e => e.exerciseId)))]
+    return [...new Set(templates.flatMap(template => template.exercises.map(exercise => exercise.exerciseId)))]
   }, [templates])
-  const exerciseMap = useExercisesByIdsDB(templateExerciseIds)
+  const exercisesById = useExercisesByIdsDB(templateExerciseIds)
   
   const now = useMemo(() => new Date(), [])
   const monthStart = startOfMonth(now)
@@ -78,8 +79,8 @@ export function WorkoutPage() {
     const weeks = [0, 1, 2, 3].map(weekOffset => {
       const weekStart = subDays(now, (weekOffset + 1) * 7)
       const weekEnd = subDays(now, weekOffset * 7)
-      const count = recentWorkouts.filter(w => {
-        const date = new Date(w.date)
+      const count = recentWorkouts.filter(workout => {
+        const date = new Date(workout.date)
         return date >= weekStart && date <= weekEnd
       }).length
       return { offset: weekOffset, count }
@@ -229,9 +230,9 @@ export function WorkoutPage() {
               {templates.map((template) => {
                 const muscleGroups = Array.from(new Set(
                   template.exercises
-                    .map(te => exerciseMap.get(te.exerciseId)?.muscleGroup)
+                    .map(templateExercise => exercisesById.get(templateExercise.exerciseId)?.muscleGroup)
                     .filter(Boolean)
-                ))
+                )) as MuscleGroup[]
 
                 return (
                   <Card
@@ -281,7 +282,7 @@ export function WorkoutPage() {
             </div>
             <div className="space-y-2">
               {recentDates.map((date) => {
-                const dateWorkouts = recentWorkouts.filter((w) => w.date === date)
+                const dateWorkouts = recentWorkouts.filter((workout) => workout.date === date)
                 return (
                   <Fragment key={date}>
                     {dateWorkouts.map((workout) => (

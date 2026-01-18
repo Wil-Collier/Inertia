@@ -29,7 +29,7 @@ async function validateBackupFile(file: File): Promise<void> {
     if (err instanceof Error && err.message.includes("Invalid backup file format")) {
       throw err
     }
-    throw new Error("Failed to parse backup file. Please ensure it's a valid JSON file.")
+    throw new Error("Failed to parse backup file. Please ensure it's a valid JSON file.", { cause: err })
   }
 }
 

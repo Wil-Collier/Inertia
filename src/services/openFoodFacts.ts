@@ -23,7 +23,10 @@ const OpenFoodFactsProductSchema = z.object({
     sugars_serving: z.number().optional(),
   }).optional(),
   serving_size: z.string().optional(),
-  serving_quantity: z.number().optional(),
+  serving_quantity: z.preprocess((val) => {
+    if (typeof val === "string") return parseFloat(val)
+    return val
+  }, z.number().optional()),
 })
 
 type OpenFoodFactsProduct = z.infer<typeof OpenFoodFactsProductSchema>

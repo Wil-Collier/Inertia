@@ -27,9 +27,9 @@ export function convertWeight(
 export function formatWeight(
   weight: number,
   displayUnit: WeightUnit,
-  options?: { showUnit?: boolean; decimals?: number }
+  options?: { shouldShowUnit?: boolean; decimals?: number }
 ): string {
-  const { showUnit = true, decimals = 1 } = options ?? {}
+  const { shouldShowUnit = true, decimals = 1 } = options ?? {}
 
   // Convert from internal lbs to display unit
   const converted = displayUnit === "kg" ? weight * LBS_TO_KG : weight
@@ -40,7 +40,7 @@ export function formatWeight(
       ? Math.round(converted)
       : parseFloat(converted.toFixed(decimals))
 
-  if (showUnit) {
+  if (shouldShowUnit) {
     return `${rounded} ${displayUnit}`
   }
   return String(rounded)
@@ -85,7 +85,7 @@ export function useWeightUnit() {
     /**
      * Format a stored weight (in lbs) for display
      */
-    format: (weight: number, options?: { showUnit?: boolean; decimals?: number }) =>
+    format: (weight: number, options?: { shouldShowUnit?: boolean; decimals?: number }) =>
       formatWeight(weight, unit, options),
 
     /**

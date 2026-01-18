@@ -42,9 +42,9 @@ export function WorkoutTemplates() {
   
   // Resolve all exercise names in templates
   const allExerciseIds = useMemo(() => {
-    return [...new Set(templates.flatMap(t => t.exercises.map(e => e.exerciseId)))]
+    return [...new Set(templates.flatMap(template => template.exercises.map(exercise => exercise.exerciseId)))]
   }, [templates])
-  const exerciseMap = useExercisesByIdsDB(allExerciseIds)
+  const exercisesById = useExercisesByIdsDB(allExerciseIds)
 
   const [templateToDelete, setTemplateToDelete] = useState<WorkoutTemplate | null>(null)
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null)
@@ -213,7 +213,7 @@ export function WorkoutTemplates() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           {template.exercises
                             .slice(0, 3)
-                            .map((e) => exerciseMap.get(e.exerciseId)?.name)
+                            .map((templateExercise) => exercisesById.get(templateExercise.exerciseId)?.name)
                             .filter(Boolean)
                             .join(", ")}
                           {template.exercises.length > 3 &&
@@ -329,89 +329,89 @@ export function WorkoutTemplates() {
                   {/* Exercises List */}
                   <ScrollArea className="flex-1 overflow-hidden">
                     <div className="mx-auto w-full max-w-lg space-y-3">
-                  {editingTemplate.exercises.length === 0 ? (
-                    <div className="rounded-lg border border-dashed p-6 text-center">
-                      <Dumbbell className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        No exercises yet. Add some to get started!
-                      </p>
-                    </div>
-                  ) : (
-                    editingTemplate.exercises.map((te, index) => {
-                      const exercise = exerciseMap.get(te.exerciseId)
-                      return (
-                        <Card key={te.exerciseId}>
-                          <CardContent className="p-3">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium">
-                                {index + 1}. {exercise?.name ?? "Unknown"}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                onClick={() => handleRemoveExercise(te.exerciseId)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            <div className="mt-2 grid grid-cols-3 gap-2">
-                              <div>
-                                <Label className="text-xs">Sets</Label>
-                                <Input
-                                  type="number"
-                                  value={te.targetSets}
-                                  onChange={(e) =>
-                                    handleUpdateTargets(
-                                      te.exerciseId,
-                                      "targetSets",
-                                      parseInt(e.target.value) || 1
-                                    )
-                                  }
-                                  min={1}
-                                  className="mt-1 h-8"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs">Reps</Label>
-                                <Input
-                                  type="number"
-                                  value={te.targetReps ?? ""}
-                                  onChange={(e) =>
-                                    handleUpdateTargets(
-                                      te.exerciseId,
-                                      "targetReps",
-                                      parseInt(e.target.value) || 0
-                                    )
-                                  }
-                                  min={0}
-                                  className="mt-1 h-8"
-                                  placeholder="-"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs">Weight</Label>
-                                <Input
-                                  type="number"
-                                  value={te.targetWeight ?? ""}
-                                  onChange={(e) =>
-                                    handleUpdateTargets(
-                                      te.exerciseId,
-                                      "targetWeight",
-                                      parseInt(e.target.value) || 0
-                                    )
-                                  }
-                                  min={0}
-                                  className="mt-1 h-8"
-                                  placeholder="-"
-                                />
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })
-                  )}
+                   {editingTemplate.exercises.length === 0 ? (
+                     <div className="rounded-lg border border-dashed p-6 text-center">
+                       <Dumbbell className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                       <p className="text-sm text-muted-foreground">
+                         No exercises yet. Add some to get started!
+                       </p>
+                     </div>
+                   ) : (
+                     editingTemplate.exercises.map((templateExercise, index) => {
+                       const exercise = exercisesById.get(templateExercise.exerciseId)
+                       return (
+                         <Card key={templateExercise.exerciseId}>
+                           <CardContent className="p-3">
+                             <div className="flex items-center justify-between">
+                               <span className="font-medium">
+                                 {index + 1}. {exercise?.name ?? "Unknown"}
+                               </span>
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                                 onClick={() => handleRemoveExercise(templateExercise.exerciseId)}
+                               >
+                                 <Trash2 className="h-4 w-4" />
+                               </Button>
+                             </div>
+                             <div className="mt-2 grid grid-cols-3 gap-2">
+                               <div>
+                                 <Label className="text-xs">Sets</Label>
+                                 <Input
+                                   type="number"
+                                   value={templateExercise.targetSets}
+                                   onChange={(e) =>
+                                     handleUpdateTargets(
+                                       templateExercise.exerciseId,
+                                       "targetSets",
+                                       parseInt(e.target.value) || 1
+                                     )
+                                   }
+                                   min={1}
+                                   className="mt-1 h-8"
+                                 />
+                               </div>
+                               <div>
+                                 <Label className="text-xs">Reps</Label>
+                                 <Input
+                                   type="number"
+                                   value={templateExercise.targetReps ?? ""}
+                                   onChange={(e) =>
+                                     handleUpdateTargets(
+                                       templateExercise.exerciseId,
+                                       "targetReps",
+                                       parseInt(e.target.value) || 0
+                                     )
+                                   }
+                                   min={0}
+                                   className="mt-1 h-8"
+                                   placeholder="-"
+                                 />
+                               </div>
+                               <div>
+                                 <Label className="text-xs">Weight</Label>
+                                 <Input
+                                   type="number"
+                                   value={templateExercise.targetWeight ?? ""}
+                                   onChange={(e) =>
+                                     handleUpdateTargets(
+                                       templateExercise.exerciseId,
+                                       "targetWeight",
+                                       parseInt(e.target.value) || 0
+                                     )
+                                   }
+                                   min={0}
+                                   className="mt-1 h-8"
+                                   placeholder="-"
+                                 />
+                               </div>
+                             </div>
+                           </CardContent>
+                         </Card>
+                       )
+                     })
+                   )}
 
                     <Button
                       variant="outline"
@@ -446,7 +446,7 @@ export function WorkoutTemplates() {
 
       {/* Add Exercise Sheet */}
       <ExercisePickerSheet
-        open={isAddExerciseOpen}
+        isOpen={isAddExerciseOpen}
         onOpenChange={setIsAddExerciseOpen}
         onSelect={handleAddExercise}
         addedExerciseIds={editingTemplate?.exercises.map((e) => e.exerciseId) ?? []}

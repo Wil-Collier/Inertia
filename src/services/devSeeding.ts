@@ -127,14 +127,14 @@ export async function seedTestData() {
       date: date.toISOString(),
       completedAt: date.toISOString(),
       duration: 45 + Math.floor(Math.random() * 30),
-      exercises: template.exercises.map(te => ({
+      exercises: template.exercises.map(templateExercise => ({
         id: uuidv4(),
-        exerciseId: te.exerciseId,
-        sets: Array.from({ length: te.targetSets }).map(() => ({
+        exerciseId: templateExercise.exerciseId,
+        sets: Array.from({ length: templateExercise.targetSets }).map(() => ({
           id: uuidv4(),
-          reps: (te.targetReps || 10) + Math.floor(Math.random() * 3) - 1,
+          reps: (templateExercise.targetReps || 10) + Math.floor(Math.random() * 3) - 1,
           weight: 100 + Math.floor(Math.random() * 100),
-          completed: true
+          isCompleted: true
         }))
       }))
     })

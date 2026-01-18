@@ -58,7 +58,7 @@ export function useExerciseHistoryDB(exerciseId: string) {
         const workoutExercise = workout.exercises.find((e) => e.exerciseId === exerciseId)
         if (!workoutExercise) return null
 
-        const completedSets = workoutExercise.sets.filter((s) => s.completed)
+        const completedSets = workoutExercise.sets.filter((s) => s.isCompleted)
         if (completedSets.length === 0) return null
 
         const maxWeight = Math.max(...completedSets.map((s) => s.weight))

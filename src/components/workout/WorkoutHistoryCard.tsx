@@ -11,10 +11,10 @@ interface WorkoutHistoryCardProps {
   isExpanded: boolean
   onToggleExpand: (id: string) => void
   onDeleteRequest: (workout: Workout) => void
-  exerciseMap: Map<string, Exercise>
+  exercisesById: Map<string, Exercise>
   weightUnit: {
     unitLabel: string
-    format: (value: number, options?: { showUnit?: boolean; decimals?: number }) => string
+    format: (value: number, options?: { shouldShowUnit?: boolean; decimals?: number }) => string
   }
 }
 
@@ -23,17 +23,17 @@ export const WorkoutHistoryCard = memo(({
   isExpanded,
   onToggleExpand,
   onDeleteRequest,
-  exerciseMap,
+  exercisesById,
   weightUnit,
 }: WorkoutHistoryCardProps) => {
   const totalVolume = workout.exercises.reduce((total, ex) => {
     return total + ex.sets.reduce((setTotal, set) => {
-      return setTotal + (set.completed ? set.weight * set.reps : 0)
+      return setTotal + (set.isCompleted ? set.weight * set.reps : 0)
     }, 0)
   }, 0)
 
   const totalSets = workout.exercises.reduce((total, ex) => {
-    return total + ex.sets.filter((s) => s.completed).length
+    return total + ex.sets.filter((s) => s.isCompleted).length
   }, 0)
 
   return (
@@ -98,14 +98,14 @@ export const WorkoutHistoryCard = memo(({
 
              {/* Exercise List */}
              <div className="space-y-3">
-               {workout.exercises.map((we) => {
-                 const exercise = exerciseMap.get(we.exerciseId)
-                 const completedSets = we.sets.filter(
-                   (s) => s.completed
+               {workout.exercises.map((workoutExercise) => {
+                 const exercise = exercisesById.get(workoutExercise.exerciseId)
+                 const completedSets = workoutExercise.sets.filter(
+                   (set) => set.isCompleted
                  )
 
                   return (
-                    <div key={we.id} className="text-sm">
+                    <div key={workoutExercise.id} className="text-sm">
                       <p className="font-medium">
                         {exercise?.name ?? "Unknown Exercise"}
                       </p>
@@ -117,7 +117,7 @@ export const WorkoutHistoryCard = memo(({
                               formatDuration(set.reps)
                             ) : exercise?.isWeighted ? (
                               <>
-                                {weightUnit.format(set.weight, { showUnit: false })} {weightUnit.unitLabel} × {set.reps} reps
+                                {weightUnit.format(set.weight, { shouldShowUnit: false })} {weightUnit.unitLabel} × {set.reps} reps
                               </>
                             ) : (
                               <>{set.reps} reps</>
@@ -128,9 +128,9 @@ export const WorkoutHistoryCard = memo(({
                           <p className="italic">No completed sets</p>
                         )}
                       </div>
-                      {we.notes && (
+                      {workoutExercise.notes && (
                         <p className="mt-1 text-xs italic text-muted-foreground">
-                          Note: {we.notes}
+                          Note: {workoutExercise.notes}
                         </p>
                       )}
                     </div>
