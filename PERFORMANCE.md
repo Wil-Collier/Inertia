@@ -22,8 +22,11 @@ Chart performance optimizations implemented:
 ### ✅ Phase 4: COMPLETE (8/8 tasks)
 All Zustand architecture improvements have been implemented.
 
-### ⏳ Phases 5, 6: PENDING (0/9 tasks)
-- Phase 5: List item component extraction (0/5 tasks)
+### ✅ Phase 5: COMPLETE (5/5 tasks)
+- Extracted and memoized list items in `ActiveWorkout`, `NutritionPage`, `WorkoutHistory`, and `ExercisePickerSheet`.
+- Fixed unstable keys in `WorkoutPage` and `ProgressPage`.
+
+### ⏳ Phase 6: PENDING (0/4 tasks)
 - Phase 6: Async improvements (0/4 tasks)
 
 ---
@@ -36,7 +39,7 @@ All Zustand architecture improvements have been implemented.
 | Missing useMemo/useCallback | 25+ | 0 | 0 |
 | Zustand selector issues | 15+ | 0 | 0 |
 | Async operation issues | 8 | 2 | 4 |
-| List key issues | 6 | 0 | 1 |
+| List key issues | 0 | 0 | 0 |
 
 ---
 
@@ -57,7 +60,7 @@ All Zustand architecture improvements have been implemented.
 - [x] **`src/pages/WorkoutHistory.tsx:38-56`** - Sort + groupByMonth on workouts ✅ COMPLETED
 - [x] **`src/components/ExercisePickerSheet.tsx:61-70`** - `reduce()` to group exercises ✅ COMPLETED
 - [x] **`src/pages/ActiveWorkout.tsx:162-166`** - `reduce()` for completedSets/totalSets ✅ COMPLETED
-- [x] **`src/pages/Dashboard.tsx:40-44`** - Sort + filter recentAchievements ✅ COMPLETED
+- [x] **`src/pages/Dashboard.tsx:40-44`** - Sort + filter recent achievements ✅ COMPLETED
 - [x] **`src/pages/ProgressPage.tsx:356-362`** - Chart data filter/sort/map ✅ COMPLETED
 - [x] **`src/components/dashboard/WeeklyConsistency.tsx:12-22`** - Last 7 days calculation ✅ COMPLETED
 
@@ -126,10 +129,10 @@ const nutritionGoals = useSettingsStore((s) => s.settings.nutritionGoals)
 
 Extract components with `React.memo` to prevent re-renders:
 
-- [ ] **`src/pages/ActiveWorkout.tsx:361-495`** - Set rows (O(n×m) inline handlers)
-- [ ] **`src/pages/NutritionPage.tsx`** - Food list items
-- [ ] **`src/pages/WorkoutHistory.tsx`** - Workout cards
-- [ ] **`src/components/ExercisePickerSheet.tsx`** - Exercise rows
+- [x] **`src/pages/ActiveWorkout.tsx:361-495`** - Set rows (O(n×m) inline handlers) ✅ COMPLETED
+- [x] **`src/pages/NutritionPage.tsx`** - Food list items ✅ COMPLETED
+- [x] **`src/pages/WorkoutHistory.tsx`** - Workout cards ✅ COMPLETED
+- [x] **`src/components/ExercisePickerSheet.tsx`** - Exercise rows ✅ COMPLETED
 
 **Pattern:**
 ```tsx
@@ -147,7 +150,7 @@ const ExerciseRow = memo(({ exercise, onClick }) => {
 ### 5.2 Key Props Fixes
 
 - [x] **`src/pages/WorkoutPage.tsx:282-284`** ✅ COMPLETED - Missing key, add `<Fragment key={date}>`
-- [ ] **`src/pages/ProgressPage.tsx:666-668`** - `key={idx}` for sets, use set.id or composite key
+- [x] **`src/pages/ProgressPage.tsx:666-668`** - `key={idx}` for sets, use set.id ✅ COMPLETED
 
 ---
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, memo, useCallback } from "react"
 import { Search, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,6 +26,44 @@ const muscleGroups: MuscleGroup[] = [
 ]
 
 import { muscleGroupLabels } from "@/lib/muscleGroups"
+
+interface ExerciseListItemProps {
+  exercise: Exercise
+  isAdded: boolean
+  onSelect: (exerciseId: string) => void
+}
+
+const ExerciseListItem = memo(({
+  exercise,
+  isAdded,
+  onSelect,
+}: ExerciseListItemProps) => {
+  return (
+    <div
+      className={`flex w-full items-center justify-between rounded-lg p-3 transition-colors ${
+        isAdded
+          ? "bg-primary/10"
+          : "hover:bg-muted"
+      }`}
+    >
+      <button
+        className={`flex-1 text-left font-medium ${isAdded ? "text-primary" : ""}`}
+        onClick={() => !isAdded && onSelect(exercise.id)}
+        disabled={isAdded}
+      >
+        {exercise.name}
+      </button>
+      <div className="flex items-center gap-1">
+        <ExerciseInfoButton exercise={exercise} />
+        {isAdded && (
+          <span className="text-xs text-primary">Added</span>
+        )}
+      </div>
+    </div>
+  )
+})
+
+ExerciseListItem.displayName = "ExerciseListItem"
 
 interface ExercisePickerSheetProps {
   open: boolean
@@ -72,10 +110,10 @@ export function ExercisePickerSheet({
     )
   }, [filteredExercises])
 
-  const handleSelect = (exerciseId: string) => {
+  const handleSelect = useCallback((exerciseId: string) => {
     onSelect(exerciseId)
     onOpenChange(false)
-  }
+  }, [onSelect, onOpenChange])
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => {
@@ -166,33 +204,14 @@ export function ExercisePickerSheet({
                         {muscleGroupLabels[group]}
                       </h3>
                       <div className="space-y-1">
-                        {exercisesByGroup[group].map((exercise) => {
-                          const isAdded = addedExerciseIds.includes(exercise.id)
-                          return (
-                            <div
-                              key={exercise.id}
-                              className={`flex w-full items-center justify-between rounded-lg p-3 transition-colors ${
-                                isAdded
-                                  ? "bg-primary/10"
-                                  : "hover:bg-muted"
-                              }`}
-                            >
-                              <button
-                                className={`flex-1 text-left font-medium ${isAdded ? "text-primary" : ""}`}
-                                onClick={() => !isAdded && handleSelect(exercise.id)}
-                                disabled={isAdded}
-                              >
-                                {exercise.name}
-                              </button>
-                              <div className="flex items-center gap-1">
-                                <ExerciseInfoButton exercise={exercise} />
-                                {isAdded && (
-                                  <span className="text-xs text-primary">Added</span>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
+                        {exercisesByGroup[group].map((exercise) => (
+                          <ExerciseListItem
+                            key={exercise.id}
+                            exercise={exercise}
+                            isAdded={addedExerciseIds.includes(exercise.id)}
+                            onSelect={handleSelect}
+                          />
+                        ))}
                       </div>
                     </div>
                   ))

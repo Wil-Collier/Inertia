@@ -66,7 +66,7 @@ export function useExerciseHistoryDB(exerciseId: string) {
           maxWeight,
           totalVolume,
           totalReps,
-          sets: completedSets.map((s) => ({ weight: s.weight, reps: s.reps })),
+          sets: completedSets.map((s) => ({ id: s.id, weight: s.weight, reps: s.reps })),
         }
       })
       .filter((h): h is NonNullable<typeof h> => h !== null)

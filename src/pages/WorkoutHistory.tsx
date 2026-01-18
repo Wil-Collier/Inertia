@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react"
 import { format, parseISO } from "date-fns"
-import { Dumbbell, Clock, ChevronDown, ChevronUp, Trash2 } from "lucide-react"
+import { Dumbbell } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { formatDuration } from "@/lib/utils"
+import { WorkoutHistoryCard } from "@/components/workout/WorkoutHistoryCard"
 import { useWorkoutStore } from "@/stores/workout"
 import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
 import { useWorkoutsDB } from "@/hooks/db/useWorkoutsDB"
@@ -74,20 +74,6 @@ export function WorkoutHistory() {
     }
   }, [workoutToDelete, deleteWorkout])
 
-  const getTotalVolume = (workout: Workout) => {
-    return workout.exercises.reduce((total, ex) => {
-      return total + ex.sets.reduce((setTotal, set) => {
-        return setTotal + (set.completed ? set.weight * set.reps : 0)
-      }, 0)
-    }, 0)
-  }
-
-  const getTotalSets = (workout: Workout) => {
-    return workout.exercises.reduce((total, ex) => {
-      return total + ex.sets.filter((s) => s.completed).length
-    }, 0)
-  }
-
   return (
     <div className="flex flex-col">
       <Header title="History" showBack />
@@ -111,130 +97,17 @@ export function WorkoutHistory() {
                   {month}
                 </h2>
                 <div className="space-y-2">
-                  {monthWorkouts.map((workout) => {
-                    const isExpanded = expandedWorkoutId === workout.id
-                    const totalVolume = getTotalVolume(workout)
-                    const totalSets = getTotalSets(workout)
-
-                    return (
-                      <Card key={workout.id}>
-                        <CardContent className="p-0">
-                          {/* Workout Header */}
-                          <button
-                            className="flex w-full items-center gap-4 p-4 text-left"
-                            onClick={() => toggleExpand(workout.id)}
-                          >
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                              <Dumbbell className="h-5 w-5" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium">{workout.name}</p>
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                                <span>
-                                  {format(parseISO(workout.date), "EEE, MMM d")}
-                                </span>
-                                {workout.duration && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {workout.duration} min
-                                    </span>
-                                  </>
-                                )}
-                                <span>•</span>
-                                <span>{totalSets} sets</span>
-                              </div>
-                            </div>
-                            {isExpanded ? (
-                              <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                            )}
-                          </button>
-
-                          {/* Expanded Details */}
-                          {isExpanded && (
-                            <div className="border-t px-4 pb-4 pt-3">
-                              {/* Stats */}
-                              <div className="mb-4 grid grid-cols-2 gap-3">
-                                <div className="rounded-lg bg-muted/50 p-3">
-                                  <p className="text-xs text-muted-foreground">
-                                    Total Volume
-                                  </p>
-                                  <p className="text-lg font-semibold">
-                                    {weightUnit.format(totalVolume, { decimals: 0 })}
-                                  </p>
-                                </div>
-                                <div className="rounded-lg bg-muted/50 p-3">
-                                  <p className="text-xs text-muted-foreground">
-                                    Exercises
-                                  </p>
-                                  <p className="text-lg font-semibold">
-                                    {workout.exercises.length}
-                                  </p>
-                                </div>
-                              </div>
-
-                               {/* Exercise List */}
-                               <div className="space-y-3">
-                                 {workout.exercises.map((we) => {
-                                   const exercise = exerciseMap.get(we.exerciseId)
-                                   const completedSets = we.sets.filter(
-                                     (s) => s.completed
-                                   )
-
-
-                                    return (
-                                      <div key={we.id} className="text-sm">
-                                        <p className="font-medium">
-                                          {exercise?.name ?? "Unknown Exercise"}
-                                        </p>
-                                        <div className="mt-1 space-y-0.5 text-muted-foreground">
-                                          {completedSets.map((set, idx) => (
-                                            <p key={set.id}>
-                                              Set {idx + 1}:{" "}
-                                              {exercise?.isTimeBased ? (
-                                                formatDuration(set.reps)
-                                              ) : exercise?.isWeighted ? (
-                                                <>
-                                                  {weightUnit.format(set.weight, { showUnit: false })} {weightUnit.unitLabel} × {set.reps} reps
-                                                </>
-                                              ) : (
-                                                <>{set.reps} reps</>
-                                              )}
-                                            </p>
-                                          ))}
-                                          {completedSets.length === 0 && (
-                                            <p className="italic">No completed sets</p>
-                                          )}
-                                        </div>
-                                        {we.notes && (
-                                          <p className="mt-1 text-xs italic text-muted-foreground">
-                                            Note: {we.notes}
-                                          </p>
-                                        )}
-                                      </div>
-                                    )
-                                })}
-                              </div>
-
-                              {/* Delete Button */}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="mt-4 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => setWorkoutToDelete(workout)}
-                              >
-                                <Trash2 className="mr-1 h-4 w-4" />
-                                Delete Workout
-                              </Button>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
+                  {monthWorkouts.map((workout) => (
+                    <WorkoutHistoryCard
+                      key={workout.id}
+                      workout={workout}
+                      isExpanded={expandedWorkoutId === workout.id}
+                      onToggleExpand={toggleExpand}
+                      onDeleteRequest={setWorkoutToDelete}
+                      exerciseMap={exerciseMap}
+                      weightUnit={weightUnit}
+                    />
+                  ))}
                 </div>
               </section>
             ))

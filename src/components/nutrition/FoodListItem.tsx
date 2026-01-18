@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, memo } from "react"
 import { Star, Trash2, Plus, Minus, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { FoodItem } from "@/lib/types"
@@ -12,14 +12,14 @@ interface FoodListItemProps {
   showDelete?: boolean
 }
 
-export function FoodListItem({
+export const FoodListItem = memo(({
   food,
   onAdd,
   onToggleFavorite,
   isFavorite,
   onDelete,
   showDelete,
-}: FoodListItemProps) {
+}: FoodListItemProps) => {
   const [quantity, setQuantity] = useState(1)
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -139,4 +139,7 @@ export function FoodListItem({
       )}
     </div>
   )
-}
+})
+
+FoodListItem.displayName = "FoodListItem"
+

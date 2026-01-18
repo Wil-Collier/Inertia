@@ -542,7 +542,7 @@ function ExerciseProgressTab({
     maxWeight: number
     totalVolume: number
     totalReps: number
-    sets: Array<{ weight: number; reps: number }>
+    sets: Array<{ id: string; weight: number; reps: number }>
   }>
   weightUnit: ReturnType<typeof useWeightUnit>
 }) {
@@ -671,9 +671,9 @@ function ExerciseProgressTab({
                         Max: {weightUnit.format(session.maxWeight)} | Volume: {weightUnit.format(session.totalVolume, { decimals: 0 })}
                       </p>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {session.sets.map((set, idx) => (
+                        {session.sets.map((set) => (
                           <span
-                            key={idx}
+                            key={set.id}
                             className="rounded bg-primary/10 px-1.5 py-0.5 text-xs"
                           >
                             {weightUnit.format(set.weight, { showUnit: false })}x{set.reps}
