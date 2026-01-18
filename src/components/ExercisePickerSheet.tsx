@@ -213,7 +213,7 @@ export function ExercisePickerSheet({
                       )}
                     </div>
                   ) : (
-                    (Object.keys(exercisesByGroup) as MuscleGroup[]).map((group) => (
+                    (Object.keys(exercisesByGroup) as Array<keyof typeof exercisesByGroup>).map((group) => (
                     <div key={group}>
                       <h3 className="mb-2 text-sm font-medium text-muted-foreground">
                         {muscleGroupLabels[group]}

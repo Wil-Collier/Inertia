@@ -104,6 +104,7 @@ export function useWorkoutStatsDB(startDate: string, endDate: string) {
 export function useWorkoutDatesDB() {
   return useLiveQuery(async () => {
     // Use uniqueKeys on the indexed 'date' field for better performance
-    return (await db.workoutSessions.orderBy("date").uniqueKeys()) as string[]
+    const keys = await db.workoutSessions.orderBy("date").uniqueKeys()
+    return keys.filter((k): k is string => typeof k === "string")
   }) ?? []
 }

@@ -5,7 +5,9 @@ import { db } from "@/services/db"
 import { toast } from "sonner"
 
 // DB stores settings with an id field for the singleton pattern
-type SettingsDBEntry = UserSettings & { id: string }
+interface SettingsDBEntry extends UserSettings {
+  id: string
+}
 
 interface SettingsStore {
   settings: UserSettings
@@ -48,7 +50,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   loadSettings: async () => {
     try {
-      const saved = await db.settings.get("settings") as SettingsDBEntry | undefined
+      const saved: SettingsDBEntry | undefined = await db.settings.get("settings")
       if (saved) {
         // Strip the id field from the DB entry to get UserSettings
         const { id: _id, ...settings } = saved

@@ -85,8 +85,8 @@ export function NutritionHistoryPage() {
   }, [dailyTotals])
 
   // Chart Formatters
-  const caloriesTooltipFormatter = useCallback((value: any) => [`${String(value ?? 0)} kcal`, "Calories"], [])
-  const caloriesLabelFormatter = useCallback((_label: any, payload: readonly any[]) => {
+  const caloriesTooltipFormatter = useCallback((value: number | string | Array<number | string> | undefined) => [`${String(value ?? 0)} kcal`, "Calories"] as [string, string], [])
+  const caloriesLabelFormatter = useCallback((_label: string | number, payload: readonly { payload?: { dateLabel?: string } }[]) => {
     if (payload?.[0]?.payload?.dateLabel) {
       return payload[0].payload.dateLabel
     }
