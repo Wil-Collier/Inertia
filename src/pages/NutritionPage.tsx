@@ -50,8 +50,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useNutritionStore, getTodayDate } from "@/stores/nutritionStore"
+import { useDailyNutrition, useFoodsDB, useMealTemplatesDB } from "@/hooks/db/useNutritionDB"
 import { useSettingsStore } from "@/stores/settingsStore"
 import { searchFoods, getProductByBarcode } from "@/services/openFoodFacts"
+import { db } from "@/services/db"
 import { toast } from "sonner"
 import type { FoodItem, MealType } from "@/lib/types"
 
@@ -84,29 +86,28 @@ export function NutritionPage() {
   const [newTemplateName, setNewTemplateName] = useState("")
 
   const {
-    foods,
-    getDailyTotals,
-    getEntriesByMealType,
-    getFood,
     addFood,
     addMealEntry,
     updateMealEntry,
     removeMealEntry,
     toggleFavorite,
-    getFavorites,
-    getCustomFoods,
     deleteFood,
-    searchFoods: searchLocalFoods,
-    mealTemplates,
     saveMealTemplate,
     deleteMealTemplate,
     applyMealTemplate,
   } = useNutritionStore()
 
+  const { totals, entriesWithFood } = useDailyNutrition(selectedDate)
+  const favorites = useFoodsDB("", "favorites")
+  const customFoods = useFoodsDB("", "custom")
+  const mealTemplates = useMealTemplatesDB()
+
   const { settings } = useSettingsStore()
   const { nutritionGoals } = settings
 
-  const totals = getDailyTotals(selectedDate)
+  const getEntriesByMealType = (type: MealType) => {
+    return entriesWithFood.filter(e => e.mealType === type)
+  }
 
   const handlePrevDay = () => {
     setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
@@ -125,7 +126,10 @@ export function NutritionPage() {
     setIsSearching(true)
     try {
       // Search local first
-      const local = searchLocalFoods(query)
+      const q = query.toLowerCase()
+      const local = await db.foods
+        .filter(f => f.name.toLowerCase().includes(q) || (f.brand?.toLowerCase().includes(q) ?? false))
+        .toArray()
       
       // Then search Open Food Facts
       const { foods: remote } = await searchFoods(query, 1, 20)
@@ -141,7 +145,7 @@ export function NutritionPage() {
     } finally {
       setIsSearching(false)
     }
-  }, [searchLocalFoods])
+  }, [])
 
   // Debounced search
   useEffect(() => {
@@ -156,7 +160,8 @@ export function NutritionPage() {
       let foodId = food.id
 
       // If it's from OpenFoodFacts and not in our database, add it
-      if (!food.isCustom && !foods.find((f) => f.id === food.id)) {
+      const exists = await db.foods.get(food.id)
+      if (!food.isCustom && !exists) {
         const newFood = await addFood({ ...food })
         foodId = newFood.id
       }
@@ -203,8 +208,6 @@ export function NutritionPage() {
       setIsLookingUp(false)
     }
   }, [])
-
-  const favorites = getFavorites()
 
   const isToday = selectedDate === getTodayDate()
   const displayDate = isToday
@@ -274,12 +277,12 @@ export function NutritionPage() {
           <CardContent className="py-6">
             <div className="mb-6 flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-5xl font-black tracking-tighter">{Math.round(totals.calories)}</p>
+                <p className="text-5xl font-black tracking-tighter">{Math.round(totals?.calories ?? 0)}</p>
                 <div className="flex items-center gap-2">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Calories Consumed
                   </p>
-                  {totals.calories > nutritionGoals.calories && (
+                  {(totals?.calories ?? 0) > nutritionGoals.calories && (
                     <TrendingUp className="h-3 w-3 text-trend-negative" />
                   )}
                 </div>
@@ -306,7 +309,7 @@ export function NutritionPage() {
                     stroke="currentColor"
                     strokeWidth="3.5"
                     strokeDasharray={`${nutritionGoals.calories > 0 ? Math.min(
-                      (totals.calories / nutritionGoals.calories) * 100,
+                      ((totals?.calories ?? 0) / nutritionGoals.calories) * 100,
                       100
                     ) : 0} 100`}
                     strokeLinecap="round"
@@ -322,21 +325,21 @@ export function NutritionPage() {
             <div className="grid grid-cols-3 gap-4">
               <MacroBar
                 label="Protein"
-                value={totals.protein}
+                value={totals?.protein ?? 0}
                 goal={nutritionGoals.protein}
                 color="bg-macro-protein"
                 icon={Beef}
               />
               <MacroBar
                 label="Carbs"
-                value={totals.carbs}
+                value={totals?.carbs ?? 0}
                 goal={nutritionGoals.carbs}
                 color="bg-macro-carbs"
                 icon={Wheat}
               />
               <MacroBar
                 label="Fat"
-                value={totals.fat}
+                value={totals?.fat ?? 0}
                 goal={nutritionGoals.fat}
                 color="bg-macro-fat"
                 icon={Droplets}
@@ -345,14 +348,14 @@ export function NutritionPage() {
             <div className="grid grid-cols-2 gap-4 mt-3">
               <MacroBar
                 label="Fiber"
-                value={totals.fiber}
+                value={totals?.fiber ?? 0}
                 goal={nutritionGoals.fiber}
                 color="bg-macro-fiber"
                 icon={Leaf}
               />
               <MacroBar
                 label="Sugar"
-                value={totals.sugar}
+                value={totals?.sugar ?? 0}
                 goal={nutritionGoals.sugar}
                 color="bg-macro-sugar"
                 icon={Candy}
@@ -363,10 +366,9 @@ export function NutritionPage() {
 
         {/* Meals */}
         {mealTypes.map(({ type, label, icon: Icon }) => {
-          const entries = getEntriesByMealType(selectedDate, type)
+          const entries = getEntriesByMealType(type)
           const mealCalories = entries.reduce((sum, e) => {
-            const food = getFood(e.foodId)
-            return sum + (food ? food.calories * e.quantity : 0)
+            return sum + (e.food ? e.food.calories * e.quantity : 0)
           }, 0)
 
           return (
@@ -394,14 +396,13 @@ export function NutritionPage() {
                 <CardContent className="pt-0">
                   <div className="space-y-2">
                     {entries.map((entry) => {
-                      const food = getFood(entry.foodId)
-                      if (!food) return null
+                      if (!entry.food) return null
 
                       return (
                         <MealEntryItem
                           key={entry.id}
                           entry={entry}
-                          food={food}
+                          food={entry.food}
                           onUpdateQuantity={async (quantity) => {
                             try {
                               await updateMealEntry(selectedDate, entry.id, { quantity })
@@ -562,10 +563,10 @@ export function NutritionPage() {
                     onClearBarcode={() => setScannedBarcode(null)}
                   />
                   
-                  {getCustomFoods().length > 0 && (
+                  {customFoods.length > 0 && (
                     <div className="space-y-2 pt-2">
                       <p className="text-sm font-medium text-muted-foreground">Saved Foods</p>
-                      {getCustomFoods().map((food) => (
+                      {customFoods.map((food) => (
                         <FoodListItem
                           key={food.id}
                           food={food}
@@ -627,15 +628,6 @@ export function NutritionPage() {
                 {mealTemplates.length > 0 ? (
                   <div className="space-y-3">
                     {mealTemplates.map((template) => {
-                      const templateCalories = template.entries.reduce((sum, e) => {
-                        const food = getFood(e.foodId)
-                        return sum + (food ? food.calories * e.quantity : 0)
-                      }, 0)
-                      const templateProtein = template.entries.reduce((sum, e) => {
-                        const food = getFood(e.foodId)
-                        return sum + (food ? food.protein * e.quantity : 0)
-                      }, 0)
-
                       return (
                         <div
                           key={template.id}
@@ -661,21 +653,8 @@ export function NutritionPage() {
                             </Button>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {template.entries.length} items • {Math.round(templateCalories)} kcal • {Math.round(templateProtein)}g protein
+                            {template.entries.length} items
                           </p>
-                          <div className="text-xs text-muted-foreground space-y-0.5">
-                            {template.entries.slice(0, 3).map((entry, idx) => {
-                              const food = getFood(entry.foodId)
-                              return food ? (
-                                <p key={idx}>
-                                  {entry.quantity > 1 ? `${entry.quantity}x ` : ""}{food.name}
-                                </p>
-                              ) : null
-                            })}
-                            {template.entries.length > 3 && (
-                              <p className="italic">+{template.entries.length - 3} more</p>
-                            )}
-                          </div>
                           <Button
                             size="sm"
                             className="w-full"
@@ -752,7 +731,7 @@ export function NutritionPage() {
                 disabled={!newTemplateName.trim()}
                 onClick={async () => {
                   try {
-                    const entries = getEntriesByMealType(selectedDate, templateMealType)
+                    const entries = getEntriesByMealType(templateMealType)
                     if (entries.length > 0) {
                       await saveMealTemplate(
                         newTemplateName.trim(),

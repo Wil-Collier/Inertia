@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Scale, TrendingUp, TrendingDown, Minus, Plus } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { useBodyWeightStore, getTodayDate } from "@/stores/bodyWeightStore"
+import { useBodyWeightDB } from "@/hooks/db/useBodyWeightDB"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import { Link } from "react-router-dom"
 import { 
@@ -17,12 +18,12 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 
 export function WeightCard() {
-  const { getAllEntriesSorted, addEntry } = useBodyWeightStore()
+  const { addEntry } = useBodyWeightStore()
+  const sortedEntries = useBodyWeightDB(2)
   const weightUnit = useWeightUnit()
   const [open, setOpen] = useState(false)
   const [weight, setWeight] = useState("")
   
-  const sortedEntries = getAllEntriesSorted()
   const latestEntry = sortedEntries[0]
   const previousEntry = sortedEntries[1]
   

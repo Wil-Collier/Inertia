@@ -13,15 +13,38 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useWorkoutStore } from "@/stores/workout"
-import { useExerciseStore } from "@/stores/exerciseStore"
+import { useTemplatesDB, useWorkoutDatesDB, useWorkoutStatsDB } from "@/hooks/db/useWorkoutsDB"
+import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
 import { cn } from "@/lib/utils"
-import { format, subDays, startOfMonth, endOfMonth } from "date-fns"
+import { format, subDays, startOfMonth, endOfMonth, parseISO } from "date-fns"
 
 export function WorkoutPage() {
   const navigate = useNavigate()
-  const { templates, activeSession, startWorkout, getWorkoutDates, workouts } =
-    useWorkoutStore()
-  const { getExercise } = useExerciseStore()
+  const { activeSession, startWorkout } = useWorkoutStore()
+  
+  const templates = useTemplatesDB()
+  const workoutDates = useWorkoutDatesDB()
+
+  // Resolve exercise names for templates
+  const templateExerciseIds = useMemo(() => {
+    return [...new Set(templates.flatMap(t => t.exercises.map(e => e.exerciseId)))]
+  }, [templates])
+  const exerciseMap = useExercisesByIdsDB(templateExerciseIds)
+  
+  const now = useMemo(() => new Date(), [])
+  const monthStart = startOfMonth(now)
+  const monthEnd = endOfMonth(now)
+  const thirtyDaysAgo = subDays(now, 30)
+
+  const { workouts: monthWorkouts } = useWorkoutStatsDB(
+    format(monthStart, "yyyy-MM-dd"),
+    format(monthEnd, "yyyy-MM-dd")
+  )
+
+  const { workouts: recentWorkouts } = useWorkoutStatsDB(
+    format(thirtyDaysAgo, "yyyy-MM-dd"),
+    format(now, "yyyy-MM-dd")
+  )
   
   // Generate default workout name with today's date
   const getDefaultWorkoutName = () => {
@@ -48,20 +71,13 @@ export function WorkoutPage() {
 
   // Calculate Stats
   const stats = useMemo(() => {
-    const now = new Date()
-    const monthStart = startOfMonth(now)
-    const monthEnd = endOfMonth(now)
-    
-    const workoutsThisMonth = workouts.filter(w => {
-      const date = new Date(w.date)
-      return date >= monthStart && date <= monthEnd
-    }).length
+    const workoutsThisMonth = monthWorkouts.length
 
     // Momentum: Workouts in the last 4 weeks
     const weeks = [0, 1, 2, 3].map(weekOffset => {
       const weekStart = subDays(now, (weekOffset + 1) * 7)
       const weekEnd = subDays(now, weekOffset * 7)
-      const count = workouts.filter(w => {
+      const count = recentWorkouts.filter(w => {
         const date = new Date(w.date)
         return date >= weekStart && date <= weekEnd
       }).length
@@ -69,13 +85,13 @@ export function WorkoutPage() {
     }).reverse()
 
     return { workoutsThisMonth, weeks }
-  }, [workouts])
+  }, [monthWorkouts, recentWorkouts, now])
 
   if (activeSession) {
     return <Navigate to="/workout/active" replace />
   }
 
-  const recentDates = getWorkoutDates().slice(0, 3) // Minimal view as requested
+  const recentDates = workoutDates.slice().reverse().slice(0, 3)
 
   return (
     <div className="flex flex-col pb-20">
@@ -212,7 +228,7 @@ export function WorkoutPage() {
               {templates.map((template) => {
                 const muscleGroups = Array.from(new Set(
                   template.exercises
-                    .map(te => getExercise(te.exerciseId)?.muscleGroup)
+                    .map(te => exerciseMap.get(te.exerciseId)?.muscleGroup)
                     .filter(Boolean)
                 ))
 
@@ -264,7 +280,7 @@ export function WorkoutPage() {
             </div>
             <div className="space-y-2">
               {recentDates.map((date) => {
-                const dateWorkouts = workouts.filter((w) => w.date === date)
+                const dateWorkouts = recentWorkouts.filter((w) => w.date === date)
                 return dateWorkouts.map((workout) => (
                   <Card key={workout.id} className="bg-muted/20 border-none shadow-none">
                     <CardContent className="flex items-center gap-4 py-3">
@@ -274,7 +290,7 @@ export function WorkoutPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm truncate">{workout.name}</p>
                         <p className="text-[10px] font-medium text-muted-foreground">
-                          {format(new Date(workout.date), "MMM d, yyyy")}
+                          {format(parseISO(workout.date), "MMM d, yyyy")}
                           {workout.duration && ` • ${workout.duration}m`}
                         </p>
                       </div>

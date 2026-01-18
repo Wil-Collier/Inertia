@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { format, parseISO } from "date-fns"
 import { Dumbbell, Clock, ChevronDown, ChevronUp, Trash2 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
@@ -15,13 +15,21 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatDuration } from "@/lib/utils"
 import { useWorkoutStore } from "@/stores/workout"
-import { useExerciseStore } from "@/stores/exerciseStore"
+import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
+import { useWorkoutsDB } from "@/hooks/db/useWorkoutsDB"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import type { Workout } from "@/lib/types"
 
 export function WorkoutHistory() {
-  const { workouts, deleteWorkout } = useWorkoutStore()
-  const { getExercise } = useExerciseStore()
+  const { deleteWorkout } = useWorkoutStore()
+  const workouts = useWorkoutsDB()
+  
+  // Resolve all exercise names in history
+  const allExerciseIds = useMemo(() => {
+    return [...new Set(workouts.flatMap(w => w.exercises.map(e => e.exerciseId)))]
+  }, [workouts])
+  const exerciseMap = useExercisesByIdsDB(allExerciseIds)
+
   const weightUnit = useWeightUnit()
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null)
   const [workoutToDelete, setWorkoutToDelete] = useState<Workout | null>(null)
@@ -164,13 +172,14 @@ export function WorkoutHistory() {
                                 </div>
                               </div>
 
-                              {/* Exercise List */}
-                              <div className="space-y-3">
-                                {workout.exercises.map((we) => {
-                                  const exercise = getExercise(we.exerciseId)
-                                  const completedSets = we.sets.filter(
-                                    (s) => s.completed
-                                  )
+                               {/* Exercise List */}
+                               <div className="space-y-3">
+                                 {workout.exercises.map((we) => {
+                                   const exercise = exerciseMap.get(we.exerciseId)
+                                   const completedSets = we.sets.filter(
+                                     (s) => s.completed
+                                   )
+
 
                                     return (
                                       <div key={we.id} className="text-sm">

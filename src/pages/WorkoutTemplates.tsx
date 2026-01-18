@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   LayoutTemplate,
@@ -30,14 +30,21 @@ import {
 } from "@/components/ui/sheet"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
 import { useWorkoutStore } from "@/stores/workout"
-import { useExerciseStore } from "@/stores/exerciseStore"
+import { useTemplatesDB } from "@/hooks/db/useWorkoutsDB"
+import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
 import type { WorkoutTemplate } from "@/lib/types"
 
 export function WorkoutTemplates() {
   const navigate = useNavigate()
-  const { templates, deleteTemplate, createTemplate, updateTemplate, startWorkout } =
+  const { deleteTemplate, createTemplate, updateTemplate, startWorkout } =
     useWorkoutStore()
-  const { getExercise } = useExerciseStore()
+  const templates = useTemplatesDB()
+  
+  // Resolve all exercise names in templates
+  const allExerciseIds = useMemo(() => {
+    return [...new Set(templates.flatMap(t => t.exercises.map(e => e.exerciseId)))]
+  }, [templates])
+  const exerciseMap = useExercisesByIdsDB(allExerciseIds)
 
   const [templateToDelete, setTemplateToDelete] = useState<WorkoutTemplate | null>(null)
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null)
@@ -206,7 +213,7 @@ export function WorkoutTemplates() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           {template.exercises
                             .slice(0, 3)
-                            .map((e) => getExercise(e.exerciseId)?.name)
+                            .map((e) => exerciseMap.get(e.exerciseId)?.name)
                             .filter(Boolean)
                             .join(", ")}
                           {template.exercises.length > 3 &&
@@ -331,7 +338,7 @@ export function WorkoutTemplates() {
                     </div>
                   ) : (
                     editingTemplate.exercises.map((te, index) => {
-                      const exercise = getExercise(te.exerciseId)
+                      const exercise = exerciseMap.get(te.exerciseId)
                       return (
                         <Card key={te.exerciseId}>
                           <CardContent className="p-3">

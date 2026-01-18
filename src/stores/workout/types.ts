@@ -25,10 +25,7 @@ export type {
 // ============================================
 
 export interface WorkoutState {
-  workouts: Workout[]
-  templates: WorkoutTemplate[]
   activeSession: ActiveWorkoutSession | null
-  personalRecords: Record<string, PersonalRecord>
 }
 
 // ============================================
@@ -77,12 +74,8 @@ export interface ExerciseHistoryEntry {
 }
 
 export interface HistorySlice {
-  getWorkoutDates: () => string[]
   deleteWorkout: (id: string) => Promise<void>
-  getPersonalRecord: (exerciseId: string) => PersonalRecord | undefined
   calculateOneRepMax: (weight: number, reps: number) => number
-  getLastPerformance: (exerciseId: string) => LastPerformance | null
-  getExerciseHistory: (exerciseId: string) => ExerciseHistoryEntry[]
 }
 
 export interface WorkoutStore extends 

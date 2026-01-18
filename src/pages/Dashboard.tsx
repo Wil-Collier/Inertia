@@ -6,7 +6,9 @@ import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
 import { useWorkoutStore } from "@/stores/workout"
-import { useNutritionStore, getTodayDate } from "@/stores/nutritionStore"
+import { getTodayDate } from "@/stores/nutritionStore"
+import { useDailyNutrition, useNutritionDatesDB } from "@/hooks/db/useNutritionDB"
+import { useWorkoutsDB, useWorkoutDatesDB } from "@/hooks/db/useWorkoutsDB"
 import { useSettingsStore } from "@/stores/settingsStore"
 import { useAchievementsStore } from "@/stores/achievementsStore"
 import { WeeklyConsistency } from "@/components/dashboard/WeeklyConsistency"
@@ -18,22 +20,23 @@ export function Dashboard() {
   const today = getTodayDate()
   const todayFormatted = format(new Date(), "EEEE, MMMM d")
 
-  const { workouts, activeSession } = useWorkoutStore()
-  const { getDailyTotals, getLoggedDates } = useNutritionStore()
+  const { activeSession } = useWorkoutStore()
+  const { totals } = useDailyNutrition(today)
+  const todayWorkouts = useWorkoutsDB(today)
   const { settings } = useSettingsStore()
   const { unlockedAchievements } = useAchievementsStore()
 
-  const todayWorkouts = workouts.filter((w) => w.date === today)
-  const totals = getDailyTotals(today)
-  
   const calorieGoal = settings.nutritionGoals.calories
-  const caloriesRemaining = Math.max(0, calorieGoal - totals.calories)
-  const calorieProgress = Math.min(100, (totals.calories / calorieGoal) * 100)
+  const currentCalories = totals?.calories ?? 0
+  const caloriesRemaining = Math.max(0, calorieGoal - currentCalories)
+  const calorieProgress = Math.min(100, (currentCalories / calorieGoal) * 100)
 
-  const workoutDates = workouts.map(w => w.date)
-  const nutritionDates = getLoggedDates()
+  // For WeeklyConsistency, we need ALL workout dates and logged nutrition dates.
+  const workoutDates = useWorkoutDatesDB()
+  const nutritionDates = useNutritionDatesDB()
 
   // Recent achievements
+
   const recentAchievements = unlockedAchievements
     .sort((a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime())
     .slice(0, 2)
@@ -157,19 +160,19 @@ export function Dashboard() {
             <div className="grid grid-cols-3 gap-2">
               <CompactMacro 
                 label="Protein" 
-                value={totals.protein} 
+                value={totals?.protein ?? 0} 
                 goal={settings.nutritionGoals.protein} 
                 color="bg-macro-protein" 
               />
               <CompactMacro 
                 label="Carbs" 
-                value={totals.carbs} 
+                value={totals?.carbs ?? 0} 
                 goal={settings.nutritionGoals.carbs} 
                 color="bg-macro-carbs" 
               />
               <CompactMacro 
                 label="Fat" 
-                value={totals.fat} 
+                value={totals?.fat ?? 0} 
                 goal={settings.nutritionGoals.fat} 
                 color="bg-macro-fat" 
               />

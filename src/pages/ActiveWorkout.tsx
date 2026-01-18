@@ -28,7 +28,8 @@ import {
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
 import { ExerciseInfoButton } from "@/components/ExerciseInfoSheet"
 import { useWorkoutStore } from "@/stores/workout"
-import { useExerciseStore } from "@/stores/exerciseStore"
+import { useTemplatesDB } from "@/hooks/db/useWorkoutsDB"
+import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
 import { useSettingsStore } from "@/stores/settingsStore"
 import { useRestTimer } from "@/hooks/useRestTimer"
 import { useCountdownTimer } from "@/hooks/useCountdownTimer"
@@ -54,9 +55,10 @@ export function ActiveWorkout() {
     updateExerciseNotes,
   } = useWorkoutStore()
 
-  const { getExercise } = useExerciseStore()
   const { settings } = useSettingsStore()
   const weightUnit = useWeightUnit()
+  const templates = useTemplatesDB()
+
   const [showExerciseSheet, setShowExerciseSheet] = useState(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
@@ -103,6 +105,8 @@ export function ActiveWorkout() {
   }
 
   const { workout } = activeSession
+  const exerciseIds = workout.exercises.map(e => e.exerciseId)
+  const exerciseMap = useExercisesByIdsDB(exerciseIds)
 
   const handleFinish = async () => {
     try {
@@ -172,7 +176,7 @@ export function ActiveWorkout() {
     }
     
     // If started from template, check if exercises were added or removed
-    const template = useWorkoutStore.getState().templates.find(
+    const template = templates.find(
       (t) => t.id === activeSession.templateId
     )
     if (!template) return workout.exercises.length > 0
@@ -265,7 +269,7 @@ export function ActiveWorkout() {
 
         {/* Exercises */}
         {workout.exercises.map((workoutExercise) => {
-          const exercise = getExercise(workoutExercise.exerciseId)
+          const exercise = exerciseMap.get(workoutExercise.exerciseId)
           const isExpanded = expandedExercises.has(workoutExercise.id)
           const hasLastPerformance = !!workoutExercise.lastPerformanceDate
           

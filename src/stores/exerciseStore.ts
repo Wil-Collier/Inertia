@@ -3,25 +3,20 @@ import type { Exercise, MuscleGroup } from "@/lib/types"
 import { v4 as uuidv4 } from "uuid"
 import { db } from "@/services/db"
 import { loadDefaultExercises } from "@/data/exerciseLoader"
-
 import { toast } from "sonner"
 
 let initPromise: Promise<void> | null = null
 
 interface ExerciseStore {
-  exercises: Exercise[]
   isLoaded: boolean
   init: () => Promise<void>
   addExercise: (name: string, muscleGroup: MuscleGroup, isWeighted?: boolean, isTimeBased?: boolean) => Promise<Exercise>
   updateExercise: (id: string, updates: Partial<Omit<Exercise, "id">>) => Promise<void>
   deleteExercise: (id: string) => Promise<void>
-  getExercise: (id: string) => Exercise | undefined
-  getExercisesByMuscleGroup: (muscleGroup: MuscleGroup) => Exercise[]
   resetToDefaults: () => Promise<void>
 }
 
 export const useExerciseStore = create<ExerciseStore>((set, get) => ({
-  exercises: [],
   isLoaded: false,
 
   init: async () => {
@@ -30,38 +25,20 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
     initPromise = (async () => {
       try {
-        const stored = await db.exercises.toArray()
-        if (stored.length > 0) {
-          set({ exercises: stored, isLoaded: true })
-        } else {
+        const currentCount = await db.exercises.count()
+        if (currentCount === 0) {
           // Seed defaults
           const defaults = await loadDefaultExercises()
-          // Check if data was added while we were loading defaults (double-check locking)
-          const currentCount = await db.exercises.count()
-          if (currentCount > 0) {
-             const existing = await db.exercises.toArray()
-             set({ exercises: existing, isLoaded: true })
-             return
-          }
-          
-          // Ensure defaults have ID? loadDefaultExercises maps ID.
           await db.exercises.bulkAdd(defaults)
-          set({ exercises: defaults, isLoaded: true })
         }
+        set({ isLoaded: true })
       } catch (error) {
         console.error("Failed to init exercise store:", error)
-        // If it's a constraint error, it means another tab/window/process beat us to it.
-        // We should try to read the data again.
+        // If it's a constraint error, it means another process beat us to it.
         if (error instanceof Error && error.name === 'BulkError') {
-           try {
-             const stored = await db.exercises.toArray()
-             set({ exercises: stored, isLoaded: true })
-             return
-           } catch (retryError) {
-             console.error("Failed to recover from race condition:", retryError)
-           }
+           set({ isLoaded: true })
+           return
         }
-        
         set({ isLoaded: true })
       } finally {
         initPromise = null
@@ -83,9 +60,6 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     
     try {
       await db.exercises.add(newExercise)
-      set((state) => ({
-        exercises: [...state.exercises, newExercise],
-      }))
       return newExercise
     } catch (error) {
       console.error("Failed to add exercise:", error)
@@ -97,11 +71,6 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
   updateExercise: async (id, updates) => {
     try {
       await db.exercises.update(id, updates)
-      set((state) => ({
-        exercises: state.exercises.map((ex) =>
-          ex.id === id ? { ...ex, ...updates } : ex
-        ),
-      }))
     } catch (error) {
       console.error("Failed to update exercise:", error)
       toast.error("Failed to update exercise")
@@ -112,9 +81,6 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
   deleteExercise: async (id) => {
     try {
       await db.exercises.delete(id)
-      set((state) => ({
-        exercises: state.exercises.filter((ex) => ex.id !== id),
-      }))
     } catch (error) {
       console.error("Failed to delete exercise:", error)
       toast.error("Failed to delete exercise")
@@ -122,28 +88,11 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     }
   },
 
-  getExercise: (id) => {
-    return get().exercises.find((ex) => ex.id === id)
-  },
-
-  getExercisesByMuscleGroup: (muscleGroup) => {
-    return get().exercises.filter((ex) => ex.muscleGroup === muscleGroup)
-  },
-
   resetToDefaults: async () => {
     try {
-      // 1. Clear all exercises from DB
       await db.exercises.clear()
-      
-      // 2. Load fresh defaults
       const defaults = await loadDefaultExercises()
-      
-      // 3. Add defaults to DB
       await db.exercises.bulkAdd(defaults)
-      
-      // 4. Update state
-      set({ exercises: defaults })
-      
       toast.success("Exercises reset to defaults")
     } catch (error) {
       console.error("Failed to reset exercises:", error)

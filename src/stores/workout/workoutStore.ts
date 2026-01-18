@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import type { WorkoutStore, PersonalRecord } from "./types"
+import type { WorkoutStore } from "./types"
 import { createSessionSlice } from "./sessionSlice"
 import { createTemplateSlice } from "./templateSlice"
 import { createHistorySlice } from "./historySlice"
@@ -10,10 +10,7 @@ let initPromise: Promise<void> | null = null
 
 export const useWorkoutStore = create<WorkoutStore>((set, get, api) => ({
   // Initial state
-  workouts: [],
-  templates: defaultTemplates,
   activeSession: null,
-  personalRecords: {},
   isInitialized: false,
 
   init: async () => {
@@ -22,22 +19,9 @@ export const useWorkoutStore = create<WorkoutStore>((set, get, api) => ({
 
     initPromise = (async () => {
       try {
-        const [templates, sessions, prs, activeSessionData] = await Promise.all([
-          db.workoutTemplates.toArray(),
-          db.workoutSessions.orderBy("date").reverse().toArray(),
-          db.personalRecords.toArray(),
-          db.activeSession.get("current")
-        ])
-
-        const prRecord: Record<string, PersonalRecord> = {}
-        prs.forEach((pr) => {
-          prRecord[pr.exerciseId] = pr
-        })
+        const activeSessionData = await db.activeSession.get("current")
 
         set({
-          workouts: sessions,
-          templates: templates.length > 0 ? templates : defaultTemplates,
-          personalRecords: prRecord,
           activeSession: activeSessionData ? { 
             workout: activeSessionData.workout, 
             startedAt: activeSessionData.startedAt,
@@ -46,22 +30,13 @@ export const useWorkoutStore = create<WorkoutStore>((set, get, api) => ({
           isInitialized: true,
         })
 
-        // If no templates, save defaults
-        if (templates.length === 0) {
-          // Double check count before writing
-          const count = await db.workoutTemplates.count()
-          if (count === 0) {
-            await db.workoutTemplates.bulkAdd(defaultTemplates)
-          }
+        // Ensure default templates exist in DB
+        const count = await db.workoutTemplates.count()
+        if (count === 0) {
+          await db.workoutTemplates.bulkAdd(defaultTemplates)
         }
       } catch (error) {
         console.error("Failed to init workout store:", error)
-        
-        // Recover from race condition on bulkAdd
-        if (error instanceof Error && error.name === 'BulkError') {
-             // Just ignore, as it means data exists
-        }
-        
         set({ isInitialized: true })
       } finally {
         initPromise = null
@@ -70,6 +45,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get, api) => ({
 
     return initPromise
   },
+
 
   // Combine all slices
   ...createSessionSlice(set, get, api),

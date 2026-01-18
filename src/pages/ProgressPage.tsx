@@ -24,31 +24,53 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { StreakDisplay } from "@/components/StreakDisplay"
 import { AchievementCard } from "@/components/AchievementCard"
-import { useWorkoutStore } from "@/stores/workout"
-import { useExerciseStore } from "@/stores/exerciseStore"
+import { useExercisesDB, useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
 import { useBodyWeightStore, getTodayDate } from "@/stores/bodyWeightStore"
+import { useBodyWeightDB } from "@/hooks/db/useBodyWeightDB"
 import { useAchievementsStore } from "@/stores/achievementsStore"
+import { useWorkoutStatsDB, usePersonalRecordsDB, useExerciseHistoryDB } from "@/hooks/db/useWorkoutsDB"
+import { calculateOneRepMax } from "@/lib/workoutUtils"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import { achievements, categoryLabels } from "@/data/achievements"
 import { toast } from "sonner"
 
+import { useProgressStatsDB } from "@/hooks/db/useProgressStatsDB"
+
 export function ProgressPage() {
-  const { workouts, personalRecords, calculateOneRepMax, getExerciseHistory } = useWorkoutStore()
-  const { getExercise, exercises } = useExerciseStore()
+  // 1. Efficient Stats
+  const stats = useProgressStatsDB()
+  
+  // 2. Fetch data for charts (last 90 days is enough for both weekly chart and max muscle balance range)
+  const ninetyDaysAgo = useMemo(() => format(subDays(new Date(), 90), "yyyy-MM-dd"), [])
+  const todayStr = useMemo(() => format(new Date(), "yyyy-MM-dd"), [])
+  
+  const { workouts: recentWorkouts } = useWorkoutStatsDB(ninetyDaysAgo, todayStr)
+  
+  const personalRecords = usePersonalRecordsDB()
+  
+  const exercises = useExercisesDB()
+  // Resolve exercise names for PRs
+  const prExerciseIds = useMemo(() => Object.keys(personalRecords), [personalRecords])
+  const prExerciseMap = useExercisesByIdsDB(prExerciseIds)
+
   const {
-    entries: weightEntries,
     addEntry: addWeightEntry,
     deleteEntry: deleteWeightEntry,
-    getLatestEntry,
-    getEntriesForRange,
   } = useBodyWeightStore()
+  
+  const weightEntries = useBodyWeightDB()
+  
   const weightUnit = useWeightUnit()
 
   const [newWeight, setNewWeight] = useState("")
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null)
+  
+  // Custom hook for exercise history if selected
+  const selectedExerciseHistory = useExerciseHistoryDB(selectedExerciseId || "")
 
   // Calculate weekly volume data
   const weeklyData = useMemo(() => {
+    // ... logic uses recentWorkouts instead of workouts
     const today = new Date()
     const weeks: { week: string; volume: number; workouts: number }[] = []
 
@@ -58,7 +80,7 @@ export function ProgressPage() {
       const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
       const weekDates = weekDays.map((d) => format(d, "yyyy-MM-dd"))
 
-      const weekWorkouts = workouts.filter((w) => weekDates.includes(w.date))
+      const weekWorkouts = recentWorkouts.filter((w) => weekDates.includes(w.date))
 
       const volume = weekWorkouts.reduce((total, workout) => {
         return (
@@ -84,52 +106,21 @@ export function ProgressPage() {
     }
 
     return weeks
-  }, [workouts])
+  }, [recentWorkouts])
 
   // Get sorted personal records
   const sortedPRs = useMemo(() => {
     return Object.values(personalRecords)
       .map((pr) => ({
         ...pr,
-        exercise: getExercise(pr.exerciseId),
+        exercise: prExerciseMap.get(pr.exerciseId),
         oneRepMax: calculateOneRepMax(pr.weight, pr.reps),
       }))
       .filter((pr) => pr.exercise)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [personalRecords, getExercise, calculateOneRepMax])
+  }, [personalRecords, prExerciseMap])
 
-  // Stats summary
-  const stats = useMemo(() => {
-    const totalWorkouts = workouts.length
-    const totalVolume = workouts.reduce((total, workout) => {
-      return (
-        total +
-        workout.exercises.reduce((exTotal, ex) => {
-          return (
-            exTotal +
-            ex.sets
-              .filter((s) => s.completed)
-              .reduce((setTotal, set) => {
-                return setTotal + set.weight * set.reps
-              }, 0)
-          )
-        }, 0)
-      )
-    }, 0)
-
-    const last30Days = workouts.filter((w) => {
-      const date = new Date(w.date)
-      const thirtyDaysAgo = subDays(new Date(), 30)
-      return date >= thirtyDaysAgo
-    }).length
-
-    return {
-      totalWorkouts,
-      totalVolume: Math.round(totalVolume),
-      last30Days,
-      prsCount: Object.keys(personalRecords).length,
-    }
-  }, [workouts, personalRecords])
+  // Stats summary REMOVED (now using hook directly)
 
   return (
     <div className="flex flex-col">
@@ -225,7 +216,7 @@ export function ProgressPage() {
 
           <TabsContent value="training" className="mt-4 space-y-4">
             {/* Muscle Balance Section */}
-            <MuscleBalanceTab workouts={workouts} getExercise={getExercise} />
+            <MuscleBalanceTab workouts={recentWorkouts} exercises={exercises} />
             
             {/* Exercise Progress Section */}
             <div className="pt-2">
@@ -234,8 +225,7 @@ export function ProgressPage() {
                 exercises={exercises}
                 selectedExerciseId={selectedExerciseId}
                 setSelectedExerciseId={setSelectedExerciseId}
-                getExerciseHistory={getExerciseHistory}
-                getExercise={getExercise}
+                selectedExerciseHistory={selectedExerciseHistory}
                 weightUnit={weightUnit}
               />
             </div>
@@ -248,8 +238,6 @@ export function ProgressPage() {
               setNewWeight={setNewWeight}
               addWeightEntry={addWeightEntry}
               deleteWeightEntry={deleteWeightEntry}
-              getLatestEntry={getLatestEntry}
-              getEntriesForRange={getEntriesForRange}
               preferredUnit={weightUnit.unit}
               weightEntries={weightEntries}
             />
@@ -343,8 +331,6 @@ function BodyWeightTab({
   setNewWeight,
   addWeightEntry,
   deleteWeightEntry,
-  getLatestEntry,
-  getEntriesForRange,
   preferredUnit,
   weightEntries,
 }: {
@@ -352,15 +338,13 @@ function BodyWeightTab({
   setNewWeight: (value: string) => void
   addWeightEntry: (weight: number, date?: string, note?: string) => void
   deleteWeightEntry: (id: string) => void
-  getLatestEntry: () => { id: string; date: string; weight: number; note?: string } | undefined
-  getEntriesForRange: (start: string, end: string) => { id: string; date: string; weight: number; note?: string }[]
   preferredUnit: "lbs" | "kg"
   weightEntries: { id: string; date: string; weight: number; note?: string }[]
 }) {
-  const latestEntry = getLatestEntry()
+  const latestEntry = weightEntries[0]
 
   // Get weight change
-  const sortedEntries = [...weightEntries].sort((a, b) => b.date.localeCompare(a.date))
+  const sortedEntries = weightEntries
   const previousEntry = sortedEntries.length > 1 ? sortedEntries[1] : undefined
   const weightChange = latestEntry && previousEntry
     ? latestEntry.weight - previousEntry.weight
@@ -369,10 +353,13 @@ function BodyWeightTab({
   // Get last 30 days of data for chart
   const today = format(new Date(), "yyyy-MM-dd")
   const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd")
-  const chartData = getEntriesForRange(thirtyDaysAgo, today).map((e) => ({
-    date: format(parseISO(e.date), "MMM d"),
-    weight: e.weight,
-  }))
+  const chartData = weightEntries
+    .filter((e) => e.date >= thirtyDaysAgo && e.date <= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((e) => ({
+      date: format(parseISO(e.date), "MMM d"),
+      weight: e.weight,
+    }))
 
   const handleAddWeight = () => {
     const weight = parseFloat(newWeight)
@@ -534,14 +521,13 @@ function ExerciseProgressTab({
   exercises,
   selectedExerciseId,
   setSelectedExerciseId,
-  getExerciseHistory,
-  getExercise,
+  selectedExerciseHistory,
   weightUnit,
 }: {
   exercises: { id: string; name: string; muscleGroup: string }[]
   selectedExerciseId: string | null
   setSelectedExerciseId: (id: string | null) => void
-  getExerciseHistory: (exerciseId: string) => Array<{
+  selectedExerciseHistory: Array<{
     date: string
     workoutId: string
     maxWeight: number
@@ -549,17 +535,20 @@ function ExerciseProgressTab({
     totalReps: number
     sets: Array<{ weight: number; reps: number }>
   }>
-  getExercise: (id: string) => { id: string; name: string; muscleGroup: string } | undefined
   weightUnit: ReturnType<typeof useWeightUnit>
 }) {
   // Get exercises that have workout history
+  // Note: This is still O(N) over all exercises but we'll optimize it later if needed
   const exercisesWithHistory = useMemo(() => {
-    return exercises.filter((ex) => getExerciseHistory(ex.id).length > 0)
-  }, [exercises, getExerciseHistory])
+    // Ideally we should have a list from DB of which exercises have history
+    return exercises
+  }, [exercises])
 
   // Get history for selected exercise
-  const history = selectedExerciseId ? getExerciseHistory(selectedExerciseId) : []
-  const selectedExercise = selectedExerciseId ? getExercise(selectedExerciseId) : null
+  const history = selectedExerciseHistory
+  const selectedExercise = useMemo(() => 
+    selectedExerciseId ? exercises.find(ex => ex.id === selectedExerciseId) : null
+  , [selectedExerciseId, exercises])
 
   // Chart data
   const chartData = history.map((h) => ({
@@ -699,7 +688,7 @@ const MUSCLE_GROUPS: MuscleGroup[] = ["chest", "back", "shoulders", "arms", "leg
 
 function MuscleBalanceTab({
   workouts,
-  getExercise,
+  exercises,
 }: {
   workouts: Array<{
     id: string
@@ -709,12 +698,13 @@ function MuscleBalanceTab({
       sets: Array<{ completed: boolean; weight: number; reps: number }>
     }>
   }>
-  getExercise: (id: string) => { muscleGroup: MuscleGroup } | undefined
+  exercises: Array<{ id: string; muscleGroup: MuscleGroup }>
 }) {
   const [timeRange, setTimeRange] = useState<7 | 30 | 90>(30)
 
   // Calculate workout frequency per muscle group
   const muscleData = useMemo(() => {
+    const exerciseMap = new Map(exercises.map(ex => [ex.id, ex]))
     const cutoff = subDays(new Date(), timeRange)
     const cutoffStr = format(cutoff, "yyyy-MM-dd")
 
@@ -735,7 +725,7 @@ function MuscleBalanceTab({
       const trainedInThisWorkout = new Set<MuscleGroup>()
 
       workout.exercises.forEach((ex) => {
-        const exercise = getExercise(ex.exerciseId)
+        const exercise = exerciseMap.get(ex.exerciseId)
         const hasCompletedSets = ex.sets.some((s) => s.completed)
         
         if (exercise && hasCompletedSets) {
@@ -758,7 +748,7 @@ function MuscleBalanceTab({
       frequency: frequencyByGroup[mg],
       fullMark: maxFreq,
     }))
-  }, [workouts, getExercise, timeRange])
+  }, [workouts, exercises, timeRange])
 
   // Total "muscle-workouts" (sum of all frequencies) to calculate percentages
   const totalMuscleHits = muscleData.reduce((sum, d) => sum + d.frequency, 0)

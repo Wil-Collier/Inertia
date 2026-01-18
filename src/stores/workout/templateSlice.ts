@@ -1,9 +1,10 @@
 import { v4 as uuidv4 } from "uuid"
 import type { WorkoutSliceCreator, TemplateSlice, WorkoutTemplate } from "./types"
 import { db } from "@/services/db"
+import { achievementService } from "@/services/achievementService"
 import { toast } from "sonner"
 
-export const createTemplateSlice: WorkoutSliceCreator<TemplateSlice> = (set) => ({
+export const createTemplateSlice: WorkoutSliceCreator<TemplateSlice> = (_set) => ({
   createTemplate: async (name, workout) => {
     const template: WorkoutTemplate = {
       id: uuidv4(),
@@ -20,9 +21,8 @@ export const createTemplateSlice: WorkoutSliceCreator<TemplateSlice> = (set) => 
 
     try {
       await db.workoutTemplates.add(template)
-      set((state) => ({
-        templates: [...state.templates, template],
-      }))
+      // Update achievements
+      achievementService.checkWorkoutAchievements()
       return template
     } catch (error) {
       console.error("Failed to create template:", error)
@@ -34,11 +34,6 @@ export const createTemplateSlice: WorkoutSliceCreator<TemplateSlice> = (set) => 
   updateTemplate: async (id, updates) => {
     try {
       await db.workoutTemplates.update(id, updates)
-      set((state) => ({
-        templates: state.templates.map((t) =>
-          t.id === id ? { ...t, ...updates } : t
-        ),
-      }))
     } catch (error) {
       console.error("Failed to update template:", error)
       toast.error("Failed to update template")
@@ -49,9 +44,6 @@ export const createTemplateSlice: WorkoutSliceCreator<TemplateSlice> = (set) => 
   deleteTemplate: async (id) => {
     try {
       await db.workoutTemplates.delete(id)
-      set((state) => ({
-        templates: state.templates.filter((t) => t.id !== id),
-      }))
     } catch (error) {
       console.error("Failed to delete template:", error)
       toast.error("Failed to delete template")

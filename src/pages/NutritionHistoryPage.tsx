@@ -17,7 +17,7 @@ import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useNutritionStore } from "@/stores/nutritionStore"
+import { useNutritionHistory, useNutritionDatesDB } from "@/hooks/db/useNutritionDB"
 import { useSettingsStore } from "@/stores/settingsStore"
 
 type DateRange = "7d" | "30d" | "90d"
@@ -31,8 +31,6 @@ const dateRangeOptions: { value: DateRange; label: string }[] = [
 export function NutritionHistoryPage() {
   const [dateRange, setDateRange] = useState<DateRange>("30d")
 
-  const { getDailyTotalsForRange, getAveragesForRange, getLoggedDates } =
-    useNutritionStore()
   const { settings } = useSettingsStore()
   const { nutritionGoals } = settings
 
@@ -46,33 +44,25 @@ export function NutritionHistoryPage() {
     }
   }, [dateRange])
 
-  const dailyData = useMemo(
-    () => getDailyTotalsForRange(startDate, endDate),
-    [startDate, endDate, getDailyTotalsForRange]
-  )
+  const { dailyTotals, averages, isLoading } = useNutritionHistory(startDate, endDate)
+  const loggedDates = useNutritionDatesDB()
 
-  const averages = useMemo(
-    () => getAveragesForRange(startDate, endDate),
-    [startDate, endDate, getAveragesForRange]
-  )
-
-  const loggedDates = getLoggedDates()
-  const daysWithData = dailyData.filter((d) => d.calories > 0).length
+  const daysWithData = dailyTotals.filter((d) => d.calories > 0).length
 
   // Format data for charts
   const chartData = useMemo(() => {
-    return dailyData.map((day) => ({
+    return dailyTotals.map((day) => ({
       ...day,
       dateLabel: format(parseISO(day.date), "MMM d"),
       shortDate: format(parseISO(day.date), "M/d"),
     }))
-  }, [dailyData])
+  }, [dailyTotals])
 
   // Calculate trend (comparing last 7 days to previous 7 days)
   const caloriesTrend = useMemo(() => {
-    if (dailyData.length < 14) return null
-    const recent = dailyData.slice(-7)
-    const previous = dailyData.slice(-14, -7)
+    if (dailyTotals.length < 14) return null
+    const recent = dailyTotals.slice(-7)
+    const previous = dailyTotals.slice(-14, -7)
 
     const recentAvg =
       recent.reduce((s, d) => s + d.calories, 0) / recent.length
@@ -82,7 +72,18 @@ export function NutritionHistoryPage() {
     if (previousAvg === 0) return null
     const change = ((recentAvg - previousAvg) / previousAvg) * 100
     return Math.round(change)
-  }, [dailyData])
+  }, [dailyTotals])
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col">
+        <Header title="Nutrition History" showBack />
+        <div className="flex flex-1 items-center justify-center p-12">
+          <p className="text-muted-foreground">Loading history...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col">
@@ -142,7 +143,7 @@ export function NutritionHistoryPage() {
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Days Logged</p>
               <p className="text-4xl font-black tracking-tighter">{daysWithData}</p>
               <p className="text-[10px] font-medium text-muted-foreground/60 italic mt-1">
-                of {dailyData.length} days
+                of {dailyTotals.length} days
               </p>
             </CardContent>
           </Card>

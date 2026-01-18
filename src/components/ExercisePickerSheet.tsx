@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Search, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/sheet"
 import { ExerciseInfoButton } from "@/components/ExerciseInfoSheet"
 import { useExerciseStore } from "@/stores/exerciseStore"
-import type { MuscleGroup } from "@/lib/types"
+import { useExercisesDB } from "@/hooks/db/useExercisesDB"
+import type { MuscleGroup, Exercise } from "@/lib/types"
 
 const muscleGroups: MuscleGroup[] = [
   "chest",
@@ -40,10 +41,12 @@ export function ExercisePickerSheet({
   onSelect,
   addedExerciseIds = [],
 }: ExercisePickerSheetProps) {
-  const { exercises, isLoaded, init } = useExerciseStore()
+  const { isLoaded, init } = useExerciseStore()
   const [selectedMuscleGroup, setSelectedMuscleGroup] =
     useState<MuscleGroup | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+
+  const filteredExercises = useExercisesDB(searchQuery, selectedMuscleGroup || "all")
 
   // Ensure loaded when sheet opens
   useEffect(() => {
@@ -54,24 +57,6 @@ export function ExercisePickerSheet({
     }
   }, [open, isLoaded, init])
 
-  // Filter exercises by search query and muscle group
-  const filteredExercises = useMemo(() => {
-    let result = exercises
-
-    // Filter by muscle group
-    if (selectedMuscleGroup) {
-      result = result.filter((e) => e.muscleGroup === selectedMuscleGroup)
-    }
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim()
-      result = result.filter((e) => e.name.toLowerCase().includes(query))
-    }
-
-    return result
-  }, [exercises, selectedMuscleGroup, searchQuery])
-
   // Group exercises by muscle group for display
   const exercisesByGroup = filteredExercises.reduce(
     (acc, ex) => {
@@ -81,7 +66,7 @@ export function ExercisePickerSheet({
       acc[ex.muscleGroup].push(ex)
       return acc
     },
-    {} as Record<MuscleGroup, typeof exercises>
+    {} as Record<MuscleGroup, Exercise[]>
   )
 
   const handleSelect = (exerciseId: string) => {

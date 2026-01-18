@@ -3,28 +3,31 @@ import { format } from "date-fns"
 import type { WorkoutSliceCreator, SessionSlice, Workout, WorkoutExercise } from "./types"
 import type { PersonalRecord } from "@/lib/types"
 import { db } from "@/services/db"
+import { getLastPerformance } from "@/services/workoutService"
+import { achievementService } from "@/services/achievementService"
+import { calculateOneRepMax } from "@/lib/workoutUtils"
 import { toast } from "sonner"
 
 export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) => ({
   startWorkout: async (name, templateId) => {
     const template = templateId
-      ? get().templates.find((t) => t.id === templateId)
+      ? await db.workoutTemplates.get(templateId)
       : undefined
 
     const exercises: WorkoutExercise[] = template
-      ? template.exercises.map((te) => {
+      ? await Promise.all(template.exercises.map(async (te) => {
           // Check for last performance to enable progressive overload
-          const lastPerformance = get().getLastPerformance(te.exerciseId)
+          const lastPerf = await getLastPerformance(te.exerciseId)
 
-          if (lastPerformance && lastPerformance.sets.length > 0) {
+          if (lastPerf && lastPerf.sets.length > 0) {
             // Use last performance data, but match template set count
             const targetSetCount = te.targetSets
-            const lastSets = lastPerformance.sets
+            const lastSets = lastPerf.sets
 
             return {
               id: uuidv4(),
               exerciseId: te.exerciseId,
-              lastPerformanceDate: lastPerformance.date,
+              lastPerformanceDate: lastPerf.date,
               sets: Array.from({ length: targetSetCount }, (_, i) => {
                 const lastSetData = lastSets[Math.min(i, lastSets.length - 1)]
                 const baseWeight = lastSetData?.weight ?? te.targetWeight ?? 0
@@ -51,7 +54,7 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
               completed: false,
             })),
           }
-        })
+        }))
       : []
 
     const workout: Workout = {
@@ -100,24 +103,28 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
       ...session.workout,
       duration,
       completedAt: new Date().toISOString(),
+      exerciseIds: session.workout.exercises.map(e => e.exerciseId),
     }
 
     // Calculate personal records
-    const newRecords = { ...get().personalRecords }
     const prsToUpdate: Record<string, PersonalRecord> = {}
+
+    // We need to fetch current PRs to compare
+    const exerciseIds = completedWorkout.exercises.map(e => e.exerciseId)
+    const currentPrs = await db.personalRecords.where("exerciseId").anyOf(exerciseIds).toArray()
+    const prMap = new Map(currentPrs.map(pr => [pr.exerciseId, pr]))
 
     completedWorkout.exercises.forEach((we) => {
       we.sets
         .filter((s) => s.completed && s.weight > 0 && s.reps > 0)
         .forEach((s) => {
-          const oneRepMax = get().calculateOneRepMax(s.weight, s.reps)
-          const currentRecord = newRecords[we.exerciseId]
+          const oneRepMax = calculateOneRepMax(s.weight, s.reps)
+          const currentRecord = prMap.get(we.exerciseId)
           const currentMax = currentRecord
-            ? get().calculateOneRepMax(currentRecord.weight, currentRecord.reps)
+            ? calculateOneRepMax(currentRecord.weight, currentRecord.reps)
             : 0
 
           if (oneRepMax > currentMax) {
-            // DB uses exerciseId as primary key - one PR per exercise (current max)
             const newPr: PersonalRecord = {
               exerciseId: we.exerciseId,
               weight: s.weight,
@@ -125,7 +132,7 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
               date: completedWorkout.date,
               workoutId: completedWorkout.id,
             }
-            newRecords[we.exerciseId] = newPr
+            prMap.set(we.exerciseId, newPr) // Update local map for next set of same exercise
             prsToUpdate[we.exerciseId] = newPr
           }
         })
@@ -143,11 +150,13 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
         await db.activeSession.delete("current")
       })
 
-      set((state) => ({
-        workouts: [...state.workouts, completedWorkout],
+      set({
         activeSession: null,
-        personalRecords: newRecords,
-      }))
+      })
+
+      // Update achievements
+      achievementService.checkWorkoutAchievements()
+      achievementService.updateStreaks()
 
       return completedWorkout
     } catch (error) {
@@ -158,19 +167,19 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
   },
 
   addExerciseToWorkout: async (exerciseId) => {
-    const lastPerformance = get().getLastPerformance(exerciseId)
+    const lastPerf = await getLastPerformance(exerciseId)
     const session = get().activeSession
     if (!session) return
 
     let newExercise: WorkoutExercise
 
-    if (lastPerformance && lastPerformance.sets.length > 0) {
+    if (lastPerf && lastPerf.sets.length > 0) {
       // Pre-fill with last performance data
       newExercise = {
         id: uuidv4(),
         exerciseId,
-        lastPerformanceDate: lastPerformance.date,
-        sets: lastPerformance.sets.map((s) => ({
+        lastPerformanceDate: lastPerf.date,
+        sets: lastPerf.sets.map((s) => ({
           id: uuidv4(),
           reps: s.reps,
           weight: s.weight,

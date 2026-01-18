@@ -44,17 +44,23 @@ export class TrainingAppDatabase extends Dexie {
       exercises: "id, name, muscleGroup, category",
       workoutSessions: "id, date, templateId, completedAt",
       workoutTemplates: "id, name",
-      personalRecords: "exerciseId, date", // exerciseId is primary key (one PR per exercise)
+      personalRecords: "exerciseId, date",
       
       foods: "id, name, brand",
-      nutritionLogs: "date", // Primary key is date string (YYYY-MM-DD)
+      nutritionLogs: "date",
       mealTemplates: "id, name",
       
-      settings: "id", // Singleton, usually id="settings"
+      settings: "id",
       bodyWeight: "id, date",
-      achievements: "id", // Singleton
-      restTimer: "id", // Singleton
-      activeSession: "id" // Singleton, usually id="current"
+      achievements: "id",
+      restTimer: "id",
+      activeSession: "id"
+    })
+
+    // Version 2: Added indexes for better filtering
+    this.version(2).stores({
+      foods: "id, name, brand, isFavorite, isCustom",
+      workoutSessions: "id, date, templateId, completedAt, *exerciseIds",
     })
   }
 }

@@ -45,6 +45,7 @@ export interface Workout {
   date: string // ISO date string
   name: string
   exercises: WorkoutExercise[]
+  exerciseIds?: string[] // For faster indexing/querying
   duration?: number // minutes
   completedAt?: string // ISO timestamp when completed
 }

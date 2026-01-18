@@ -22,9 +22,6 @@ export function AppInitializer({ children }: AppInitializerProps) {
   const settingsInitialized = useSettingsStore((s) => s.isInitialized)
   const exercisesInitialized = useExerciseStore((s) => s.isLoaded)
   const workoutsInitialized = useWorkoutStore((s) => s.isInitialized)
-  const nutritionInitialized = useNutritionStore((s) => s.isInitialized)
-  const bodyWeightInitialized = useBodyWeightStore((s) => s.isInitialized)
-  const achievementsInitialized = useAchievementsStore((s) => s.isInitialized)
 
   // Trigger initialization on mount
   useEffect(() => {
@@ -44,10 +41,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
   const allInitialized =
     settingsInitialized &&
     exercisesInitialized &&
-    workoutsInitialized &&
-    nutritionInitialized &&
-    bodyWeightInitialized &&
-    achievementsInitialized
+    workoutsInitialized
 
   if (isInitializing) {
     return <PageLoader />
