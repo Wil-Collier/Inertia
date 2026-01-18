@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Scale, TrendingUp, TrendingDown, Minus, Plus } from "lucide-react"
+import { Scale, TrendingUp, TrendingDown, Minus, Plus, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { useBodyWeightStore, getTodayDate } from "@/stores/bodyWeightStore"
 import { useBodyWeightDB } from "@/hooks/db/useBodyWeightDB"
@@ -23,6 +23,7 @@ export function WeightCard() {
   const weightUnit = useWeightUnit()
   const [open, setOpen] = useState(false)
   const [weight, setWeight] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
   
   const latestEntry = sortedEntries[0]
   const previousEntry = sortedEntries[1]
@@ -31,17 +32,24 @@ export function WeightCard() {
     ? latestEntry.weight - previousEntry.weight 
     : 0
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const val = parseFloat(weight)
     if (isNaN(val) || val <= 0) {
       toast.error("Please enter a valid weight")
       return
     }
     
-    addEntry(val, getTodayDate())
-    toast.success("Weight logged successfully!")
-    setWeight("")
-    setOpen(false)
+    try {
+      setIsLoading(true)
+      await addEntry(val, getTodayDate())
+      toast.success("Weight logged successfully!")
+      setWeight("")
+      setOpen(false)
+    } catch {
+      // Error is handled by store
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -107,6 +115,7 @@ export function WeightCard() {
                       onChange={(e) => setWeight(e.target.value)}
                       className="text-lg py-6 pr-12"
                       autoFocus
+                      disabled={isLoading}
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
                       {weightUnit.unitLabel}
@@ -114,8 +123,11 @@ export function WeightCard() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                  <Button onClick={handleSave}>Save Weight</Button>
+                  <Button variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>Cancel</Button>
+                  <Button onClick={handleSave} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Weight
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

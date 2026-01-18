@@ -84,17 +84,32 @@ export function ExercisePickerSheet({
   const [selectedMuscleGroup, setSelectedMuscleGroup] =
     useState<MuscleGroup | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedQuery, setDebouncedQuery] = useState("")
 
-  const filteredExercises = useExercisesDB(searchQuery, selectedMuscleGroup || "all")
+  const filteredExercises = useExercisesDB(debouncedQuery, selectedMuscleGroup || "all")
 
   // Ensure loaded when sheet opens
   useEffect(() => {
+    let isMounted = true
     if (open && !isLoaded) {
       init().catch(() => {
-        toast.error("Failed to load exercises")
+        if (isMounted) {
+          toast.error("Failed to load exercises")
+        }
       })
     }
+    return () => {
+      isMounted = false
+    }
   }, [open, isLoaded, init])
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   // Group exercises by muscle group for display
   const exercisesByGroup = useMemo(() => {

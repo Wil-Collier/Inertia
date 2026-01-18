@@ -8,21 +8,32 @@ export function DevSeedingHandler() {
   const [isSeeding, setIsSeeding] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
+
     if (import.meta.env.DEV && searchParams.get("seed") === "true") {
       const runSeed = async () => {
         setIsSeeding(true)
         try {
           await seedTestData()
+          
+          if (!isMounted) return
+
           // Remove the seed param and reload to ensure all stores are fresh
           searchParams.delete("seed")
           setSearchParams(searchParams)
           window.location.reload()
         } catch (error) {
           console.error("Seeding failed:", error)
-          setIsSeeding(false)
+          if (isMounted) {
+            setIsSeeding(false)
+          }
         }
       }
       runSeed()
+    }
+
+    return () => {
+      isMounted = false
     }
   }, [searchParams, setSearchParams])
 
