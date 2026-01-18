@@ -14,6 +14,10 @@ export function useElapsedTime({ startedAt }: UseElapsedTimeOptions): UseElapsed
 
   useEffect(() => {
     const startTime = new Date(startedAt).getTime()
+    if (isNaN(startTime)) {
+      setElapsedSeconds(0)
+      return
+    }
     
     const updateElapsed = () => {
       const now = Date.now()

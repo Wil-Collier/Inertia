@@ -22,7 +22,7 @@ import type { Workout } from "@/lib/types"
 
 export function WorkoutHistory() {
   const { deleteWorkout } = useWorkoutStore()
-  const workouts = useWorkoutsDB()
+  const { data: workouts, isLoading } = useWorkoutsDB()
   
   // Resolve all exercise names in history
   const allExerciseIds = useMemo(() => {
@@ -80,7 +80,11 @@ export function WorkoutHistory() {
 
       <ScrollArea className="flex-1">
         <div className="space-y-6 p-4">
-          {sortedWorkouts.length === 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center py-12 text-muted-foreground">
+              Loading history...
+            </div>
+          ) : sortedWorkouts.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <Dumbbell className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />

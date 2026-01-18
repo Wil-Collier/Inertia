@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import { toast } from "sonner"
 import { useNavigate, Navigate } from "react-router-dom"
 import {
@@ -134,18 +134,21 @@ export function ActiveWorkout() {
       await addExerciseToWorkout(exerciseId)
     } catch {
       toast.error("Failed to add exercise")
-      return
     }
+  }, [addExerciseToWorkout])
 
-    // Expand the newly added exercise (read latest state to avoid stale closure)
-    setTimeout(() => {
-      const latestWorkout = useWorkoutStore.getState().activeSession?.workout
-      const newExercise = latestWorkout?.exercises.at(-1)
+  // Automatically expand newly added exercises
+  const [prevExerciseCount, setPrevExerciseCount] = useState(workout?.exercises.length ?? 0)
+
+  useEffect(() => {
+    if (workout && workout.exercises.length > prevExerciseCount) {
+      const newExercise = workout.exercises.at(-1)
       if (newExercise) {
         setExpandedExercises((prev) => new Set([...prev, newExercise.id]))
       }
-    }, 0)
-  }, [addExerciseToWorkout])
+    }
+    setPrevExerciseCount(workout?.exercises.length ?? 0)
+  }, [workout?.exercises.length, prevExerciseCount, workout])
 
   const completedSets = useMemo(() => {
     return workout?.exercises.reduce(

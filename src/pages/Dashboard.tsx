@@ -23,7 +23,7 @@ export function Dashboard() {
 
   const activeSession = useWorkoutStore((s) => s.activeSession)
   const { totals } = useDailyNutrition(today)
-  const todayWorkouts = useWorkoutsDB(today)
+  const { data: todayWorkouts, isLoading: isWorkoutsLoading } = useWorkoutsDB(today)
   const nutritionGoals = useSettingsStore((s) => s.settings.nutritionGoals)
   const { unlockedAchievements } = useAchievementsStore()
 
@@ -225,7 +225,11 @@ export function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-2">
-            {todayWorkouts.length === 0 ? (
+            {isWorkoutsLoading ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Loading today's workouts...
+              </div>
+            ) : todayWorkouts.length === 0 ? (
               <div className="py-6 text-center space-y-2">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <Dumbbell className="h-6 w-6" />

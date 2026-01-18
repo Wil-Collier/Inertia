@@ -65,120 +65,130 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   setTheme: async (theme) => {
+    const previousSettings = get().settings
+    set((state) => ({
+      settings: { ...state.settings, theme }
+    }))
+
     try {
       await db.settings.update("settings", { theme })
-      set((state) => ({ settings: { ...state.settings, theme } }))
     } catch (error) {
       console.error("Failed to set theme:", error)
       toast.error("Failed to save theme setting")
-      throw error
+      set({ settings: previousSettings })
     }
   },
 
   setNutritionGoals: async (goals) => {
+    const previousSettings = get().settings
+    set((state) => ({
+      settings: { ...state.settings, nutritionGoals: goals }
+    }))
+
     try {
       await db.settings.update("settings", { nutritionGoals: goals })
-      set((state) => ({ settings: { ...state.settings, nutritionGoals: goals } }))
     } catch (error) {
       console.error("Failed to set nutrition goals:", error)
       toast.error("Failed to save nutrition goals")
-      throw error
+      set({ settings: previousSettings })
     }
   },
 
   updateNutritionGoal: async (key, value) => {
-    const currentGoals = get().settings.nutritionGoals
-    const newGoals = { ...currentGoals, [key]: value }
+    const previousSettings = get().settings
+    const newGoals = { ...previousSettings.nutritionGoals, [key]: value }
+
+    set((state) => ({
+      settings: { ...state.settings, nutritionGoals: newGoals }
+    }))
+
     try {
       await db.settings.update("settings", { nutritionGoals: newGoals })
-      set((state) => ({
-        settings: {
-          ...state.settings,
-          nutritionGoals: newGoals,
-        },
-      }))
     } catch (error) {
       console.error("Failed to update nutrition goal:", error)
       toast.error("Failed to save nutrition goal")
-      throw error
+      set({ settings: previousSettings })
     }
   },
 
   setRestTimerDuration: async (seconds) => {
+    const previousSettings = get().settings
+    set((state) => ({
+      settings: { ...state.settings, restTimerDuration: seconds }
+    }))
+
     try {
       await db.settings.update("settings", { restTimerDuration: seconds })
-      set((state) => ({
-        settings: { ...state.settings, restTimerDuration: seconds },
-      }))
     } catch (error) {
       console.error("Failed to set rest timer:", error)
       toast.error("Failed to save rest timer setting")
-      throw error
+      set({ settings: previousSettings })
     }
   },
 
   setWeightUnit: async (unit) => {
-    const newPrefs = { ...get().settings.unitPreferences, weight: unit }
+    const previousSettings = get().settings
+    const newPrefs = { ...previousSettings.unitPreferences, weight: unit }
+
+    set((state) => ({
+      settings: { ...state.settings, unitPreferences: newPrefs }
+    }))
+
     try {
       await db.settings.update("settings", { unitPreferences: newPrefs })
-      set((state) => ({
-        settings: {
-          ...state.settings,
-          unitPreferences: newPrefs,
-        },
-      }))
     } catch (error) {
       console.error("Failed to set weight unit:", error)
       toast.error("Failed to save weight unit setting")
-      throw error
+      set({ settings: previousSettings })
     }
   },
 
   setDistanceUnit: async (unit) => {
-    const newPrefs = { ...get().settings.unitPreferences, distance: unit }
+    const previousSettings = get().settings
+    const newPrefs = { ...previousSettings.unitPreferences, distance: unit }
+
+    set((state) => ({
+      settings: { ...state.settings, unitPreferences: newPrefs }
+    }))
+
     try {
       await db.settings.update("settings", { unitPreferences: newPrefs })
-      set((state) => ({
-        settings: {
-          ...state.settings,
-          unitPreferences: newPrefs,
-        },
-      }))
     } catch (error) {
       console.error("Failed to set distance unit:", error)
       toast.error("Failed to save distance unit setting")
-      throw error
+      set({ settings: previousSettings })
     }
   },
 
   setUnitPreferences: async (prefs) => {
-    const newPrefs = { ...get().settings.unitPreferences, ...prefs }
-    
+    const previousSettings = get().settings
+    const newPrefs = { ...previousSettings.unitPreferences, ...prefs }
+
+    set((state) => ({
+      settings: { ...state.settings, unitPreferences: newPrefs }
+    }))
+
     try {
       await db.settings.update("settings", { unitPreferences: newPrefs })
-      set((state) => ({
-        settings: {
-          ...state.settings,
-          unitPreferences: newPrefs,
-        },
-      }))
     } catch (error) {
       console.error("Failed to set unit preferences:", error)
       toast.error("Failed to save unit preferences")
-      throw error
+      set({ settings: previousSettings })
     }
   },
 
   setNotificationsEnabled: async (enabled) => {
+    const previousSettings = get().settings
+    set((state) => ({
+      settings: { ...state.settings, notificationsEnabled: enabled }
+    }))
+
     try {
       await db.settings.update("settings", { notificationsEnabled: enabled })
-      set((state) => ({
-        settings: { ...state.settings, notificationsEnabled: enabled },
-      }))
     } catch (error) {
       console.error("Failed to set notifications:", error)
       toast.error("Failed to save notification setting")
-      throw error
+      set({ settings: previousSettings })
     }
   },
 

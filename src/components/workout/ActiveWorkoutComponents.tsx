@@ -26,7 +26,7 @@ interface DebouncedInputProps extends Omit<React.ComponentProps<typeof Input>, "
 }
 
 export function DebouncedInput({ value, onChange, parseValue, ...props }: DebouncedInputProps) {
-  const [localValue, setLocalValue] = useState(value ? value.toString() : "")
+  const [localValue, setLocalValue] = useState(value !== undefined && value !== null ? value.toString() : "")
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -34,7 +34,7 @@ export function DebouncedInput({ value, onChange, parseValue, ...props }: Deboun
   useEffect(() => {
     const isFocused = document.activeElement === inputRef.current
     if (!isFocused) {
-      setLocalValue(value ? value.toString() : "")
+      setLocalValue(value !== undefined && value !== null ? value.toString() : "")
     }
   }, [value])
 

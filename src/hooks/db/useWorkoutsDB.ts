@@ -6,12 +6,17 @@ import type { PersonalRecord, Workout } from "@/lib/types"
  * Hook for fetching workouts by date or recent history.
  */
 export function useWorkoutsDB(date?: string, limit: number = 20) {
-  return useLiveQuery(async () => {
+  const data = useLiveQuery(async () => {
     if (date) {
       return await db.workoutSessions.where("date").equals(date).toArray()
     }
     return await db.workoutSessions.orderBy("date").reverse().limit(limit).toArray()
-  }, [date, limit]) ?? []
+  }, [date, limit])
+
+  return {
+    data: data ?? [],
+    isLoading: data === undefined,
+  }
 }
 
 /**

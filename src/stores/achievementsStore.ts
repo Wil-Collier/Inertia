@@ -275,13 +275,18 @@ export const useAchievementsStore = create<AchievementsStore>((set, get) => ({
       lastNutritionDate: sortedNutritionDates[0] || null,
     }
 
-    set({ streaks: newStreaks })
-    // Use put() to ensure the record exists (upsert behavior)
-    await db.achievements.put({
-      id: "achievements",
-      unlockedAchievements: get().unlockedAchievements,
-      streaks: newStreaks,
-    })
+    try {
+      // Use put() to ensure the record exists (upsert behavior)
+      await db.achievements.put({
+        id: "achievements",
+        unlockedAchievements: get().unlockedAchievements,
+        streaks: newStreaks,
+      })
+      
+      set({ streaks: newStreaks })
+    } catch (error) {
+      console.error("Failed to save recalculated streaks:", error)
+    }
   },
 
   checkWorkoutAchievements: (stats) => {

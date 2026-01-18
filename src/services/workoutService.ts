@@ -5,7 +5,13 @@ import type { LastPerformance } from "@/lib/types"
  * Get the last performance for an exercise (for progressive overload)
  */
 export async function getLastPerformance(exerciseId: string): Promise<LastPerformance | null> {
-  const sessions = await db.workoutSessions.orderBy("date").reverse().toArray()
+  const sessions = await db.workoutSessions
+    .where("exerciseIds")
+    .equals(exerciseId)
+    .toArray()
+
+  // Sort by date descending
+  sessions.sort((a, b) => b.date.localeCompare(a.date))
 
   for (const workout of sessions) {
     const workoutExercise = workout.exercises.find(
