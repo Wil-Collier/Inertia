@@ -1,5 +1,4 @@
 import { v4 as uuidv4 } from "uuid"
-import { format } from "date-fns"
 import type { WorkoutSliceCreator, SessionSlice, Workout, WorkoutExercise, WorkoutSet, ActiveWorkoutSession } from "./types"
 import type { PersonalRecord } from "@/lib/types"
 import { db } from "@/services/db"
@@ -7,6 +6,8 @@ import { getLastPerformance } from "@/services/workoutService"
 import { achievementService } from "@/services/achievementService"
 import { workoutSessionService } from "@/services/workoutSessionService"
 import { calculateOneRepMax } from "@/lib/workoutUtils"
+import { getToday } from "@/lib/dateUtils"
+import { performOptimisticUpdate } from "@/lib/storeUtils"
 import { toast } from "sonner"
 
 export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) => {
@@ -15,26 +16,15 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
     updater: (session: ActiveWorkoutSession) => ActiveWorkoutSession,
     errorMsg: string = "Failed to save changes"
   ) => {
-    const previousSession = get().activeSession
-    if (!previousSession) return
-
-    // 1. Optimistic update
-    set((state) => {
-      if (!state.activeSession) return state
-      return { activeSession: updater(state.activeSession) }
-    })
-
-    // 2. Persist
     const currentSession = get().activeSession
-    if (currentSession) {
-      try {
-        await workoutSessionService.saveActiveSession(currentSession)
-      } catch (error) {
-        console.error(`${errorMsg}:`, error)
-        toast.error(errorMsg)
-        set({ activeSession: previousSession })
-      }
-    }
+    
+    await performOptimisticUpdate(
+      currentSession,
+      (newSession) => set({ activeSession: newSession }),
+      (newSession) => workoutSessionService.saveActiveSession(newSession),
+      updater,
+      errorMsg
+    )
   }
 
   return {
@@ -85,7 +75,7 @@ export const createSessionSlice: WorkoutSliceCreator<SessionSlice> = (set, get) 
 
       const workout: Workout = {
         id: uuidv4(),
-        date: format(new Date(), "yyyy-MM-dd"),
+        date: getToday(),
         name,
         exercises,
       }

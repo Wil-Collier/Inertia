@@ -68,15 +68,27 @@ export async function importData(file: File): Promise<{ success: boolean; messag
 
 export async function clearAllData(): Promise<void> {
   try {
+    // Close any active connections first
+    db.close()
+    
+    // Delete the database
     await db.delete()
+    
+    // Reopen the database to ensure schema is recreated
+    // This is critical for Safari which may not complete deletion properly
+    await db.open()
     
     // Clear localStorage (old data)
     localStorage.clear()
+
+    // Small delay to ensure Safari has fully committed the database state
+    // Safari has known issues with IndexedDB operations not completing before page unload
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     // Reload page to re-init empty DB and stores
     window.location.reload()
   } catch (error) {
     console.error("Clear data failed:", error)
-    alert("Failed to clear data")
+    throw error
   }
 }

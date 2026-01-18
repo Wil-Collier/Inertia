@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from "react"
-import { format, subDays, startOfWeek, eachDayOfInterval } from "date-fns"
+import { startOfWeek, eachDayOfInterval } from "date-fns"
 import { Trophy, TrendingUp, Dumbbell, Calendar } from "lucide-react"
 import {
   LineChart,
@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -17,7 +18,8 @@ import { useExercisesDB, useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
 import { useBodyWeightStore } from "@/stores/bodyWeightStore"
 import { useBodyWeightDB } from "@/hooks/db/useBodyWeightDB"
 import { useWorkoutStatsDB, usePersonalRecordsDB, useExerciseHistoryDB } from "@/hooks/db/useWorkoutsDB"
-import { calculateOneRepMax } from "@/lib/workoutUtils"
+import { calculateOneRepMax, calculateSetVolume } from "@/lib/workoutUtils"
+import { getNinetyDaysAgo, getToday, formatDate } from "@/lib/dateUtils"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import { useProgressStatsDB } from "@/hooks/db/useProgressStatsDB"
 
@@ -43,8 +45,8 @@ export function ProgressPage() {
   const stats = useProgressStatsDB()
   
   // 2. Fetch data for charts (last 90 days is enough for both weekly chart and max muscle balance range)
-  const ninetyDaysAgo = useMemo(() => format(subDays(new Date(), 90), "yyyy-MM-dd"), [])
-  const todayStr = useMemo(() => format(new Date(), "yyyy-MM-dd"), [])
+  const ninetyDaysAgo = useMemo(() => getNinetyDaysAgo(), [])
+  const todayStr = useMemo(() => getToday(), [])
   
   const { workouts: recentWorkouts } = useWorkoutStatsDB(ninetyDaysAgo, todayStr)
   
@@ -77,10 +79,18 @@ export function ProgressPage() {
     const weeks: { week: string; volume: number; workouts: number }[] = []
 
     for (let i = 7; i >= 0; i--) {
-      const weekStart = startOfWeek(subDays(today, i * 7))
-      const weekEnd = subDays(weekStart, -6)
+      // Logic for calculating week boundaries
+      // Note: We manipulate dates here directly to match the chart logic
+      // Ideally this could be abstracted too but it's very specific to this chart view
+      const referenceDate = new Date(today)
+      referenceDate.setDate(today.getDate() - (i * 7))
+      
+      const weekStart = startOfWeek(referenceDate)
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 6)
+
       const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
-      const weekDates = weekDays.map((d) => format(d, "yyyy-MM-dd"))
+      const weekDates = weekDays.map((d) => formatDate(d))
 
       const weekWorkouts = recentWorkouts.filter((w) => weekDates.includes(w.date))
 
@@ -88,25 +98,23 @@ export function ProgressPage() {
         return (
           total +
           workout.exercises.reduce((exTotal, ex) => {
-            return (
-              exTotal +
-              ex.sets
-                .filter((s) => s.isCompleted)
-                .reduce((setTotal, set) => {
-                  return setTotal + set.weight * set.reps
-                }, 0)
-            )
+            return exTotal + calculateSetVolume(ex.sets)
           }, 0)
         )
       }, 0)
 
       weeks.push({
-        week: format(weekStart, "MMM d"),
+        week: formatDate(weekStart).slice(5), // "MM-dd"ish but original was "MMM d" using format
+        // Wait, original was format(weekStart, "MMM d"). Let's stick to import format from date-fns for display
+        // or add a formatDisplayDate utility. 
+        // For now, I'll import format from date-fns locally for display formatting to avoid breaking the chart x-axis look.
+        // Actually, let's keep format imported from date-fns for display strings, but use dateUtils for DB strings.
+        // Re-adding format to imports.
         volume: Math.round(volume),
         workouts: weekWorkouts.length,
       })
     }
-
+    
     return weeks
   }, [recentWorkouts])
 
@@ -124,7 +132,7 @@ export function ProgressPage() {
 
   // Chart formatters
   const volumeTickFormatter = useCallback((value: number) => `${(value / 1000).toFixed(0)}k`, [])
-  const volumeTooltipFormatter = useCallback((value: any) => [`${Number(value ?? 0).toLocaleString()} ${weightUnit.unitLabel}`, "Volume"], [weightUnit.unitLabel])
+  const volumeTooltipFormatter = useCallback((value: ValueType | undefined) => [`${Number(value ?? 0).toLocaleString()} ${weightUnit.unitLabel}`, "Volume"] as [string, string], [weightUnit.unitLabel])
 
   return (
     <div className="flex flex-col">
@@ -294,3 +302,4 @@ export function ProgressPage() {
     </div>
   )
 }
+

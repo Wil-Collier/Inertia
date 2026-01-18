@@ -146,7 +146,7 @@ export async function seedTestData() {
 
 // Attach to window for console access
 if (typeof window !== "undefined") {
-  (window as any).antigravity = {
+  window.antigravity = {
     seed: async () => {
       await seedTestData()
       window.location.reload()

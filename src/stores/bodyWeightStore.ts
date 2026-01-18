@@ -1,9 +1,9 @@
 import { create } from "zustand"
 import type { WeightEntry } from "@/lib/types"
 import { v4 as uuidv4 } from "uuid"
-import { format } from "date-fns"
 import { db } from "@/services/db"
 import { toast } from "sonner"
+import { getToday } from "@/lib/dateUtils"
 
 interface BodyWeightStore {
   isInitialized: boolean
@@ -24,7 +24,7 @@ export const useBodyWeightStore = create<BodyWeightStore>((set, get) => ({
   },
 
   addEntry: async (weight, date, note) => {
-    const entryDate = date || format(new Date(), "yyyy-MM-dd")
+    const entryDate = date || getToday()
     
     // Check if entry for this date already exists
     const existingEntry = await db.bodyWeight.where("date").equals(entryDate).first()
@@ -73,4 +73,5 @@ export const useBodyWeightStore = create<BodyWeightStore>((set, get) => ({
 }))
 
 // Helper to get today's date formatted
-export const getTodayDate = () => format(new Date(), "yyyy-MM-dd")
+export const getTodayDate = getToday
+

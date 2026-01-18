@@ -17,8 +17,8 @@ export const workoutSessionService = {
       if (!data) return undefined
       
       // Remove the 'id' field used for Dexie primary key
-      const { id: _, ...session } = data as any
-      return session as ActiveWorkoutSession
+      const { id: _, ...session } = data
+      return session
     } catch (error) {
       console.error("Failed to get active session:", error)
       return undefined

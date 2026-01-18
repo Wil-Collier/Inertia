@@ -1,6 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks"
 import { db } from "@/services/db"
-import { subDays } from "date-fns"
+import { getThirtyDaysAgo } from "@/lib/dateUtils"
+import { calculateWorkoutVolume } from "@/lib/workoutUtils"
 
 export function useProgressStatsDB() {
   return useLiveQuery(async () => {
@@ -8,7 +9,7 @@ export function useProgressStatsDB() {
     const totalWorkouts = await db.workoutSessions.count()
 
     // 2. Last 30 Days Count
-    const thirtyDaysAgo = subDays(new Date(), 30).toISOString()
+    const thirtyDaysAgo = getThirtyDaysAgo()
     const last30Days = await db.workoutSessions
       .where("date")
       .aboveOrEqual(thirtyDaysAgo)
@@ -26,19 +27,7 @@ export function useProgressStatsDB() {
     const allWorkouts = await db.workoutSessions.toArray()
     
     const totalVolume = allWorkouts.reduce((total, workout) => {
-      return (
-        total +
-        workout.exercises.reduce((exTotal, ex) => {
-          return (
-            exTotal +
-            ex.sets
-              .filter((s) => s.isCompleted)
-              .reduce((setTotal, set) => {
-                return setTotal + set.weight * set.reps
-              }, 0)
-          )
-        }, 0)
-      )
+      return total + calculateWorkoutVolume(workout)
     }, 0)
 
     // 4. PR Count
@@ -57,3 +46,4 @@ export function useProgressStatsDB() {
     prsCount: 0,
   }
 }
+

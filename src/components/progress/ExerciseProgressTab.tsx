@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 
@@ -56,7 +57,7 @@ export function ExerciseProgressTab({
     volume: h.totalVolume,
   }))
 
-  const exerciseTooltipFormatter = useCallback((value: any) => [`${String(value ?? 0)} ${weightUnit.unitLabel}`, "Max Weight"], [weightUnit.unitLabel])
+  const exerciseTooltipFormatter = useCallback((value: ValueType | undefined) => [`${String(value ?? 0)} ${weightUnit.unitLabel}`, "Max Weight"] as [string, string], [weightUnit.unitLabel])
   const exerciseDomain = useMemo(() => ["dataMin - 5", "dataMax + 5"] as [string, string], [])
 
   return (

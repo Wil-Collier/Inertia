@@ -73,9 +73,9 @@ export const WorkoutExerciseCard = memo(({
               </CardTitle>
               {exercise && <ExerciseInfoButton exercise={exercise} />}
             </div>
-            {hasLastPerformance && (
+            {hasLastPerformance && workoutExercise.lastPerformanceDate && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                Last: {format(parseISO(workoutExercise.lastPerformanceDate!), "MMM d")}
+                Last: {format(parseISO(workoutExercise.lastPerformanceDate), "MMM d")}
               </p>
             )}
           </div>

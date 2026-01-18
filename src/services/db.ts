@@ -67,6 +67,58 @@ export class TrainingAppDatabase extends Dexie {
 
 export const db = new TrainingAppDatabase()
 
+/**
+ * Check if the database is healthy by performing a simple query.
+ * Returns true if healthy, false if corrupted.
+ */
+export async function isDatabaseHealthy(): Promise<boolean> {
+  try {
+    // Try a simple operation that would fail on a corrupted database
+    await db.settings.count()
+    return true
+  } catch (error) {
+    console.error("Database health check failed:", error)
+    return false
+  }
+}
+
+/**
+ * Attempt to recover from a corrupted database state.
+ * This deletes the database and recreates it fresh.
+ */
+export async function recoverDatabase(): Promise<void> {
+  console.log("Attempting database recovery...")
+  
+  try {
+    db.close()
+  } catch {
+    // Ignore close errors
+  }
+  
+  try {
+    // Use the native IndexedDB API to ensure complete deletion
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase("TrainingAppDB")
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+      request.onblocked = () => {
+        console.warn("Database deletion blocked, forcing...")
+        resolve()
+      }
+    })
+  } catch (error) {
+    console.error("Failed to delete database via IndexedDB API:", error)
+  }
+  
+  try {
+    await db.open()
+    console.log("Database recovery successful")
+  } catch (error) {
+    console.error("Failed to reopen database after recovery:", error)
+    throw error
+  }
+}
+
 // Export helpers
 export async function exportDatabase() {
   const blob = await db.export()

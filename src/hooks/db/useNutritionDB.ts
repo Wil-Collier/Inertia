@@ -1,10 +1,13 @@
 import { useLiveQuery } from "dexie-react-hooks"
 import { db } from "@/services/db"
 import type { FoodItem, MealEntry } from "@/lib/types"
+import { calculateNutritionTotals, calculateNutritionAverages } from "@/lib/nutritionUtils"
 
 export interface MealEntryWithFood extends MealEntry {
   food: FoodItem | undefined
 }
+
+const EMPTY_TOTALS = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }
 
 /**
  * Hook for fetching a single day's nutrition data and totals.
@@ -12,7 +15,7 @@ export interface MealEntryWithFood extends MealEntry {
 export function useDailyNutrition(date: string) {
   return useLiveQuery(async () => {
     const log = await db.nutritionLogs.get(date)
-    if (!log) return { log: null, totals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }, entriesWithFood: [], isLoading: false }
+    if (!log) return { log: null, totals: EMPTY_TOTALS, entriesWithFood: [], isLoading: false }
 
     // Fetch foods for all entries to calculate totals
     const foodIds = [...new Set(log.entries.map((e) => e.foodId))]
@@ -24,24 +27,10 @@ export function useDailyNutrition(date: string) {
       food: foodsById.get(entry.foodId)
     }))
 
-    const totals = log.entries.reduce(
-      (acc, entry) => {
-        const food = foodsById.get(entry.foodId)
-        if (!food) return acc
-        return {
-          calories: acc.calories + food.calories * entry.quantity,
-          protein: acc.protein + food.protein * entry.quantity,
-          carbs: acc.carbs + food.carbs * entry.quantity,
-          fat: acc.fat + food.fat * entry.quantity,
-          fiber: acc.fiber + (food.fiber ?? 0) * entry.quantity,
-          sugar: acc.sugar + (food.sugar ?? 0) * entry.quantity,
-        }
-      },
-      { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }
-    )
+    const totals = calculateNutritionTotals(log.entries, foodsById)
 
     return { log, totals, entriesWithFood, isLoading: false }
-  }, [date]) ?? { log: null, totals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }, entriesWithFood: [], isLoading: true }
+  }, [date]) ?? { log: null, totals: EMPTY_TOTALS, entriesWithFood: [], isLoading: true }
 }
 
 /**
@@ -60,53 +49,20 @@ export function useNutritionHistory(startDate: string, endDate: string) {
     const foodsById = new Map(foods.map((f) => [f.id, f]))
 
     const dailyTotals = logs.map((log) => {
-      const totals = log.entries.reduce(
-        (acc, entry) => {
-          const food = foodsById.get(entry.foodId)
-          if (!food) return acc
-          return {
-            calories: acc.calories + food.calories * entry.quantity,
-            protein: acc.protein + food.protein * entry.quantity,
-            carbs: acc.carbs + food.carbs * entry.quantity,
-            fat: acc.fat + food.fat * entry.quantity,
-            fiber: acc.fiber + (food.fiber ?? 0) * entry.quantity,
-            sugar: acc.sugar + (food.sugar ?? 0) * entry.quantity,
-          }
-        },
-        { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }
-      )
+      const totals = calculateNutritionTotals(log.entries, foodsById)
       return { date: log.date, ...totals }
     })
 
-    const daysWithData = dailyTotals.filter((d) => d.calories > 0)
-    const averages = daysWithData.length > 0 
-      ? daysWithData.reduce(
-          (acc, day) => ({
-            calories: acc.calories + day.calories / daysWithData.length,
-            protein: acc.protein + day.protein / daysWithData.length,
-            carbs: acc.carbs + day.carbs / daysWithData.length,
-            fat: acc.fat + day.fat / daysWithData.length,
-            fiber: acc.fiber + day.fiber / daysWithData.length,
-            sugar: acc.sugar + day.sugar / daysWithData.length,
-          }),
-          { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }
-        )
-      : { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }
+    const averages = calculateNutritionAverages(dailyTotals)
 
     return { 
       dailyTotals, 
-      averages: {
-        calories: Math.round(averages.calories),
-        protein: Math.round(averages.protein),
-        carbs: Math.round(averages.carbs),
-        fat: Math.round(averages.fat),
-        fiber: Math.round(averages.fiber),
-        sugar: Math.round(averages.sugar),
-      },
+      averages,
       isLoading: false 
     }
-  }, [startDate, endDate]) ?? { dailyTotals: [], averages: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }, isLoading: true }
+  }, [startDate, endDate]) ?? { dailyTotals: [], averages: EMPTY_TOTALS, isLoading: true }
 }
+
 
 /**
  * Hook for searching and listing foods.
@@ -148,8 +104,13 @@ export function useMealTemplatesDB() {
  */
 export function useNutritionDatesDB() {
   return useLiveQuery(async () => {
-    const logs = await db.nutritionLogs.toArray()
-    return logs.map((l) => l.date).sort()
+    try {
+      const logs = await db.nutritionLogs.toArray()
+      return logs.map((l) => l.date).sort()
+    } catch (error) {
+      console.error("Failed to fetch nutrition dates:", error)
+      return []
+    }
   }) ?? []
 }
 

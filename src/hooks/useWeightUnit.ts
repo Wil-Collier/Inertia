@@ -1,9 +1,6 @@
 import { useSettingsStore } from "@/stores/settingsStore"
 import type { WeightUnit } from "@/lib/types"
-
-// Conversion constants
-const LBS_TO_KG = 0.453592
-const KG_TO_LBS = 2.20462
+import { LBS_TO_KG, KG_TO_LBS } from "@/lib/constants"
 
 /**
  * Convert weight between units
@@ -105,3 +102,4 @@ export function useWeightUnit() {
       unit === "kg" ? displayWeight * KG_TO_LBS : displayWeight,
   }
 }
+

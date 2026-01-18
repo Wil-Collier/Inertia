@@ -37,3 +37,5 @@ export interface NutritionGoals {
   fiber: number
   sugar: number
 }
+
+export type NutritionTotals = NutritionGoals

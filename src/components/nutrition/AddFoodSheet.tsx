@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FoodListItem } from "./FoodListItem"
 import { CustomFoodForm } from "./CustomFoodForm"
-import type { FoodItem } from "@/lib/types"
+import type { FoodItem, MealEntry } from "@/lib/types"
 
 interface AddFoodSheetProps {
   isOpen: boolean
@@ -33,7 +33,7 @@ interface AddFoodSheetProps {
   mealTemplates: Array<{
     id: string
     name: string
-    entries: any[]
+    entries: Omit<MealEntry, "id">[]
   }>
   scannedBarcode: string | null
   onClearBarcode: () => void

@@ -1,16 +1,22 @@
 import { useLiveQuery } from "dexie-react-hooks"
 import { db } from "@/services/db"
 import type { PersonalRecord, Workout } from "@/lib/types"
+import { sumSetVolume, getCompletedSets } from "@/lib/workoutUtils"
 
 /**
  * Hook for fetching workouts by date or recent history.
  */
 export function useWorkoutsDB(date?: string, limit: number = 20) {
   const data = useLiveQuery(async () => {
-    if (date) {
-      return await db.workoutSessions.where("date").equals(date).toArray()
+    try {
+      if (date) {
+        return await db.workoutSessions.where("date").equals(date).toArray()
+      }
+      return await db.workoutSessions.orderBy("date").reverse().limit(limit).toArray()
+    } catch (error) {
+      console.error("Failed to fetch workouts:", error)
+      return []
     }
-    return await db.workoutSessions.orderBy("date").reverse().limit(limit).toArray()
   }, [date, limit])
 
   return {
@@ -58,11 +64,11 @@ export function useExerciseHistoryDB(exerciseId: string) {
         const workoutExercise = workout.exercises.find((e) => e.exerciseId === exerciseId)
         if (!workoutExercise) return null
 
-        const completedSets = workoutExercise.sets.filter((s) => s.isCompleted)
+        const completedSets = getCompletedSets(workoutExercise.sets)
         if (completedSets.length === 0) return null
 
         const maxWeight = Math.max(...completedSets.map((s) => s.weight))
-        const totalVolume = completedSets.reduce((sum, s) => sum + s.weight * s.reps, 0)
+        const totalVolume = sumSetVolume(completedSets)
         const totalReps = completedSets.reduce((sum, s) => sum + s.reps, 0)
 
         return {
@@ -103,8 +109,15 @@ export function useWorkoutStatsDB(startDate: string, endDate: string) {
  */
 export function useWorkoutDatesDB() {
   return useLiveQuery(async () => {
-    // Use uniqueKeys on the indexed 'date' field for better performance
-    const keys = await db.workoutSessions.orderBy("date").uniqueKeys()
-    return keys.filter((k): k is string => typeof k === "string")
+    try {
+      // Fetch all sessions and extract unique dates
+      // Avoids uniqueKeys() which has issues on Safari after database operations
+      const sessions = await db.workoutSessions.toArray()
+      const dates = [...new Set(sessions.map(s => s.date))].sort()
+      return dates
+    } catch (error) {
+      console.error("Failed to fetch workout dates:", error)
+      return []
+    }
   }) ?? []
 }

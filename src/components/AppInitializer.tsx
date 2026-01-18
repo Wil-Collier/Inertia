@@ -6,6 +6,7 @@ import { useExerciseStore } from "@/stores/exerciseStore"
 import { useNutritionStore } from "@/stores/nutritionStore"
 import { useBodyWeightStore } from "@/stores/bodyWeightStore"
 import { useAchievementsStore } from "@/stores/achievementsStore"
+import { isDatabaseHealthy, recoverDatabase } from "@/services/db"
 
 interface AppInitializerProps {
   children: ReactNode
@@ -25,16 +26,33 @@ export function AppInitializer({ children }: AppInitializerProps) {
 
   // Trigger initialization on mount
   useEffect(() => {
-    Promise.allSettled([
-      useSettingsStore.getState().loadSettings(),
-      useExerciseStore.getState().init(),
-      useWorkoutStore.getState().init(),
-      useNutritionStore.getState().init(),
-      useBodyWeightStore.getState().init(),
-      useAchievementsStore.getState().init(),
-    ]).finally(() => {
+    async function initialize() {
+      // First check if database is healthy
+      const healthy = await isDatabaseHealthy()
+      if (!healthy) {
+        console.warn("Database corruption detected, attempting recovery...")
+        try {
+          await recoverDatabase()
+        } catch (error) {
+          console.error("Database recovery failed:", error)
+          // Continue anyway - stores will handle errors gracefully
+        }
+      }
+
+      // Initialize all stores
+      await Promise.allSettled([
+        useSettingsStore.getState().loadSettings(),
+        useExerciseStore.getState().init(),
+        useWorkoutStore.getState().init(),
+        useNutritionStore.getState().init(),
+        useBodyWeightStore.getState().init(),
+        useAchievementsStore.getState().init(),
+      ])
+      
       setIsInitializing(false)
-    })
+    }
+    
+    initialize()
   }, [])
 
   // Wait for all stores to be initialized

@@ -6,10 +6,10 @@ import type {
   MealType,
 } from "@/lib/types"
 import { v4 as uuidv4 } from "uuid"
-import { format } from "date-fns"
 import { db } from "@/services/db"
 import { achievementService } from "@/services/achievementService"
 import { toast } from "sonner"
+import { getToday } from "@/lib/dateUtils"
 
 interface NutritionStore {
   isInitialized: boolean
@@ -227,4 +227,5 @@ export const useNutritionStore = create<NutritionStore>((set, get) => ({
 }))
 
 // Helper to get today's date formatted
-export const getTodayDate = () => format(new Date(), "yyyy-MM-dd")
+export const getTodayDate = getToday
+
