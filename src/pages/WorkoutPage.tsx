@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, Fragment } from "react"
 import { useNavigate, Link, Navigate } from "react-router-dom"
 import { Plus, Dumbbell, Clock, LayoutTemplate, History, ChevronRight } from "lucide-react"
 import { Header } from "@/components/layout/Header"
@@ -20,7 +20,8 @@ import { format, subDays, startOfMonth, endOfMonth, parseISO } from "date-fns"
 
 export function WorkoutPage() {
   const navigate = useNavigate()
-  const { activeSession, startWorkout } = useWorkoutStore()
+  const activeSession = useWorkoutStore((s) => s.activeSession)
+  const startWorkout = useWorkoutStore((s) => s.startWorkout)
   
   const templates = useTemplatesDB()
   const workoutDates = useWorkoutDatesDB()
@@ -281,22 +282,26 @@ export function WorkoutPage() {
             <div className="space-y-2">
               {recentDates.map((date) => {
                 const dateWorkouts = recentWorkouts.filter((w) => w.date === date)
-                return dateWorkouts.map((workout) => (
-                  <Card key={workout.id} className="bg-muted/20 border-none shadow-none">
-                    <CardContent className="flex items-center gap-4 py-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-background border">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm truncate">{workout.name}</p>
-                        <p className="text-[10px] font-medium text-muted-foreground">
-                          {format(parseISO(workout.date), "MMM d, yyyy")}
-                          {workout.duration && ` • ${workout.duration}m`}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                return (
+                  <Fragment key={date}>
+                    {dateWorkouts.map((workout) => (
+                      <Card key={workout.id} className="bg-muted/20 border-none shadow-none">
+                        <CardContent className="flex items-center gap-4 py-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-background border">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm truncate">{workout.name}</p>
+                            <p className="text-[10px] font-medium text-muted-foreground">
+                              {format(parseISO(workout.date), "MMM d, yyyy")}
+                              {workout.duration && ` • ${workout.duration}m`}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Fragment>
+                )
               })}
             </div>
           </section>

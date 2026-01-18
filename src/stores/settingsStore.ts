@@ -38,7 +38,6 @@ const defaultSettings: UserSettings = {
     sugar: 50,
   },
   restTimerDuration: 90,
-  weightUnit: "lbs",
   unitPreferences: defaultUnitPreferences,
   notificationsEnabled: false,
 }
@@ -121,14 +120,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setWeightUnit: async (unit) => {
     const newPrefs = { ...get().settings.unitPreferences, weight: unit }
     try {
-      await db.settings.update("settings", { 
-        weightUnit: unit, 
-        unitPreferences: newPrefs 
-      })
+      await db.settings.update("settings", { unitPreferences: newPrefs })
       set((state) => ({
         settings: {
           ...state.settings,
-          weightUnit: unit,
           unitPreferences: newPrefs,
         },
       }))
@@ -158,18 +153,13 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setUnitPreferences: async (prefs) => {
     const newPrefs = { ...get().settings.unitPreferences, ...prefs }
-    const updates: Partial<UserSettings> = { unitPreferences: newPrefs }
-    if (prefs.weight) {
-      updates.weightUnit = prefs.weight
-    }
     
     try {
-      await db.settings.update("settings", updates)
+      await db.settings.update("settings", { unitPreferences: newPrefs })
       set((state) => ({
         settings: {
           ...state.settings,
           unitPreferences: newPrefs,
-          ...(prefs.weight && { weightUnit: prefs.weight }),
         },
       }))
     } catch (error) {

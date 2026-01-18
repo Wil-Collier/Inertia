@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   LayoutTemplate,
@@ -53,7 +53,7 @@ export function WorkoutTemplates() {
   const [editName, setEditName] = useState("")
   const [isAddExerciseOpen, setIsAddExerciseOpen] = useState(false)
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!templateToDelete) return
 
     try {
@@ -62,9 +62,9 @@ export function WorkoutTemplates() {
     } catch {
       // Store already toasts
     }
-  }
+  }, [templateToDelete, deleteTemplate])
 
-  const handleCreate = async () => {
+  const handleCreate = useCallback(async () => {
     if (!newTemplateName.trim()) return
 
     try {
@@ -76,23 +76,23 @@ export function WorkoutTemplates() {
     } catch {
       // Store already toasts
     }
-  }
+  }, [newTemplateName, createTemplate])
 
-  const handleStartFromTemplate = async (template: WorkoutTemplate) => {
+  const handleStartFromTemplate = useCallback(async (template: WorkoutTemplate) => {
     try {
       await startWorkout(template.name, template.id)
       navigate("/workout/active")
     } catch {
       // Store already toasts
     }
-  }
+  }, [startWorkout, navigate])
 
-  const handleEditOpen = (template: WorkoutTemplate) => {
+  const handleEditOpen = useCallback((template: WorkoutTemplate) => {
     setEditingTemplate(template)
     setEditName(template.name)
-  }
+  }, [])
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = useCallback(async () => {
     if (!editingTemplate || !editName.trim()) return false
 
     try {
@@ -102,9 +102,9 @@ export function WorkoutTemplates() {
       // Store already toasts
       return false
     }
-  }
+  }, [editingTemplate, editName, updateTemplate])
 
-  const handleAddExercise = async (exerciseId: string) => {
+  const handleAddExercise = useCallback(async (exerciseId: string) => {
     if (!editingTemplate) {
       setIsAddExerciseOpen(false)
       return
@@ -125,9 +125,9 @@ export function WorkoutTemplates() {
     } catch {
       // Store already toasts
     }
-  }
+  }, [editingTemplate, updateTemplate])
 
-  const handleRemoveExercise = async (exerciseId: string) => {
+  const handleRemoveExercise = useCallback(async (exerciseId: string) => {
     if (!editingTemplate) return
 
     const updatedExercises = editingTemplate.exercises.filter(
@@ -143,9 +143,9 @@ export function WorkoutTemplates() {
     } catch {
       // Store already toasts
     }
-  }
+  }, [editingTemplate, updateTemplate])
 
-  const handleUpdateTargets = async (
+  const handleUpdateTargets = useCallback(async (
     exerciseId: string,
     field: "targetSets" | "targetReps" | "targetWeight",
     value: number
@@ -165,7 +165,7 @@ export function WorkoutTemplates() {
     } catch {
       // Store already toasts
     }
-  }
+  }, [editingTemplate, updateTemplate])
 
   return (
     <div className="flex flex-col">

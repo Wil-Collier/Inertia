@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { format, parseISO } from "date-fns"
 import { Dumbbell, Clock, ChevronDown, ChevronUp, Trash2 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
@@ -35,31 +35,35 @@ export function WorkoutHistory() {
   const [workoutToDelete, setWorkoutToDelete] = useState<Workout | null>(null)
 
   // Sort workouts by date (newest first)
-  const sortedWorkouts = [...workouts].sort((a, b) => {
-    if (a.date === b.date) {
-      // If same date, sort by completedAt if available
-      if (a.completedAt && b.completedAt) {
-        return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+  const sortedWorkouts = useMemo(() => {
+    return [...workouts].sort((a, b) => {
+      if (a.date === b.date) {
+        // If same date, sort by completedAt if available
+        if (a.completedAt && b.completedAt) {
+          return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+        }
       }
-    }
-    return b.date.localeCompare(a.date)
-  })
+      return b.date.localeCompare(a.date)
+    })
+  }, [workouts])
 
   // Group workouts by month
-  const groupedByMonth = sortedWorkouts.reduce<Record<string, Workout[]>>((acc, workout) => {
-    const monthKey = format(parseISO(workout.date), "MMMM yyyy")
-    if (!acc[monthKey]) {
-      acc[monthKey] = []
-    }
-    acc[monthKey].push(workout)
-    return acc
-  }, {})
+  const groupedByMonth = useMemo(() => {
+    return sortedWorkouts.reduce<Record<string, Workout[]>>((acc, workout) => {
+      const monthKey = format(parseISO(workout.date), "MMMM yyyy")
+      if (!acc[monthKey]) {
+        acc[monthKey] = []
+      }
+      acc[monthKey].push(workout)
+      return acc
+    }, {})
+  }, [sortedWorkouts])
 
-  const toggleExpand = (workoutId: string) => {
+  const toggleExpand = useCallback((workoutId: string) => {
     setExpandedWorkoutId((prev) => (prev === workoutId ? null : workoutId))
-  }
+  }, [])
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!workoutToDelete) return
 
     try {
@@ -68,7 +72,7 @@ export function WorkoutHistory() {
     } catch {
       // Store already toasts
     }
-  }
+  }, [workoutToDelete, deleteWorkout])
 
   const getTotalVolume = (workout: Workout) => {
     return workout.exercises.reduce((total, ex) => {

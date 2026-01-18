@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Search, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,7 +41,8 @@ export function ExercisePickerSheet({
   onSelect,
   addedExerciseIds = [],
 }: ExercisePickerSheetProps) {
-  const { isLoaded, init } = useExerciseStore()
+  const isLoaded = useExerciseStore((s) => s.isLoaded)
+  const init = useExerciseStore((s) => s.init)
   const [selectedMuscleGroup, setSelectedMuscleGroup] =
     useState<MuscleGroup | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -58,16 +59,18 @@ export function ExercisePickerSheet({
   }, [open, isLoaded, init])
 
   // Group exercises by muscle group for display
-  const exercisesByGroup = filteredExercises.reduce(
-    (acc, ex) => {
-      if (!acc[ex.muscleGroup]) {
-        acc[ex.muscleGroup] = []
-      }
-      acc[ex.muscleGroup].push(ex)
-      return acc
-    },
-    {} as Record<MuscleGroup, Exercise[]>
-  )
+  const exercisesByGroup = useMemo(() => {
+    return filteredExercises.reduce(
+      (acc, ex) => {
+        if (!acc[ex.muscleGroup]) {
+          acc[ex.muscleGroup] = []
+        }
+        acc[ex.muscleGroup].push(ex)
+        return acc
+      },
+      {} as Record<MuscleGroup, Exercise[]>
+    )
+  }, [filteredExercises])
 
   const handleSelect = (exerciseId: string) => {
     onSelect(exerciseId)

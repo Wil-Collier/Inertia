@@ -2,56 +2,51 @@
 
 Prioritized performance improvements based on codebase analysis.
 
+## Progress Summary (Last Updated: Jan 17, 2026)
+
+**Completed: 28/38 tasks (74%)**
+
+### ✅ Phase 1: COMPLETE (5/5 tasks)
+All critical high-impact fixes have been implemented.
+
+### ✅ Phase 2: COMPLETE (12/12 tasks)
+Memoization improvements implemented:
+- Added `useMemo` to expensive calculations in `WorkoutHistory`, `ExercisePickerSheet`, `ActiveWorkout`, `Dashboard`, `ProgressPage`, and `WeeklyConsistency`.
+- Added `useCallback` to handlers in `ActiveWorkout`, `WorkoutTemplates`, `WorkoutHistory`, `NutritionPage`, `MealEntryItem`, and `FoodListItem`.
+
+### ✅ Phase 3: COMPLETE (3/3 tasks)
+Chart performance optimizations implemented:
+- Extracted chart configuration constants in `ProgressPage` and `NutritionHistoryPage`.
+- Extracted formatters and used stable references for chart props.
+
+### ✅ Phase 4: COMPLETE (8/8 tasks)
+All Zustand architecture improvements have been implemented.
+
+### ⏳ Phases 5, 6: PENDING (0/9 tasks)
+- Phase 5: List item component extraction (0/5 tasks)
+- Phase 6: Async improvements (0/4 tasks)
+
+---
+
 ## Summary
 
 | Category | Issues Found | High Priority | Medium Priority |
 |----------|-------------|---------------|-----------------|
-| Inline objects/functions in render | 50+ | 15 | 35+ |
-| Missing useMemo/useCallback | 25+ | 5 | 15+ |
-| Zustand selector issues | 15+ | 3 | 10+ |
+| Inline objects/functions in render | 50+ | 0 | 0 |
+| Missing useMemo/useCallback | 25+ | 0 | 0 |
+| Zustand selector issues | 15+ | 0 | 0 |
 | Async operation issues | 8 | 2 | 4 |
-| List key issues | 6 | 2 | 1 |
+| List key issues | 6 | 0 | 1 |
 
 ---
 
 ## Phase 1: High-Impact Fixes (Immediate)
 
-### 1.1 Critical List Rendering Bug
-
-- [ ] **`src/pages/WorkoutPage.tsx:282-284`**
-  - Issue: Outer `.map()` returns inner map result without a key
-  - Impact: React reconciliation breaks for workout groups by date
-  - Fix: Wrap inner map in `<Fragment key={date}>` or restructure
-
-### 1.2 Unstable Array Reference to Hook
-
-- [ ] **`src/pages/ActiveWorkout.tsx:108`**
-  ```tsx
-  const exerciseIds = workout.exercises.map(e => e.exerciseId)
-  const exerciseMap = useExercisesByIdsDB(exerciseIds)
-  ```
-  - Issue: `exerciseIds` creates new array reference every render, triggering unnecessary DB queries
-  - Fix: Wrap in `useMemo(() => workout.exercises.map(e => e.exerciseId), [workout.exercises])`
-
-### 1.3 Missing Debounce on DB-Writing Inputs
-
-- [ ] **`src/pages/ActiveWorkout.tsx:361-364, 408-411`**
-  - Issue: Weight/reps inputs call `updateSet()` on every keystroke, writing to IndexedDB each time
-  - Impact: Heavy I/O on every keypress during active workout
-  - Fix: Implement debounced update (300-500ms) or use local state + onBlur pattern
-
-### 1.4 Non-Granular Zustand Selectors in High-Traffic Components
-
-- [ ] **`src/components/layout/BottomNav.tsx:22`**
-  ```tsx
-  const { activeSession } = useWorkoutStore()
-  ```
-  - Issue: Subscribes to entire `activeSession` object (renders on every route)
-  - Fix: `const hasActiveSession = useWorkoutStore((s) => !!s.activeSession)`
-
-- [ ] **`src/pages/Dashboard.tsx:23-27`**
-  - Issue: Multiple store subscriptions without granularity
-  - Fix: Use specific selectors like `(s) => s.settings.nutritionGoals`
+- [x] **`src/pages/WorkoutPage.tsx:282-284`** ✅ COMPLETED
+- [x] **`src/pages/ActiveWorkout.tsx:108`** ✅ COMPLETED
+- [x] **`src/pages/ActiveWorkout.tsx:361-364, 408-411`** ✅ COMPLETED
+- [x] **`src/components/layout/BottomNav.tsx:22`** ✅ COMPLETED
+- [x] **`src/pages/Dashboard.tsx:23-27`** ✅ COMPLETED
 
 ---
 
@@ -59,21 +54,21 @@ Prioritized performance improvements based on codebase analysis.
 
 ### 2.1 Expensive Calculations Without useMemo
 
-- [ ] **`src/pages/WorkoutHistory.tsx:38-56`** - Sort + groupByMonth on workouts (High)
-- [ ] **`src/components/ExercisePickerSheet.tsx:61-70`** - `reduce()` to group exercises (High)
-- [ ] **`src/pages/ActiveWorkout.tsx:162-166`** - `reduce()` for completedSets/totalSets (Medium)
-- [ ] **`src/pages/Dashboard.tsx:40-44`** - Sort + filter recentAchievements (Medium)
-- [ ] **`src/pages/ProgressPage.tsx:356-362`** - Chart data filter/sort/map (Medium)
-- [ ] **`src/components/dashboard/WeeklyConsistency.tsx:12-22`** - Last 7 days calculation (Medium)
+- [x] **`src/pages/WorkoutHistory.tsx:38-56`** - Sort + groupByMonth on workouts ✅ COMPLETED
+- [x] **`src/components/ExercisePickerSheet.tsx:61-70`** - `reduce()` to group exercises ✅ COMPLETED
+- [x] **`src/pages/ActiveWorkout.tsx:162-166`** - `reduce()` for completedSets/totalSets ✅ COMPLETED
+- [x] **`src/pages/Dashboard.tsx:40-44`** - Sort + filter recentAchievements ✅ COMPLETED
+- [x] **`src/pages/ProgressPage.tsx:356-362`** - Chart data filter/sort/map ✅ COMPLETED
+- [x] **`src/components/dashboard/WeeklyConsistency.tsx:12-22`** - Last 7 days calculation ✅ COMPLETED
 
 ### 2.2 Missing useCallback for Handlers
 
-- [ ] **`src/pages/ActiveWorkout.tsx`** - 11+ handlers: `handleFinish`, `handleCancel`, `toggleExpanded`, `handleAddExercise`, etc.
-- [ ] **`src/pages/WorkoutTemplates.tsx`** - 8 handlers: `handleDelete`, `handleCreate`, `handleStartFromTemplate`, `handleEditOpen`, etc.
-- [ ] **`src/pages/WorkoutHistory.tsx`** - `toggleExpand`, `handleDelete`
-- [ ] **`src/pages/NutritionPage.tsx`** - `openAddSheet`, `getEntriesByMealType`, `handleAddFood`
-- [ ] **`src/components/nutrition/MealEntryItem.tsx`** - `incrementQuantity`, `decrementQuantity`, `handleRemove`
-- [ ] **`src/components/nutrition/FoodListItem.tsx`** - 4 handlers
+- [x] **`src/pages/ActiveWorkout.tsx`** - 11+ handlers ✅ COMPLETED
+- [x] **`src/pages/WorkoutTemplates.tsx`** - 8 handlers ✅ COMPLETED
+- [x] **`src/pages/WorkoutHistory.tsx`** - `toggleExpand`, `handleDelete` ✅ COMPLETED
+- [x] **`src/pages/NutritionPage.tsx`** - `openAddSheet`, `getEntriesByMealType`, `handleAddFood` ✅ COMPLETED
+- [x] **`src/components/nutrition/MealEntryItem.tsx`** - `incrementQuantity`, `decrementQuantity`, `handleRemove` ✅ COMPLETED
+- [x] **`src/components/nutrition/FoodListItem.tsx`** - 4 handlers ✅ COMPLETED
 
 ---
 
@@ -81,25 +76,12 @@ Prioritized performance improvements based on codebase analysis.
 
 ### 3.1 Inline Objects in Chart Props
 
-- [ ] **`src/pages/ProgressPage.tsx`** - Extract chart config constants:
-  ```tsx
-  // Before (new object every render)
-  tick={{ fontSize: 12 }}
-  contentStyle={{ backgroundColor: "...", border: "...", borderRadius: "8px" }}
-  dot={{ fill: "hsl(var(--primary))" }}
-  domain={["dataMin - 2", "dataMax + 2"]}
-  
-  // After (module-level constants)
-  const CHART_TICK = { fontSize: 12 } as const
-  const TOOLTIP_STYLE = { backgroundColor: "...", ... } as const
-  const DOT_CONFIG = { fill: "hsl(var(--primary))" } as const
-  ```
-
-- [ ] **`src/pages/NutritionHistoryPage.tsx`** - Same pattern for chart configs
+- [x] **`src/pages/ProgressPage.tsx`** - Extract chart config constants ✅ COMPLETED
+- [x] **`src/pages/NutritionHistoryPage.tsx`** - Same pattern for chart configs ✅ COMPLETED
 
 ### 3.2 Inline Formatters
 
-- [ ] Extract `tickFormatter`, `formatter`, `labelFormatter` functions outside components or wrap in `useCallback`
+- [x] Extract `tickFormatter`, `formatter`, `labelFormatter` functions outside components or wrap in `useCallback` ✅ COMPLETED
 
 ---
 
@@ -109,13 +91,13 @@ Prioritized performance improvements based on codebase analysis.
 
 Components to update with granular selectors:
 
-- [ ] `src/components/ExercisePickerSheet.tsx:44`
-- [ ] `src/components/dashboard/WeightCard.tsx:21`
-- [ ] `src/components/StreakDisplay.tsx:6, 39`
-- [ ] `src/pages/ActiveWorkout.tsx:44-58`
-- [ ] `src/pages/SettingsPage.tsx:38`
-- [ ] `src/pages/NutritionPage.tsx:88-105`
-- [ ] `src/pages/WorkoutPage.tsx:23`
+- [x] `src/components/ExercisePickerSheet.tsx:44` ✅ COMPLETED
+- [x] `src/components/dashboard/WeightCard.tsx:21` ✅ COMPLETED
+- [x] `src/components/StreakDisplay.tsx:6, 39` ✅ COMPLETED
+- [x] `src/pages/ActiveWorkout.tsx:44-58` ✅ COMPLETED
+- [x] `src/pages/SettingsPage.tsx:38` ✅ COMPLETED
+- [x] `src/pages/NutritionPage.tsx:88-105` ✅ COMPLETED
+- [x] `src/pages/WorkoutPage.tsx:23` ✅ COMPLETED
 
 **Pattern:**
 ```tsx
@@ -129,9 +111,12 @@ const nutritionGoals = useSettingsStore((s) => s.settings.nutritionGoals)
 
 ### 4.2 Remove Redundant State
 
-- [ ] **`src/stores/settingsStore.ts:41, 121-134`**
-  - `weightUnit` exists at both top-level AND inside `unitPreferences.weight`
-  - Consolidate to single source of truth
+- [x] **`src/stores/settingsStore.ts:41, 121-134`** ✅ COMPLETED
+  - `weightUnit` existed at both top-level AND inside `unitPreferences.weight`
+  - Consolidated to single source of truth (`unitPreferences.weight`)
+  - Removed redundant field from UserSettings interface
+  - Simplified setWeightUnit and setUnitPreferences functions
+  - Updated useWeightUnit hook to use only unitPreferences.weight
 
 ---
 
@@ -161,7 +146,7 @@ const ExerciseRow = memo(({ exercise, onClick }) => {
 
 ### 5.2 Key Props Fixes
 
-- [ ] **`src/pages/WorkoutPage.tsx:282-284`** - Missing key, add `<Fragment key={date}>`
+- [x] **`src/pages/WorkoutPage.tsx:282-284`** ✅ COMPLETED - Missing key, add `<Fragment key={date}>`
 - [ ] **`src/pages/ProgressPage.tsx:666-668`** - `key={idx}` for sets, use set.id or composite key
 
 ---
@@ -189,9 +174,9 @@ const ExerciseRow = memo(({ exercise, onClick }) => {
 
 ## Implementation Order
 
-1. **Phase 1** - Critical fixes (broken key, unstable hook input, excessive DB writes)
-2. **Phase 4.1** - Zustand selectors (quick wins, architectural improvement)
-3. **Phase 2.1** - High-priority useMemo additions
+1. **Phase 1** ✅ COMPLETE - Critical fixes (broken key, unstable hook input, excessive DB writes)
+2. **Phase 4** ✅ COMPLETE - Zustand selectors (quick wins, architectural improvement)
+3. **Phase 2** - High-priority useMemo additions
 4. **Phase 3** - Chart constants extraction (single file changes)
 5. **Phase 5** - List component extraction (more involved refactoring)
 6. **Phase 6** - Async improvements
@@ -200,5 +185,5 @@ const ExerciseRow = memo(({ exercise, onClick }) => {
 
 - **Phase 1-2**: 40-50% reduction in unnecessary re-renders
 - **Phase 3**: Significant improvement in chart interaction responsiveness
-- **Phase 4**: Cleaner architecture, prevents future issues
+- **Phase 4**: ✅ Cleaner architecture, prevents future issues, reduced re-render surface area
 - **Phase 5**: Major improvement for list-heavy pages (ActiveWorkout, WorkoutHistory)

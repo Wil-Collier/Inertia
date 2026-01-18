@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import { useNavigate, Navigate } from "react-router-dom"
 import {
@@ -39,23 +39,74 @@ import { playDingSound, unlockAudio } from "@/lib/audio"
 import { cn } from "@/lib/utils"
 import { format, parseISO } from "date-fns"
 
+interface DebouncedInputProps extends Omit<React.ComponentProps<typeof Input>, "value" | "onChange"> {
+  value: number
+  onChange: (value: number) => void
+  parseValue?: (rawValue: string) => number
+}
+
+/**
+ * A specialized Input that maintains local state while debouncing store updates.
+ * This prevents the "jumping" behavior where a controlled input snaps back
+ * to the store value while a debounce is pending.
+ */
+function DebouncedInput({ value, onChange, parseValue, ...props }: DebouncedInputProps) {
+  const [localValue, setLocalValue] = useState(value ? value.toString() : "")
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
+
+  // Sync with store when value changes externally (not by typing)
+  useEffect(() => {
+    const isFocused = document.activeElement === inputRef.current
+    if (!isFocused) {
+      setLocalValue(value ? value.toString() : "")
+    }
+  }, [value])
+
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    setLocalValue(val)
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    timeoutRef.current = setTimeout(() => {
+      const parsed = parseValue ? parseValue(val) : parseFloat(val)
+      onChange(isNaN(parsed) ? 0 : parsed)
+    }, 300)
+  }
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [])
+
+  return (
+    <Input
+      {...props}
+      ref={inputRef}
+      value={localValue}
+      onChange={handleChange}
+    />
+  )
+}
+
 export function ActiveWorkout() {
   const navigate = useNavigate()
-  const {
-    activeSession,
-    finishWorkout,
-    cancelWorkout,
-    addExerciseToWorkout,
-    removeExerciseFromWorkout,
-    addSet,
-    updateSet,
-    removeSet,
-    toggleSetComplete,
-    createTemplate,
-    updateExerciseNotes,
-  } = useWorkoutStore()
+  const activeSession = useWorkoutStore((s) => s.activeSession)
+  const finishWorkout = useWorkoutStore((s) => s.finishWorkout)
+  const cancelWorkout = useWorkoutStore((s) => s.cancelWorkout)
+  const addExerciseToWorkout = useWorkoutStore((s) => s.addExerciseToWorkout)
+  const removeExerciseFromWorkout = useWorkoutStore((s) => s.removeExerciseFromWorkout)
+  const addSet = useWorkoutStore((s) => s.addSet)
+  const updateSet = useWorkoutStore((s) => s.updateSet)
+  const removeSet = useWorkoutStore((s) => s.removeSet)
+  const toggleSetComplete = useWorkoutStore((s) => s.toggleSetComplete)
+  const createTemplate = useWorkoutStore((s) => s.createTemplate)
+  const updateExerciseNotes = useWorkoutStore((s) => s.updateExerciseNotes)
 
-  const { settings } = useSettingsStore()
+  const restTimerDuration = useSettingsStore((s) => s.settings.restTimerDuration)
   const weightUnit = useWeightUnit()
   const templates = useTemplatesDB()
 
@@ -74,7 +125,7 @@ export function ActiveWorkout() {
   }, [])
 
   const timer = useRestTimer({
-    defaultDuration: settings.restTimerDuration,
+    defaultDuration: restTimerDuration,
     onComplete: handleRestTimerComplete,
   })
 
@@ -100,15 +151,15 @@ export function ActiveWorkout() {
     startedAt: activeSession?.startedAt ?? new Date().toISOString(),
   })
 
-  if (!activeSession) {
-    return <Navigate to="/workout" replace />
-  }
-
-  const { workout } = activeSession
-  const exerciseIds = workout.exercises.map(e => e.exerciseId)
+  const workout = activeSession?.workout
+  const exerciseIds = useMemo(
+    () => workout?.exercises.map(e => e.exerciseId) ?? [],
+    [workout?.exercises]
+  )
   const exerciseMap = useExercisesByIdsDB(exerciseIds)
 
-  const handleFinish = async () => {
+  const handleFinish = useCallback(async () => {
+    if (!finishWorkout || !createTemplate) return
     try {
       const completed = await finishWorkout()
       if (completed && saveAsTemplate && templateName.trim()) {
@@ -118,18 +169,19 @@ export function ActiveWorkout() {
     } catch {
       toast.error("Failed to finish workout")
     }
-  }
+  }, [finishWorkout, saveAsTemplate, templateName, createTemplate, navigate])
 
-  const handleCancel = async () => {
+  const handleCancel = useCallback(async () => {
+    if (!cancelWorkout) return
     try {
       await cancelWorkout()
       navigate("/workout")
     } catch {
       toast.error("Failed to cancel workout")
     }
-  }
+  }, [cancelWorkout, navigate])
 
-  const toggleExpanded = (id: string) => {
+  const toggleExpanded = useCallback((id: string) => {
     setExpandedExercises((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -139,9 +191,10 @@ export function ActiveWorkout() {
       }
       return next
     })
-  }
+  }, [])
 
-  const handleAddExercise = async (exerciseId: string) => {
+  const handleAddExercise = useCallback(async (exerciseId: string) => {
+    if (!addExerciseToWorkout) return
     try {
       await addExerciseToWorkout(exerciseId)
     } catch {
@@ -157,16 +210,23 @@ export function ActiveWorkout() {
         setExpandedExercises((prev) => new Set([...prev, newExercise.id]))
       }
     }, 0)
-  }
+  }, [addExerciseToWorkout])
 
-  const completedSets = workout.exercises.reduce(
-    (sum, e) => sum + e.sets.filter((s) => s.completed).length,
-    0
-  )
-  const totalSets = workout.exercises.reduce((sum, e) => sum + e.sets.length, 0)
+  const completedSets = useMemo(() => {
+    return workout?.exercises.reduce(
+      (sum, e) => sum + e.sets.filter((s) => s.completed).length,
+      0
+    ) ?? 0
+  }, [workout?.exercises])
+
+  const totalSets = useMemo(() => {
+    return workout?.exercises.reduce((sum, e) => sum + e.sets.length, 0) ?? 0
+  }, [workout?.exercises])
 
   // Check if the workout has any meaningful changes that would warrant a discard warning
-  const hasChanges = () => {
+  const hasChanges = useCallback(() => {
+    if (!workout || !activeSession) return false
+
     // If any set is completed, there are changes
     if (completedSets > 0) return true
     
@@ -193,9 +253,9 @@ export function ActiveWorkout() {
     }
     
     return false
-  }
+  }, [completedSets, activeSession, workout, templates])
 
-  const handleBack = async () => {
+  const handleBack = useCallback(async () => {
     if (hasChanges()) {
       setShowCancelDialog(true)
       return
@@ -203,6 +263,10 @@ export function ActiveWorkout() {
 
     // No changes, just cancel without confirmation
     await handleCancel()
+  }, [hasChanges, handleCancel])
+
+  if (!activeSession || !workout) {
+    return <Navigate to="/workout" replace />
   }
 
   return (
@@ -355,13 +419,13 @@ export function ActiveWorkout() {
                         
                         {/* Weight input (only for weighted, non-time-based exercises) */}
                         {exercise?.isWeighted && !isTimeBased && (
-                          <Input
+                          <DebouncedInput
                             type="number"
-                            value={set.weight || ""}
-                            onChange={(e) => {
-                              const weight = parseFloat(e.target.value) || 0
+                            value={set.weight}
+                            onChange={(weight) => {
                               updateSet(workoutExercise.id, set.id, { weight })
                             }}
+                            parseValue={(rawValue) => Math.round(parseFloat(rawValue))}
                             placeholder={weightUnit.unitLabel}
                             className="h-9"
                             disabled={set.completed}
@@ -402,13 +466,13 @@ export function ActiveWorkout() {
                             >
                               <Minus className="h-3 w-3" />
                             </Button>
-                            <Input
+                            <DebouncedInput
                               type="number"
-                              value={set.reps || ""}
-                              onChange={(e) => {
-                                const reps = parseInt(e.target.value) || 0
+                              value={set.reps}
+                              onChange={(reps) => {
                                 updateSet(workoutExercise.id, set.id, { reps })
                               }}
+                              parseValue={(rawValue) => Math.round(parseFloat(rawValue))}
                               placeholder="reps"
                               className="h-9 text-center"
                               disabled={set.completed}

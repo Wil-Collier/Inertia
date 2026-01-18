@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useAchievementsStore } from "@/stores/achievementsStore"
 
 export function StreakDisplay() {
-  const { streaks } = useAchievementsStore()
+  const streaks = useAchievementsStore((s) => s.streaks)
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -36,7 +36,7 @@ export function StreakDisplay() {
 
 // Compact version for the header or smaller spaces
 export function StreakBadge() {
-  const { streaks } = useAchievementsStore()
+  const streaks = useAchievementsStore((s) => s.streaks)
 
   if (streaks.currentWorkoutStreak === 0 && streaks.currentNutritionStreak === 0) {
     return null

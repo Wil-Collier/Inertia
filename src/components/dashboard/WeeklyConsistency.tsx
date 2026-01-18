@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { format, subDays, isSameDay } from "date-fns"
 import { Check, Dumbbell, Utensils, type LucideIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,17 +10,19 @@ interface WeeklyConsistencyProps {
 }
 
 export function WeeklyConsistency({ workoutDates, nutritionDates }: WeeklyConsistencyProps) {
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const date = subDays(new Date(), 6 - i)
-    const dateStr = format(date, "yyyy-MM-dd")
-    return {
-      date,
-      dateStr,
-      label: format(date, "EEE").charAt(0),
-      hasWorkout: workoutDates.includes(dateStr),
-      hasNutrition: nutritionDates.includes(dateStr),
-    }
-  })
+  const last7Days = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = subDays(new Date(), 6 - i)
+      const dateStr = format(date, "yyyy-MM-dd")
+      return {
+        date,
+        dateStr,
+        label: format(date, "EEE").charAt(0),
+        hasWorkout: workoutDates.includes(dateStr),
+        hasNutrition: nutritionDates.includes(dateStr),
+      }
+    })
+  }, [workoutDates, nutritionDates])
 
   return (
     <Card>

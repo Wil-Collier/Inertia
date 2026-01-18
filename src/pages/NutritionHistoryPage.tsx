@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { format, subDays, parseISO } from "date-fns"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import {
@@ -27,6 +27,16 @@ const dateRangeOptions: { value: DateRange; label: string }[] = [
   { value: "30d", label: "30 Days" },
   { value: "90d", label: "90 Days" },
 ]
+
+// Chart Configuration Constants
+const CHART_AXIS_STYLE = { fontSize: 10 }
+const TOOLTIP_STYLE = {
+  backgroundColor: "hsl(var(--card))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: "8px",
+}
+const CALORIES_BAR_RADIUS: [number, number, number, number] = [4, 4, 0, 0]
+const MACRO_LINE_STROKE_WIDTH = 2
 
 export function NutritionHistoryPage() {
   const [dateRange, setDateRange] = useState<DateRange>("30d")
@@ -73,6 +83,15 @@ export function NutritionHistoryPage() {
     const change = ((recentAvg - previousAvg) / previousAvg) * 100
     return Math.round(change)
   }, [dailyTotals])
+
+  // Chart Formatters
+  const caloriesTooltipFormatter = useCallback((value: any) => [`${String(value ?? 0)} kcal`, "Calories"], [])
+  const caloriesLabelFormatter = useCallback((_label: any, payload: readonly any[]) => {
+    if (payload?.[0]?.payload?.dateLabel) {
+      return payload[0].payload.dateLabel
+    }
+    return ""
+  }, [])
 
   if (isLoading) {
     return (
@@ -224,36 +243,24 @@ export function NutritionHistoryPage() {
                         />
                         <XAxis
                           dataKey="shortDate"
-                          tick={{ fontSize: 10 }}
+                          tick={CHART_AXIS_STYLE}
                           interval="preserveStartEnd"
                           className="text-muted-foreground"
                         />
                         <YAxis
-                          tick={{ fontSize: 10 }}
+                          tick={CHART_AXIS_STYLE}
                           className="text-muted-foreground"
                           domain={[0, "dataMax + 200"]}
                         />
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                          }}
-                          labelFormatter={(_, payload) => {
-                            if (payload?.[0]?.payload?.dateLabel) {
-                              return payload[0].payload.dateLabel
-                            }
-                            return ""
-                          }}
-                          formatter={(value) => [
-                            `${String(value ?? 0)} kcal`,
-                            "Calories",
-                          ]}
+                          contentStyle={TOOLTIP_STYLE}
+                          labelFormatter={caloriesLabelFormatter}
+                          formatter={caloriesTooltipFormatter}
                         />
                         <Bar
                           dataKey="calories"
                           fill="var(--calories)"
-                          radius={[4, 4, 0, 0]}
+                          radius={CALORIES_BAR_RADIUS}
                         />
                       </BarChart>
                     </ResponsiveContainer>
@@ -283,26 +290,17 @@ export function NutritionHistoryPage() {
                         />
                         <XAxis
                           dataKey="shortDate"
-                          tick={{ fontSize: 10 }}
+                          tick={CHART_AXIS_STYLE}
                           interval="preserveStartEnd"
                           className="text-muted-foreground"
                         />
                         <YAxis
-                          tick={{ fontSize: 10 }}
+                          tick={CHART_AXIS_STYLE}
                           className="text-muted-foreground"
                         />
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                          }}
-                          labelFormatter={(_, payload) => {
-                            if (payload?.[0]?.payload?.dateLabel) {
-                              return payload[0].payload.dateLabel
-                            }
-                            return ""
-                          }}
+                          contentStyle={TOOLTIP_STYLE}
+                          labelFormatter={caloriesLabelFormatter}
                         />
                         <Legend />
                         <Line
@@ -310,7 +308,7 @@ export function NutritionHistoryPage() {
                           dataKey="protein"
                           name="Protein"
                           stroke="var(--macro-protein)"
-                          strokeWidth={2}
+                          strokeWidth={MACRO_LINE_STROKE_WIDTH}
                           dot={false}
                         />
                         <Line
@@ -318,7 +316,7 @@ export function NutritionHistoryPage() {
                           dataKey="carbs"
                           name="Carbs"
                           stroke="var(--macro-carbs)"
-                          strokeWidth={2}
+                          strokeWidth={MACRO_LINE_STROKE_WIDTH}
                           dot={false}
                         />
                         <Line
@@ -326,7 +324,7 @@ export function NutritionHistoryPage() {
                           dataKey="fat"
                           name="Fat"
                           stroke="var(--macro-fat)"
-                          strokeWidth={2}
+                          strokeWidth={MACRO_LINE_STROKE_WIDTH}
                           dot={false}
                         />
                       </LineChart>

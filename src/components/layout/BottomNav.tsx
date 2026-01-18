@@ -19,14 +19,14 @@ const navItems = [
 
 export function BottomNav() {
   const location = useLocation()
-  const { activeSession } = useWorkoutStore()
+  const hasActiveSession = useWorkoutStore((s) => !!s.activeSession)
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-area-bottom">
       <div className="flex h-16 items-center justify-around px-2">
         {navItems.map((item) => {
           // Redirect to active workout when there's an ongoing session
-          const to = item.to === "/workout" && activeSession 
+          const to = item.to === "/workout" && hasActiveSession 
             ? "/workout/active" 
             : item.to
           

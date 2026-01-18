@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import { useMemo } from "react"
 import { format } from "date-fns"
 import { Dumbbell, Utensils, Clock, Flame, Target, Trophy, Plus, ChevronRight } from "lucide-react"
 
@@ -20,13 +21,13 @@ export function Dashboard() {
   const today = getTodayDate()
   const todayFormatted = format(new Date(), "EEEE, MMMM d")
 
-  const { activeSession } = useWorkoutStore()
+  const activeSession = useWorkoutStore((s) => s.activeSession)
   const { totals } = useDailyNutrition(today)
   const todayWorkouts = useWorkoutsDB(today)
-  const { settings } = useSettingsStore()
+  const nutritionGoals = useSettingsStore((s) => s.settings.nutritionGoals)
   const { unlockedAchievements } = useAchievementsStore()
 
-  const calorieGoal = settings.nutritionGoals.calories
+  const calorieGoal = nutritionGoals.calories
   const currentCalories = totals?.calories ?? 0
   const caloriesRemaining = Math.max(0, calorieGoal - currentCalories)
   const calorieProgress = Math.min(100, (currentCalories / calorieGoal) * 100)
@@ -36,12 +37,13 @@ export function Dashboard() {
   const nutritionDates = useNutritionDatesDB()
 
   // Recent achievements
-
-  const recentAchievements = unlockedAchievements
-    .sort((a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime())
-    .slice(0, 2)
-    .map(ua => achievements.find(a => a.id === ua.id))
-    .filter((a): a is typeof achievements[0] => !!a)
+  const recentAchievements = useMemo(() => {
+    return unlockedAchievements
+      .sort((a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime())
+      .slice(0, 2)
+      .map(ua => achievements.find(a => a.id === ua.id))
+      .filter((a): a is typeof achievements[0] => !!a)
+  }, [unlockedAchievements])
 
   return (
     <div className="flex flex-col pb-20">
@@ -161,19 +163,19 @@ export function Dashboard() {
               <CompactMacro 
                 label="Protein" 
                 value={totals?.protein ?? 0} 
-                goal={settings.nutritionGoals.protein} 
+                goal={nutritionGoals.protein} 
                 color="bg-macro-protein" 
               />
               <CompactMacro 
                 label="Carbs" 
                 value={totals?.carbs ?? 0} 
-                goal={settings.nutritionGoals.carbs} 
+                goal={nutritionGoals.carbs} 
                 color="bg-macro-carbs" 
               />
               <CompactMacro 
                 label="Fat" 
                 value={totals?.fat ?? 0} 
-                goal={settings.nutritionGoals.fat} 
+                goal={nutritionGoals.fat} 
                 color="bg-macro-fat" 
               />
             </div>

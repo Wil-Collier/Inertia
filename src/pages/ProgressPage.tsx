@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useCallback } from "react"
 import { format, subDays, startOfWeek, eachDayOfInterval, parseISO } from "date-fns"
 import { Trophy, TrendingUp, Dumbbell, Calendar, Scale, Trash2, TrendingDown, Minus, Activity, Award } from "lucide-react"
 import {
@@ -35,6 +35,16 @@ import { achievements, categoryLabels } from "@/data/achievements"
 import { toast } from "sonner"
 
 import { useProgressStatsDB } from "@/hooks/db/useProgressStatsDB"
+
+// Chart Configuration Constants
+const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }
+const CHART_AXIS_STYLE = { fontSize: 12 }
+const TOOLTIP_CONTENT_STYLE = {
+  backgroundColor: "hsl(var(--background))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: "8px",
+}
+const LINE_DOT_CONFIG = { fill: "hsl(var(--primary))" }
 
 export function ProgressPage() {
   // 1. Efficient Stats
@@ -120,7 +130,9 @@ export function ProgressPage() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }, [personalRecords, prExerciseMap])
 
-  // Stats summary REMOVED (now using hook directly)
+  // Chart formatters
+  const volumeTickFormatter = useCallback((value: number) => `${(value / 1000).toFixed(0)}k`, [])
+  const volumeTooltipFormatter = useCallback((value: any) => [`${Number(value ?? 0).toLocaleString()} ${weightUnit.unitLabel}`, "Volume"], [weightUnit.unitLabel])
 
   return (
     <div className="flex flex-col">
@@ -176,32 +188,28 @@ export function ProgressPage() {
               <CardContent>
                 {weeklyData.some((d) => d.volume > 0) ? (
                   <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={weeklyData}>
+                    <LineChart data={weeklyData} margin={CHART_MARGIN}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis
                         dataKey="week"
-                        tick={{ fontSize: 12 }}
+                        tick={CHART_AXIS_STYLE}
                         className="text-muted-foreground"
                       />
                       <YAxis
-                        tick={{ fontSize: 12 }}
+                        tick={CHART_AXIS_STYLE}
                         className="text-muted-foreground"
-                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                        tickFormatter={volumeTickFormatter}
                       />
                       <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--background))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                        }}
-                        formatter={(value) => [`${(value as number).toLocaleString()} ${weightUnit.unitLabel}`, "Volume"]}
+                        contentStyle={TOOLTIP_CONTENT_STYLE}
+                        formatter={volumeTooltipFormatter}
                       />
                       <Line
                         type="monotone"
                         dataKey="volume"
                         stroke="hsl(var(--primary))"
                         strokeWidth={2}
-                        dot={{ fill: "hsl(var(--primary))" }}
+                        dot={LINE_DOT_CONFIG}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -351,15 +359,17 @@ function BodyWeightTab({
     : 0
 
   // Get last 30 days of data for chart
-  const today = format(new Date(), "yyyy-MM-dd")
-  const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd")
-  const chartData = weightEntries
-    .filter((e) => e.date >= thirtyDaysAgo && e.date <= today)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((e) => ({
-      date: format(parseISO(e.date), "MMM d"),
-      weight: e.weight,
-    }))
+  const chartData = useMemo(() => {
+    const today = format(new Date(), "yyyy-MM-dd")
+    const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd")
+    return weightEntries
+      .filter((e) => e.date >= thirtyDaysAgo && e.date <= today)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((e) => ({
+        date: format(parseISO(e.date), "MMM d"),
+        weight: e.weight,
+      }))
+  }, [weightEntries])
 
   const handleAddWeight = () => {
     const weight = parseFloat(newWeight)
@@ -371,6 +381,9 @@ function BodyWeightTab({
     setNewWeight("")
     toast.success("Weight logged!")
   }
+
+  const weightTooltipFormatter = useCallback((value: any) => [`${String(value ?? 0)} ${preferredUnit}`, "Weight"], [preferredUnit])
+  const weightDomain = useMemo(() => ["dataMin - 2", "dataMax + 2"], [])
 
   return (
     <>
@@ -419,32 +432,28 @@ function BodyWeightTab({
         <CardContent>
           {chartData.length >= 2 ? (
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData}>
+              <LineChart data={chartData} margin={CHART_MARGIN}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis
                   dataKey="date"
-                  tick={{ fontSize: 12 }}
+                  tick={CHART_AXIS_STYLE}
                   className="text-muted-foreground"
                 />
                 <YAxis
-                  tick={{ fontSize: 12 }}
+                  tick={CHART_AXIS_STYLE}
                   className="text-muted-foreground"
-                  domain={["dataMin - 2", "dataMax + 2"]}
+                  domain={weightDomain}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                  }}
-                  formatter={(value) => [`${String(value ?? 0)} ${preferredUnit}`, "Weight"]}
+                  contentStyle={TOOLTIP_CONTENT_STYLE}
+                  formatter={weightTooltipFormatter}
                 />
                 <Line
                   type="monotone"
                   dataKey="weight"
                   stroke="hsl(var(--primary))"
                   strokeWidth={2}
-                  dot={{ fill: "hsl(var(--primary))" }}
+                  dot={LINE_DOT_CONFIG}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -557,6 +566,9 @@ function ExerciseProgressTab({
     volume: h.totalVolume,
   }))
 
+  const exerciseTooltipFormatter = useCallback((value: any) => [`${String(value ?? 0)} ${weightUnit.unitLabel}`, "Max Weight"], [weightUnit.unitLabel])
+  const exerciseDomain = useMemo(() => ["dataMin - 5", "dataMax + 5"], [])
+
   return (
     <>
       {/* Exercise Picker */}
@@ -598,32 +610,28 @@ function ExerciseProgressTab({
             <CardContent>
               {chartData.length >= 2 ? (
                 <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={chartData}>
+                  <LineChart data={chartData} margin={CHART_MARGIN}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 12 }}
+                      tick={CHART_AXIS_STYLE}
                       className="text-muted-foreground"
                     />
                     <YAxis
-                      tick={{ fontSize: 12 }}
+                      tick={CHART_AXIS_STYLE}
                       className="text-muted-foreground"
-                      domain={["dataMin - 5", "dataMax + 5"]}
+                      domain={exerciseDomain}
                     />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--background))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(value) => [`${String(value ?? 0)} ${weightUnit.unitLabel}`, "Max Weight"]}
+                      contentStyle={TOOLTIP_CONTENT_STYLE}
+                      formatter={exerciseTooltipFormatter}
                     />
                     <Line
                       type="monotone"
                       dataKey="weight"
                       stroke="hsl(var(--primary))"
                       strokeWidth={2}
-                      dot={{ fill: "hsl(var(--primary))" }}
+                      dot={LINE_DOT_CONFIG}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -758,6 +766,9 @@ function MuscleBalanceTab({
   const avgFreq = totalMuscleHits / MUSCLE_GROUPS.length
   const undertrainedGroups = muscleData.filter((d) => d.frequency < avgFreq * 0.5 && avgFreq > 0)
 
+  const radarDomain = useMemo(() => [0, "dataMax"] as const, [])
+  const radarAxisStyle = useMemo(() => ({ fontSize: 10 }), [])
+
   return (
     <>
       {/* Time Range Selector */}
@@ -790,13 +801,13 @@ function MuscleBalanceTab({
                 <PolarGrid className="stroke-muted" />
                 <PolarAngleAxis
                   dataKey="muscle"
-                  tick={{ fontSize: 12 }}
+                  tick={CHART_AXIS_STYLE}
                   className="text-muted-foreground"
                 />
                 <PolarRadiusAxis
                   angle={90}
-                  domain={[0, "dataMax"]}
-                  tick={{ fontSize: 10 }}
+                  domain={radarDomain}
+                  tick={radarAxisStyle}
                   className="text-muted-foreground"
                 />
                 <Radar
@@ -807,13 +818,7 @@ function MuscleBalanceTab({
                   fillOpacity={0.5}
                   strokeWidth={2}
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                  }}
-                />
+                <Tooltip contentStyle={TOOLTIP_CONTENT_STYLE} />
               </RadarChart>
             </ResponsiveContainer>
           ) : (

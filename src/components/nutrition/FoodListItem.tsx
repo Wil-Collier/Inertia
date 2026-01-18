@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { Star, Trash2, Plus, Minus, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { FoodItem } from "@/lib/types"
@@ -30,29 +30,29 @@ export function FoodListItem({
   const adjustedFiber = Math.round((food.fiber ?? 0) * quantity * 10) / 10
   const adjustedSugar = Math.round((food.sugar ?? 0) * quantity * 10) / 10
 
-  const handleToggleExpand = () => {
+  const handleToggleExpand = useCallback(() => {
     setIsExpanded(!isExpanded)
     if (!isExpanded) {
       setQuantity(1)
     }
-  }
+  }, [isExpanded])
 
-  const incrementQuantity = (e: React.MouseEvent) => {
+  const incrementQuantity = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     setQuantity((q) => Math.round((q + 0.5) * 10) / 10)
-  }
+  }, [])
 
-  const decrementQuantity = (e: React.MouseEvent) => {
+  const decrementQuantity = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     setQuantity((q) => Math.max(0.5, Math.round((q - 0.5) * 10) / 10))
-  }
+  }, [])
 
-  const handleAdd = (e: React.MouseEvent) => {
+  const handleAdd = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     onAdd(quantity)
     setIsExpanded(false)
     setQuantity(1)
-  }
+  }, [onAdd, quantity])
 
   return (
     <div className="rounded-lg border overflow-hidden">

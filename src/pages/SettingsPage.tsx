@@ -35,7 +35,12 @@ import { toast } from "sonner"
 import type { ThemeMode, WeightUnit, DistanceUnit } from "@/lib/types"
 
 export function SettingsPage() {
-  const { settings, updateNutritionGoal, setRestTimerDuration, setWeightUnit, setDistanceUnit, setNotificationsEnabled } = useSettingsStore()
+  const updateNutritionGoal = useSettingsStore((s) => s.updateNutritionGoal)
+  const setRestTimerDuration = useSettingsStore((s) => s.setRestTimerDuration)
+  const setWeightUnit = useSettingsStore((s) => s.setWeightUnit)
+  const setDistanceUnit = useSettingsStore((s) => s.setDistanceUnit)
+  const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled)
+  const settings = useSettingsStore((s) => s.settings)
   const { theme, setTheme } = useTheme()
   const [showClearDialog, setShowClearDialog] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)

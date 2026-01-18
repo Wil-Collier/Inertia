@@ -85,37 +85,34 @@ export function NutritionPage() {
   const [templateMealType, setTemplateMealType] = useState<MealType>("breakfast")
   const [newTemplateName, setNewTemplateName] = useState("")
 
-  const {
-    addFood,
-    addMealEntry,
-    updateMealEntry,
-    removeMealEntry,
-    toggleFavorite,
-    deleteFood,
-    saveMealTemplate,
-    deleteMealTemplate,
-    applyMealTemplate,
-  } = useNutritionStore()
+  const addFood = useNutritionStore((s) => s.addFood)
+  const addMealEntry = useNutritionStore((s) => s.addMealEntry)
+  const updateMealEntry = useNutritionStore((s) => s.updateMealEntry)
+  const removeMealEntry = useNutritionStore((s) => s.removeMealEntry)
+  const toggleFavorite = useNutritionStore((s) => s.toggleFavorite)
+  const deleteFood = useNutritionStore((s) => s.deleteFood)
+  const saveMealTemplate = useNutritionStore((s) => s.saveMealTemplate)
+  const deleteMealTemplate = useNutritionStore((s) => s.deleteMealTemplate)
+  const applyMealTemplate = useNutritionStore((s) => s.applyMealTemplate)
 
   const { totals, entriesWithFood } = useDailyNutrition(selectedDate)
   const favorites = useFoodsDB("", "favorites")
   const customFoods = useFoodsDB("", "custom")
   const mealTemplates = useMealTemplatesDB()
 
-  const { settings } = useSettingsStore()
-  const { nutritionGoals } = settings
+  const nutritionGoals = useSettingsStore((s) => s.settings.nutritionGoals)
 
-  const getEntriesByMealType = (type: MealType) => {
+  const getEntriesByMealType = useCallback((type: MealType) => {
     return entriesWithFood.filter(e => e.mealType === type)
-  }
+  }, [entriesWithFood])
 
-  const handlePrevDay = () => {
+  const handlePrevDay = useCallback(() => {
     setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
-  }
+  }, [selectedDate])
 
-  const handleNextDay = () => {
+  const handleNextDay = useCallback(() => {
     setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
-  }
+  }, [selectedDate])
 
   const handleSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
@@ -155,7 +152,7 @@ export function NutritionPage() {
     return () => clearTimeout(timer)
   }, [searchQuery, handleSearch])
 
-  const handleAddFood = async (food: FoodItem, qty: number) => {
+  const handleAddFood = useCallback(async (food: FoodItem, qty: number) => {
     try {
       let foodId = food.id
 
@@ -173,14 +170,14 @@ export function NutritionPage() {
     } catch {
       // Store methods already toast; swallow to avoid unhandled rejections.
     }
-  }
+  }, [selectedDate, selectedMealType, addFood, addMealEntry])
 
-  const openAddSheet = (mealType: MealType) => {
+  const openAddSheet = useCallback((mealType: MealType) => {
     setSelectedMealType(mealType)
     setShowAddSheet(true)
     setActiveTab("search")
     setScannedBarcode(null)
-  }
+  }, [])
 
   const handleBarcodeScan = useCallback(async (barcode: string) => {
     setShowScanner(false)

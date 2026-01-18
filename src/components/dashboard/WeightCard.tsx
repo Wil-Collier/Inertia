@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 
 export function WeightCard() {
-  const { addEntry } = useBodyWeightStore()
+  const addEntry = useBodyWeightStore((s) => s.addEntry)
   const sortedEntries = useBodyWeightDB(2)
   const weightUnit = useWeightUnit()
   const [open, setOpen] = useState(false)

@@ -112,7 +112,6 @@ export interface UserSettings {
   theme: ThemeMode
   nutritionGoals: NutritionGoals
   restTimerDuration: number // seconds
-  weightUnit: WeightUnit // lbs or kg for workout weights (legacy, use unitPreferences)
   unitPreferences: UnitPreferences // comprehensive unit preferences
   notificationsEnabled: boolean // whether to show rest timer notifications
 }
