@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useSearch, useNavigate } from "@tanstack/react-router"
 import { seedTestData } from "@/services/devSeeding"
 import { PageLoader } from "@/components/ui/PageLoader"
 
 export function DevSeedingHandler() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const search = useSearch({ from: "__root__" }) as any
+  const navigate = useNavigate()
   const [isSeeding, setIsSeeding] = useState(false)
 
   useEffect(() => {
     let isMounted = true
 
-    if (import.meta.env.DEV && searchParams.get("seed") === "true") {
+    if (import.meta.env.DEV && search.seed === "true") {
       const runSeed = async () => {
         setIsSeeding(true)
         try {
@@ -19,8 +20,13 @@ export function DevSeedingHandler() {
           if (!isMounted) return
 
           // Remove the seed param and reload to ensure all stores are fresh
-          searchParams.delete("seed")
-          setSearchParams(searchParams)
+          await navigate({ 
+            to: "/",
+            search: (old: any) => {
+              const { seed: _, ...rest } = old
+              return rest
+            } 
+          })
           window.location.reload()
         } catch (error) {
           console.error("Seeding failed:", error)
@@ -35,7 +41,7 @@ export function DevSeedingHandler() {
     return () => {
       isMounted = false
     }
-  }, [searchParams, setSearchParams])
+  }, [search, navigate])
 
   if (isSeeding) {
     return (

@@ -9,7 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useSettingsStore } from "@/stores/settingsStore"
+import { useSettings } from "@/features/settings/queries"
+import { useUpdateSettings } from "@/features/settings/mutations"
 import { useTheme } from "@/hooks/useTheme"
 import { downloadExport, importData, clearAllData } from "@/services/dataExport"
 import {
@@ -27,17 +28,18 @@ import { NutritionGoalSettings } from "@/components/settings/NutritionGoalSettin
 import { DataManagement } from "@/components/settings/DataManagement"
 
 export function SettingsPage() {
-  const updateNutritionGoal = useSettingsStore((s) => s.updateNutritionGoal)
-  const setRestTimerDuration = useSettingsStore((s) => s.setRestTimerDuration)
-  const setWeightUnit = useSettingsStore((s) => s.setWeightUnit)
-  const setDistanceUnit = useSettingsStore((s) => s.setDistanceUnit)
-  const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled)
-  const settings = useSettingsStore((s) => s.settings)
+  const updateSettingsMutation = useUpdateSettings()
+  
+  const { data: settings } = useSettings()
+  
   const { theme, setTheme } = useTheme()
   const [showClearDialog, setShowClearDialog] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
 
+  if (!settings) return null
+
   const handleToggleNotifications = async () => {
+
     if (!isNotificationSupported()) {
       toast.error("Notifications not supported in this browser")
       return
@@ -45,13 +47,13 @@ export function SettingsPage() {
 
     if (settings.areNotificationsEnabled) {
       // Disable notifications
-      await setNotificationsEnabled(false)
+      await updateSettingsMutation.mutateAsync({ areNotificationsEnabled: false })
       toast.success("Notifications disabled")
     } else {
       // Request permission and enable
       const permission = await requestNotificationPermission()
       if (permission === "granted") {
-        await setNotificationsEnabled(true)
+        await updateSettingsMutation.mutateAsync({ areNotificationsEnabled: true })
         toast.success("Notifications enabled")
       } else if (permission === "denied") {
         toast.error("Notification permission denied. Please enable in browser settings.")
@@ -109,7 +111,7 @@ export function SettingsPage() {
         {/* Workout Settings */}
         <WorkoutSettings
           restTimerDuration={settings.restTimerDuration}
-          onRestTimerChange={setRestTimerDuration}
+          onRestTimerChange={(duration) => updateSettingsMutation.mutate({ restTimerDuration: duration })}
           notificationsEnabled={settings.areNotificationsEnabled}
           onToggleNotifications={handleToggleNotifications}
           canEnableNotifications={canEnableNotifications}
@@ -120,14 +122,16 @@ export function SettingsPage() {
         <UnitSettings
           weightUnit={settings.unitPreferences.weight}
           distanceUnit={settings.unitPreferences.distance}
-          onWeightUnitChange={setWeightUnit}
-          onDistanceUnitChange={setDistanceUnit}
+          onWeightUnitChange={(weight) => updateSettingsMutation.mutate({ unitPreferences: { ...settings.unitPreferences, weight } })}
+          onDistanceUnitChange={(distance) => updateSettingsMutation.mutate({ unitPreferences: { ...settings.unitPreferences, distance } })}
         />
 
         {/* Nutrition Goals */}
         <NutritionGoalSettings
           goals={settings.nutritionGoals}
-          onGoalChange={updateNutritionGoal}
+          onGoalChange={(field, value) => updateSettingsMutation.mutate({ 
+            nutritionGoals: { ...settings.nutritionGoals, [field]: value } 
+          })}
         />
 
         {/* Data Management */}

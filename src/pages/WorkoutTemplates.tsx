@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "@tanstack/react-router"
 import {
   LayoutTemplate,
   Dumbbell,
@@ -31,22 +31,30 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
-import { useWorkoutStore } from "@/stores/workout"
-import { useTemplatesDB } from "@/hooks/db/useWorkoutsDB"
-import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
+import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
+import { useTemplates } from "@/features/workout/queries"
+import { 
+  useCreateTemplate, 
+  useUpdateTemplate, 
+  useDeleteTemplate 
+} from "@/features/workout/mutations"
+import { useExercisesByIds } from "@/features/exercises/queries"
 import type { WorkoutTemplate } from "@/lib/types"
 
 export function WorkoutTemplates() {
   const navigate = useNavigate()
-  const { deleteTemplate, createTemplate, updateTemplate, startWorkout } =
-    useWorkoutStore()
-  const templates = useTemplatesDB()
+  const { startWorkout } = useActiveSessionStore()
+  const createTemplateMutation = useCreateTemplate()
+  const updateTemplateMutation = useUpdateTemplate()
+  const deleteTemplateMutation = useDeleteTemplate()
+
+  const { data: templates = [] } = useTemplates()
   
   // Resolve all exercise names in templates
   const allExerciseIds = useMemo(() => {
     return [...new Set(templates.flatMap(template => template.exercises.map(exercise => exercise.exerciseId)))]
   }, [templates])
-  const exercisesById = useExercisesByIdsDB(allExerciseIds)
+  const { data: exercisesById = new Map() } = useExercisesByIds(allExerciseIds)
 
   const [templateToDelete, setTemplateToDelete] = useState<WorkoutTemplate | null>(null)
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null)
@@ -63,38 +71,39 @@ export function WorkoutTemplates() {
 
     setIsDeleting(true)
     try {
-      await deleteTemplate(templateToDelete.id)
+      await deleteTemplateMutation.mutateAsync(templateToDelete.id)
       setTemplateToDelete(null)
-      toast.success("Template deleted")
     } catch {
-      // Store already toasts
+      // Mutation toasts
     } finally {
       setIsDeleting(false)
     }
-  }, [templateToDelete, deleteTemplate])
+  }, [templateToDelete, deleteTemplateMutation])
 
   const handleCreate = useCallback(async () => {
     if (!newTemplateName.trim()) return
 
     setIsCreatingNew(true)
     try {
-      const template = await createTemplate(newTemplateName.trim())
+      const template = await createTemplateMutation.mutateAsync({ 
+        name: newTemplateName.trim(),
+        exercises: []
+      })
       setNewTemplateName("")
       setIsCreating(false)
       setEditingTemplate(template)
       setEditName(template.name)
-      toast.success("Template created")
     } catch {
-      // Store already toasts
+      // Mutation toasts
     } finally {
       setIsCreatingNew(false)
     }
-  }, [newTemplateName, createTemplate])
+  }, [newTemplateName, createTemplateMutation])
 
   const handleStartFromTemplate = useCallback(async (template: WorkoutTemplate) => {
     try {
       await startWorkout(template.name, template.id)
-      navigate("/workout/active")
+      navigate({ to: "/workout/active" })
     } catch {
       // Store already toasts
     }
@@ -110,16 +119,18 @@ export function WorkoutTemplates() {
 
     setIsSavingEdit(true)
     try {
-      await updateTemplate(editingTemplate.id, { name: editName.trim() })
-      toast.success("Template updated")
+      await updateTemplateMutation.mutateAsync({ 
+        id: editingTemplate.id, 
+        updates: { name: editName.trim() } 
+      })
       return true
     } catch {
-      // Store already toasts
+      // Mutation toasts
       return false
     } finally {
       setIsSavingEdit(false)
     }
-  }, [editingTemplate, editName, updateTemplate])
+  }, [editingTemplate, editName, updateTemplateMutation])
 
   const handleAddExercise = useCallback(async (exerciseId: string) => {
     if (!editingTemplate) {
@@ -133,7 +144,10 @@ export function WorkoutTemplates() {
     ]
 
     try {
-      await updateTemplate(editingTemplate.id, { exercises: updatedExercises })
+      await updateTemplateMutation.mutateAsync({ 
+        id: editingTemplate.id, 
+        updates: { exercises: updatedExercises } 
+      })
       setEditingTemplate({
         ...editingTemplate,
         exercises: updatedExercises,
@@ -141,9 +155,9 @@ export function WorkoutTemplates() {
       setIsAddExerciseOpen(false)
       toast.success("Exercise added")
     } catch {
-      // Store already toasts
+      // Mutation toasts
     }
-  }, [editingTemplate, updateTemplate])
+  }, [editingTemplate, updateTemplateMutation])
 
   const handleRemoveExercise = useCallback(async (exerciseId: string) => {
     if (!editingTemplate) return
@@ -153,16 +167,19 @@ export function WorkoutTemplates() {
     )
 
     try {
-      await updateTemplate(editingTemplate.id, { exercises: updatedExercises })
+      await updateTemplateMutation.mutateAsync({ 
+        id: editingTemplate.id, 
+        updates: { exercises: updatedExercises } 
+      })
       setEditingTemplate({
         ...editingTemplate,
         exercises: updatedExercises,
       })
       toast.success("Exercise removed")
     } catch {
-      // Store already toasts
+      // Mutation toasts
     }
-  }, [editingTemplate, updateTemplate])
+  }, [editingTemplate, updateTemplateMutation])
 
   const handleUpdateTargets = useCallback(async (
     exerciseId: string,
@@ -176,15 +193,18 @@ export function WorkoutTemplates() {
     )
 
     try {
-      await updateTemplate(editingTemplate.id, { exercises: updatedExercises })
+      await updateTemplateMutation.mutateAsync({ 
+        id: editingTemplate.id, 
+        updates: { exercises: updatedExercises } 
+      })
       setEditingTemplate({
         ...editingTemplate,
         exercises: updatedExercises,
       })
     } catch {
-      // Store already toasts
+      // Mutation toasts
     }
-  }, [editingTemplate, updateTemplate])
+  }, [editingTemplate, updateTemplateMutation])
 
   return (
     <div className="flex flex-col">

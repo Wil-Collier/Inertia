@@ -15,21 +15,21 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { WorkoutHistoryCard } from "@/components/workout/WorkoutHistoryCard"
-import { useWorkoutStore } from "@/stores/workout"
-import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
-import { useWorkoutsDB } from "@/hooks/db/useWorkoutsDB"
+import { useDeleteWorkout } from "@/features/workout/mutations"
+import { useExercisesByIds } from "@/features/exercises/queries"
+import { useWorkouts } from "@/features/workout/queries"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import type { Workout } from "@/lib/types"
 
 export function WorkoutHistory() {
-  const { deleteWorkout } = useWorkoutStore()
-  const { data: workouts, isLoading } = useWorkoutsDB()
+  const deleteWorkoutMutation = useDeleteWorkout()
+  const { data: workouts = [], isLoading } = useWorkouts()
   
   // Resolve all exercise names in history
   const allExerciseIds = useMemo(() => {
     return [...new Set(workouts.flatMap(w => w.exercises.map(e => e.exerciseId)))]
   }, [workouts])
-  const exercisesById = useExercisesByIdsDB(allExerciseIds)
+  const { data: exercisesById = new Map() } = useExercisesByIds(allExerciseIds)
 
   const weightUnit = useWeightUnit()
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null)
@@ -70,7 +70,7 @@ export function WorkoutHistory() {
 
     setIsDeleting(true)
     try {
-      await deleteWorkout(workoutToDelete.id)
+      await deleteWorkoutMutation.mutateAsync(workoutToDelete.id)
       setWorkoutToDelete(null)
       toast.success("Workout deleted")
     } catch {
@@ -78,7 +78,7 @@ export function WorkoutHistory() {
     } finally {
       setIsDeleting(false)
     }
-  }, [workoutToDelete, deleteWorkout])
+  }, [workoutToDelete, deleteWorkoutMutation])
 
   return (
     <div className="flex flex-col">

@@ -3,7 +3,6 @@ import { Search, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { toast } from "sonner"
 import {
   Sheet,
   SheetContent,
@@ -11,9 +10,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { ExerciseInfoButton } from "@/components/ExerciseInfoSheet"
-import { useExerciseStore } from "@/stores/exerciseStore"
-import { useExercisesDB } from "@/hooks/db/useExercisesDB"
+import { useExercises } from "@/features/exercises/queries"
 import type { MuscleGroup, Exercise } from "@/lib/types"
+import { muscleGroupLabels } from "@/lib/muscleGroups"
 
 const muscleGroups: MuscleGroup[] = [
   "chest",
@@ -24,8 +23,6 @@ const muscleGroups: MuscleGroup[] = [
   "core",
   "cardio",
 ]
-
-import { muscleGroupLabels } from "@/lib/muscleGroups"
 
 interface ExerciseListItemProps {
   exercise: Exercise
@@ -79,29 +76,19 @@ export function ExercisePickerSheet({
   onSelect,
   addedExerciseIds = [],
 }: ExercisePickerSheetProps) {
-  const isLoaded = useExerciseStore((s) => s.isLoaded)
-  const init = useExerciseStore((s) => s.init)
+  const { data: allExercises = [], isLoading } = useExercises()
   const [selectedMuscleGroup, setSelectedMuscleGroup] =
     useState<MuscleGroup | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
 
-  const filteredExercises = useExercisesDB(debouncedQuery, selectedMuscleGroup || "all")
-
-  // Ensure loaded when sheet opens
-  useEffect(() => {
-    let isMounted = true
-    if (isOpen && !isLoaded) {
-      init().catch(() => {
-        if (isMounted) {
-          toast.error("Failed to load exercises")
-        }
-      })
-    }
-    return () => {
-      isMounted = false
-    }
-  }, [isOpen, isLoaded, init])
+  const filteredExercises = useMemo(() => {
+    return allExercises.filter(ex => {
+      const matchesQuery = !debouncedQuery || ex.name.toLowerCase().includes(debouncedQuery.toLowerCase())
+      const matchesMuscle = !selectedMuscleGroup || ex.muscleGroup === selectedMuscleGroup
+      return matchesQuery && matchesMuscle
+    })
+  }, [allExercises, debouncedQuery, selectedMuscleGroup])
 
   // Debounce search query
   useEffect(() => {
@@ -187,7 +174,7 @@ export function ExercisePickerSheet({
           </div>
 
           {/* Loading State */}
-          {!isLoaded ? (
+          {isLoading ? (
             <div className="flex flex-1 items-center justify-center">
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

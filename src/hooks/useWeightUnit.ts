@@ -1,4 +1,4 @@
-import { useSettingsStore } from "@/stores/settingsStore"
+import { useSettings } from "@/features/settings/queries"
 import type { WeightUnit } from "@/lib/types"
 import { LBS_TO_KG, KG_TO_LBS } from "@/lib/constants"
 
@@ -70,7 +70,8 @@ export function getDisplayWeight(storedWeight: number, displayUnit: WeightUnit):
  * Uses unitPreferences.weight from settings
  */
 export function useWeightUnit() {
-  const unit = useSettingsStore((s) => s.settings.unitPreferences.weight)
+  const { data: settings } = useSettings()
+  const unit = settings?.unitPreferences.weight ?? "kg"
 
   return {
     /** Current weight unit preference */

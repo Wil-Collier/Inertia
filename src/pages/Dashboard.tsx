@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom"
+import { Link } from "@tanstack/react-router"
 import { useMemo } from "react"
 import { format } from "date-fns"
 import { Dumbbell, Utensils, Clock, Flame, Target, Trophy, Plus, ChevronRight } from "lucide-react"
@@ -7,35 +7,39 @@ import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
 import { AchievementBadge } from "@/components/AchievementBadge"
-import { useWorkoutStore } from "@/stores/workout"
-import { getTodayDate } from "@/stores/nutritionStore"
-import { useDailyNutrition, useNutritionDatesDB } from "@/hooks/db/useNutritionDB"
-import { useWorkoutsDB, useWorkoutDatesDB } from "@/hooks/db/useWorkoutsDB"
-import { useSettingsStore } from "@/stores/settingsStore"
-import { useAchievementsStore } from "@/stores/achievementsStore"
+import { getToday } from "@/lib/dateUtils"
+import { useDailyNutrition, useNutritionDates } from "@/features/nutrition/queries"
+import { useWorkoutsByDate, useWorkoutDates } from "@/features/workout/queries"
+import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
+import { useSettings } from "@/features/settings/queries"
+import { useAchievements } from "@/features/achievements/queries"
 import { WeeklyConsistency } from "@/components/dashboard/WeeklyConsistency"
 import { WeightCard } from "@/components/dashboard/WeightCard"
 import { achievements } from "@/data/achievements"
 import { cn } from "@/lib/utils"
 
 export function Dashboard() {
-  const today = getTodayDate()
+  const today = getToday()
   const todayFormatted = format(new Date(), "EEEE, MMMM d")
 
-  const activeSession = useWorkoutStore((s) => s.activeSession)
-  const { totals } = useDailyNutrition(today)
-  const { data: todayWorkouts, isLoading: isWorkoutsLoading } = useWorkoutsDB(today)
-  const nutritionGoals = useSettingsStore((s) => s.settings.nutritionGoals)
-  const { unlockedAchievements } = useAchievementsStore()
+  const { session: activeSession } = useActiveSessionStore()
+  const { data: nutritionData } = useDailyNutrition(today)
+  const { data: todayWorkouts = [], isLoading: isWorkoutsLoading } = useWorkoutsByDate(today)
+  const { data: settings } = useSettings()
+  const { data: achievementsData } = useAchievements()
+  const unlockedAchievements = useMemo(() => achievementsData?.unlockedAchievements ?? [], [achievementsData?.unlockedAchievements])
 
-  const calorieGoal = nutritionGoals.calories
+  const nutritionGoals = settings?.nutritionGoals
+  const totals = nutritionData?.totals
+
+  const calorieGoal = nutritionGoals?.calories ?? 2000
   const currentCalories = totals?.calories ?? 0
   const caloriesRemaining = Math.max(0, calorieGoal - currentCalories)
   const calorieProgress = Math.min(100, (currentCalories / calorieGoal) * 100)
 
   // For WeeklyConsistency, we need ALL workout dates and logged nutrition dates.
-  const workoutDates = useWorkoutDatesDB()
-  const nutritionDates = useNutritionDatesDB()
+  const { data: workoutDates = [] } = useWorkoutDates()
+  const { data: nutritionDates = [] } = useNutritionDates()
 
   // Recent achievements
   const recentAchievements = useMemo(() => {
@@ -164,19 +168,19 @@ export function Dashboard() {
               <CompactMacro 
                 label="Protein" 
                 value={totals?.protein ?? 0} 
-                goal={nutritionGoals.protein} 
+                goal={nutritionGoals?.protein ?? 150} 
                 color="bg-macro-protein" 
               />
               <CompactMacro 
                 label="Carbs" 
                 value={totals?.carbs ?? 0} 
-                goal={nutritionGoals.carbs} 
+                goal={nutritionGoals?.carbs ?? 250} 
                 color="bg-macro-carbs" 
               />
               <CompactMacro 
                 label="Fat" 
                 value={totals?.fat ?? 0} 
-                goal={nutritionGoals.fat} 
+                goal={nutritionGoals?.fat ?? 65} 
                 color="bg-macro-fat" 
               />
             </div>

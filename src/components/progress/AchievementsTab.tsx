@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { AchievementBadge } from "@/components/AchievementBadge"
 import { StreakDisplay } from "@/components/StreakDisplay"
 import { AchievementCard } from "@/components/AchievementCard"
-import { useAchievementsStore } from "@/stores/achievementsStore"
+import { useAchievements } from "@/features/achievements/queries"
 import { achievements, categoryLabels } from "@/data/achievements"
 
 interface AchievementsTabProps {
@@ -19,8 +19,11 @@ export function AchievementsTab({
   totalVolume,
   prCount,
 }: AchievementsTabProps) {
-  const { unlockedAchievements, getUnlockedAchievement } = useAchievementsStore()
+  const { data: achievementsData } = useAchievements()
+  const unlockedAchievements = achievementsData?.unlockedAchievements ?? []
   const [showLocked, setShowLocked] = useState(true)
+
+  const getUnlockedAchievement = (id: string) => unlockedAchievements.find(a => a.id === id)
 
   // Group achievements by category
   const groupedAchievements = useMemo(() => {

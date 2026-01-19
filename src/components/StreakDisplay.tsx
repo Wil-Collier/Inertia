@@ -1,9 +1,13 @@
 import { Flame, Utensils } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { useAchievementsStore } from "@/stores/achievementsStore"
+import { useAchievements } from "@/features/achievements/queries"
 
 export function StreakDisplay() {
-  const streaks = useAchievementsStore((s) => s.streaks)
+  const { data: achievementsData } = useAchievements()
+  const streaks = achievementsData?.streaks ?? {
+    currentWorkoutStreak: 0,
+    currentNutritionStreak: 0,
+  }
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -36,7 +40,11 @@ export function StreakDisplay() {
 
 // Compact version for the header or smaller spaces
 export function StreakBadge() {
-  const streaks = useAchievementsStore((s) => s.streaks)
+  const { data: achievementsData } = useAchievements()
+  const streaks = achievementsData?.streaks ?? {
+    currentWorkoutStreak: 0,
+    currentNutritionStreak: 0,
+  }
 
   if (streaks.currentWorkoutStreak === 0 && streaks.currentNutritionStreak === 0) {
     return null

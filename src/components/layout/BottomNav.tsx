@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom"
+import { Link, useRouterState } from "@tanstack/react-router"
 import {
   Home,
   Dumbbell,
@@ -7,7 +7,7 @@ import {
   Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useWorkoutStore } from "@/stores/workout"
+import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
@@ -18,8 +18,9 @@ const navItems = [
 ]
 
 export function BottomNav() {
-  const location = useLocation()
-  const hasActiveSession = useWorkoutStore((s) => !!s.activeSession)
+  const routerState = useRouterState()
+  const pathname = routerState.location.pathname
+  const hasActiveSession = useActiveSessionStore((s) => !!s.session)
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-area-bottom">
@@ -32,13 +33,13 @@ export function BottomNav() {
           
           const isActive =
             item.to === "/"
-              ? location.pathname === "/"
-              : location.pathname.startsWith(item.to)
+              ? pathname === "/"
+              : pathname.startsWith(item.to)
 
           return (
-            <NavLink
+            <Link
               key={item.to}
-              to={to}
+              to={to as any}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs transition-colors",
                 isActive
@@ -48,7 +49,7 @@ export function BottomNav() {
             >
               <item.icon className={cn("h-5 w-5", isActive && "stroke-[2.5]")} />
               <span className="font-medium">{item.label}</span>
-            </NavLink>
+            </Link>
           )
         })}
       </div>

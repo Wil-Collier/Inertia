@@ -3,10 +3,12 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig, type PluginOption } from "vite"
 import { VitePWA } from "vite-plugin-pwa"
+import { TanStackRouterVite } from "@tanstack/router-plugin/vite"
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    TanStackRouterVite(),
     react(),
     tailwindcss(),
     VitePWA({
@@ -86,7 +88,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           // Split vendor chunks
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-react": ["react", "react-dom"],
+          "vendor-tanstack": ["@tanstack/react-router", "@tanstack/react-query"],
           "vendor-recharts": ["recharts"],
           "vendor-utils": ["zustand", "date-fns", "uuid"],
           "vendor-barcode": ["html5-qrcode"],

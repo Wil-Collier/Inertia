@@ -1,4 +1,4 @@
-import { useSettingsStore } from "@/stores/settingsStore"
+import { useSettings } from "@/features/settings/queries"
 import type { WeightUnit, DistanceUnit } from "@/lib/types"
 
 // Conversion constants
@@ -102,8 +102,8 @@ export function getDisplayDistance(storedDistance: number, displayUnit: Distance
 // ============================================
 
 export function useUnits() {
-  const { settings } = useSettingsStore()
-  const { unitPreferences } = settings
+  const { data: settings } = useSettings()
+  const unitPreferences = settings?.unitPreferences ?? { weight: "kg", distance: "km" }
 
   return {
     // Current unit preferences

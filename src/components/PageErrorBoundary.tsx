@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "@tanstack/react-router"
 import { AlertTriangle, Home, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,7 +14,7 @@ function ErrorFallback({ error, reset }: ErrorFallbackProps) {
 
   const handleGoHome = () => {
     reset()
-    navigate("/")
+    navigate({ to: "/" })
   }
 
   const handleRetry = () => {

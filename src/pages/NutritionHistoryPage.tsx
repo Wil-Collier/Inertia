@@ -17,9 +17,13 @@ import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useNutritionHistory, useNutritionDatesDB } from "@/hooks/db/useNutritionDB"
-import { useSettingsStore } from "@/stores/settingsStore"
+import { useNutritionDates } from "@/features/nutrition/queries"
+import { useSettings } from "@/features/settings/queries"
 import { CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
+import { calculateNutritionTotals, calculateNutritionAverages, INITIAL_TOTALS } from "@/lib/nutritionUtils"
+import { db } from "@/services/db"
+import { useQuery } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/queryKeys"
 
 type DateRange = "7d" | "30d" | "90d"
 
@@ -36,8 +40,15 @@ const MACRO_LINE_STROKE_WIDTH = 2
 export function NutritionHistoryPage() {
   const [dateRange, setDateRange] = useState<DateRange>("30d")
 
-  const { settings } = useSettingsStore()
-  const { nutritionGoals } = settings
+  const { data: settings } = useSettings()
+  const nutritionGoals = settings?.nutritionGoals ?? {
+    calories: 2000,
+    protein: 150,
+    carbs: 250,
+    fat: 65,
+    fiber: 30,
+    sugar: 50
+  }
 
   const { startDate, endDate } = useMemo(() => {
     const end = new Date()
@@ -49,8 +60,33 @@ export function NutritionHistoryPage() {
     }
   }, [dateRange])
 
-  const { dailyTotals, averages, isLoading } = useNutritionHistory(startDate, endDate)
-  const loggedDates = useNutritionDatesDB()
+  const { data: historyData, isLoading } = useQuery({
+    queryKey: queryKeys.nutrition.range(startDate, endDate),
+    queryFn: async () => {
+      const logs = await db.nutritionLogs
+        .where("date")
+        .between(startDate, endDate, true, true)
+        .toArray()
+      
+      const foodIds = [...new Set(logs.flatMap((l) => l.entries.map((e) => e.foodId)))]
+      const foods = await db.foods.where("id").anyOf(foodIds).toArray()
+      const foodsById = new Map(foods.map((f) => [f.id, f]))
+
+      const dailyTotals = logs.map((log) => {
+        const totals = calculateNutritionTotals(log.entries, foodsById)
+        return { date: log.date, ...totals }
+      })
+
+      const averages = calculateNutritionAverages(dailyTotals)
+
+      return { dailyTotals, averages }
+    }
+  })
+
+  const dailyTotals = useMemo(() => historyData?.dailyTotals ?? [], [historyData?.dailyTotals])
+  const averages = historyData?.averages ?? INITIAL_TOTALS
+
+  const { data: loggedDates = [] } = useNutritionDates()
 
   const daysWithData = dailyTotals.filter((d) => d.calories > 0).length
 

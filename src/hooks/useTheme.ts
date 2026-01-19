@@ -1,9 +1,16 @@
 import { useEffect } from "react"
-import { useSettingsStore } from "@/stores/settingsStore"
+import { useSettings } from "@/features/settings/queries"
+import { useUpdateSettings } from "@/features/settings/mutations"
+import type { ThemeMode } from "@/lib/types"
 
 export function useTheme() {
-  const { settings, setTheme } = useSettingsStore()
-  const { theme } = settings
+  const { data: settings } = useSettings()
+  const theme = settings?.theme ?? ("system" as ThemeMode)
+  const updateSettingsMutation = useUpdateSettings()
+
+  const setTheme = (newTheme: ThemeMode) => {
+    updateSettingsMutation.mutate({ theme: newTheme })
+  }
 
   useEffect(() => {
     const root = window.document.documentElement

@@ -1,5 +1,5 @@
 import { useState, useMemo, Fragment } from "react"
-import { useNavigate, Link, Navigate } from "react-router-dom"
+import { useNavigate, Link, Navigate } from "@tanstack/react-router"
 import { Plus, Dumbbell, Clock, LayoutTemplate, History, ChevronRight } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,41 +12,42 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useWorkoutStore } from "@/stores/workout"
-import { useTemplatesDB, useWorkoutDatesDB, useWorkoutStatsDB } from "@/hooks/db/useWorkoutsDB"
-import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
+import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
+import { useTemplates, useWorkoutDates, useWorkoutStats } from "@/features/workout/queries"
+import { useExercisesByIds } from "@/features/exercises/queries"
 import { cn } from "@/lib/utils"
 import { format, subDays, startOfMonth, endOfMonth, parseISO } from "date-fns"
 import type { MuscleGroup } from "@/lib/types"
 
 export function WorkoutPage() {
   const navigate = useNavigate()
-  const activeSession = useWorkoutStore((state) => state.activeSession)
-  const startWorkout = useWorkoutStore((state) => state.startWorkout)
+  const { session: activeSession, startWorkout } = useActiveSessionStore()
   
-  const templates = useTemplatesDB()
-  const workoutDates = useWorkoutDatesDB()
+  const { data: templates = [] } = useTemplates()
+  const { data: workoutDates = [] } = useWorkoutDates()
 
   // Resolve exercise names for templates
   const templateExerciseIds = useMemo(() => {
     return [...new Set(templates.flatMap(template => template.exercises.map(exercise => exercise.exerciseId)))]
   }, [templates])
-  const exercisesById = useExercisesByIdsDB(templateExerciseIds)
+  const { data: exercisesById = new Map() } = useExercisesByIds(templateExerciseIds)
   
   const now = useMemo(() => new Date(), [])
   const monthStart = startOfMonth(now)
   const monthEnd = endOfMonth(now)
   const thirtyDaysAgo = subDays(now, 30)
 
-  const { workouts: monthWorkouts } = useWorkoutStatsDB(
+  const { data: monthStats } = useWorkoutStats(
     format(monthStart, "yyyy-MM-dd"),
     format(monthEnd, "yyyy-MM-dd")
   )
+  const monthWorkouts = useMemo(() => monthStats?.workouts ?? [], [monthStats?.workouts])
 
-  const { workouts: recentWorkouts } = useWorkoutStatsDB(
+  const { data: recentStats } = useWorkoutStats(
     format(thirtyDaysAgo, "yyyy-MM-dd"),
     format(now, "yyyy-MM-dd")
   )
+  const recentWorkouts = useMemo(() => recentStats?.workouts ?? [], [recentStats?.workouts])
   
   // Generate default workout name with today's date
   const getDefaultWorkoutName = () => {
@@ -58,17 +59,17 @@ export function WorkoutPage() {
   const [newWorkoutName, setNewWorkoutName] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-  const handleStartBlankWorkout = () => {
+  const handleStartBlankWorkout = async () => {
     const name = newWorkoutName.trim() || getDefaultWorkoutName()
-    startWorkout(name)
+    await startWorkout(name)
     setNewWorkoutName("")
     setIsDialogOpen(false)
-    navigate("/workout/active")
+    navigate({ to: "/workout/active" })
   }
 
-  const handleStartFromTemplate = (templateId: string, templateName: string) => {
-    startWorkout(templateName, templateId)
-    navigate("/workout/active")
+  const handleStartFromTemplate = async (templateId: string, templateName: string) => {
+    await startWorkout(templateName, templateId)
+    navigate({ to: "/workout/active" })
   }
 
   // Calculate Stats

@@ -16,15 +16,15 @@ import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AchievementBadge } from "@/components/AchievementBadge"
-import { useExercisesDB, useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
-import { useBodyWeightStore } from "@/stores/bodyWeightStore"
-import { useBodyWeightDB } from "@/hooks/db/useBodyWeightDB"
-import { useWorkoutStatsDB, usePersonalRecordsDB, useExerciseHistoryDB } from "@/hooks/db/useWorkoutsDB"
+import { useExercises, useExercisesByIds } from "@/features/exercises/queries"
+import { useBodyWeightHistory } from "@/features/bodyweight/queries"
+import { useAddWeightEntry, useDeleteWeightEntry } from "@/features/bodyweight/mutations"
+import { useWorkoutStats, usePersonalRecords, useExerciseHistory, useProgressStats } from "@/features/workout/queries"
 import { calculateOneRepMax, calculateSetVolume } from "@/lib/workoutUtils"
 import { getNinetyDaysAgo, getToday, formatDate } from "@/lib/dateUtils"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
-import { useProgressStatsDB } from "@/hooks/db/useProgressStatsDB"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
+import type { PersonalRecord } from "@/lib/types"
 
 // Internal Components
 import { StatCard } from "@/components/progress/StatCard"
@@ -39,27 +39,26 @@ const LINE_DOT_CONFIG = { fill: "hsl(var(--primary))" }
 
 export function ProgressPage() {
   // 1. Efficient Stats
-  const stats = useProgressStatsDB()
+  const { data: stats = { totalWorkouts: 0, last30Days: 0, totalVolume: 0, prsCount: 0 } } = useProgressStats()
   
   // 2. Fetch data for charts (last 90 days is enough for both weekly chart and max muscle balance range)
   const ninetyDaysAgo = useMemo(() => getNinetyDaysAgo(), [])
   const todayStr = useMemo(() => getToday(), [])
   
-  const { workouts: recentWorkouts } = useWorkoutStatsDB(ninetyDaysAgo, todayStr)
+  const { data: statsData } = useWorkoutStats(ninetyDaysAgo, todayStr)
+  const recentWorkouts = useMemo(() => statsData?.workouts ?? [], [statsData?.workouts])
   
-  const personalRecords = usePersonalRecordsDB()
+  const { data: personalRecords = {} as Record<string, PersonalRecord> } = usePersonalRecords()
   
-  const exercises = useExercisesDB()
+  const { data: exercises = [] } = useExercises()
   // Resolve exercise names for PRs
   const prExerciseIds = useMemo(() => Object.keys(personalRecords), [personalRecords])
-  const prExerciseMap = useExercisesByIdsDB(prExerciseIds)
+  const { data: prExerciseMap = new Map() } = useExercisesByIds(prExerciseIds)
 
-  const {
-    addEntry: addWeightEntry,
-    deleteEntry: deleteWeightEntry,
-  } = useBodyWeightStore()
+  const addWeightEntryMutation = useAddWeightEntry()
+  const deleteWeightEntryMutation = useDeleteWeightEntry()
   
-  const weightEntries = useBodyWeightDB()
+  const { data: weightEntries = [] } = useBodyWeightHistory()
   
   const weightUnit = useWeightUnit()
 
@@ -67,7 +66,9 @@ export function ProgressPage() {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null)
   
   // Custom hook for exercise history if selected
-  const selectedExerciseHistory = useExerciseHistoryDB(selectedExerciseId || "")
+  const { data: selectedExerciseHistory = [] } = useExerciseHistory(selectedExerciseId || "")
+
+
 
   // Calculate weekly volume data
   const weeklyData = useMemo(() => {
@@ -243,8 +244,12 @@ export function ProgressPage() {
             <BodyWeightTab
               newWeight={newWeight}
               setNewWeight={setNewWeight}
-              addWeightEntry={addWeightEntry}
-              deleteWeightEntry={deleteWeightEntry}
+              addWeightEntry={async (weight: number, date?: string) => {
+                await addWeightEntryMutation.mutateAsync({ weight, date: date || getToday() })
+              }}
+              deleteWeightEntry={async (id: string) => {
+                await deleteWeightEntryMutation.mutateAsync(id)
+              }}
               preferredUnit={weightUnit.unit}
               weightEntries={weightEntries}
             />

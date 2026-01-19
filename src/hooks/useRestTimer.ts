@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef, useState } from "react"
-import { useRestTimerStore } from "@/stores/restTimerStore"
-import { useSettingsStore } from "@/stores/settingsStore"
+import { useRestTimerStore } from "@/features/workout/restTimerStore"
+import { useSettings } from "@/features/settings/queries"
 import { showRestTimerNotification, canShowNotifications, vibrateDevice } from "@/services/notifications"
 
 interface UseRestTimerOptions {
@@ -25,7 +25,8 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
   const { defaultDuration = 90, onComplete } = options
 
   const store = useRestTimerStore()
-  const { settings } = useSettingsStore()
+  const { data: settings } = useSettings()
+  const areNotificationsEnabled = settings?.areNotificationsEnabled ?? false
   const { timer } = store
   const onCompleteRef = useRef(onComplete)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -51,7 +52,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
           store.reset()
           
           // Show notification if enabled
-          if (settings.areNotificationsEnabled && canShowNotifications()) {
+          if (areNotificationsEnabled && canShowNotifications()) {
             showRestTimerNotification()
           }
           
@@ -77,7 +78,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
         intervalRef.current = null
       }
     }
-  }, [timer.isRunning, timer.isPaused, store, settings.areNotificationsEnabled])
+  }, [timer.isRunning, timer.isPaused, store, areNotificationsEnabled])
 
   const start = useCallback(
     (customDuration?: number) => {

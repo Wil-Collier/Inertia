@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { getTodayDate } from "@/stores/bodyWeightStore"
+import { getToday } from "@/lib/dateUtils"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
@@ -60,7 +60,7 @@ export function BodyWeightTab({
 
   // Get last 30 days of data for chart
   const chartData = useMemo(() => {
-    const today = format(new Date(), "yyyy-MM-dd")
+    const today = getToday()
     const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd")
     return weightEntries
       .filter((e) => e.date >= thirtyDaysAgo && e.date <= today)
@@ -77,7 +77,7 @@ export function BodyWeightTab({
       toast.error("Please enter a valid weight")
       return
     }
-    await addWeightEntry(weight, getTodayDate())
+    await addWeightEntry(weight, getToday())
     setNewWeight("")
     toast.success("Weight logged!")
   }

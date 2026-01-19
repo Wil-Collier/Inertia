@@ -1,10 +1,11 @@
 import { useState } from "react"
 import { Scale, TrendingUp, TrendingDown, Minus, Plus, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { useBodyWeightStore, getTodayDate } from "@/stores/bodyWeightStore"
-import { useBodyWeightDB } from "@/hooks/db/useBodyWeightDB"
+import { useBodyWeightHistory } from "@/features/bodyweight/queries"
+import { useAddWeightEntry } from "@/features/bodyweight/mutations"
+import { getToday } from "@/lib/dateUtils"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
-import { Link } from "react-router-dom"
+import { Link } from "@tanstack/react-router"
 import { 
   Dialog, 
   DialogContent, 
@@ -18,15 +19,15 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 
 export function WeightCard() {
-  const addEntry = useBodyWeightStore((s) => s.addEntry)
-  const sortedEntries = useBodyWeightDB(2)
+  const addWeightEntryMutation = useAddWeightEntry()
+  const { data: weightEntries = [] } = useBodyWeightHistory(2)
   const weightUnit = useWeightUnit()
   const [isOpen, setIsOpen] = useState(false)
   const [weight, setWeight] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   
-  const latestEntry = sortedEntries[0]
-  const previousEntry = sortedEntries[1]
+  const latestEntry = weightEntries[0]
+  const previousEntry = weightEntries[1]
   
   const weightChange = latestEntry && previousEntry 
     ? latestEntry.weight - previousEntry.weight 
@@ -41,12 +42,12 @@ export function WeightCard() {
     
     try {
       setIsLoading(true)
-      await addEntry(val, getTodayDate())
+      await addWeightEntryMutation.mutateAsync({ weight: val, date: getToday() })
       toast.success("Weight logged successfully!")
       setWeight("")
       setIsOpen(false)
     } catch {
-      // Error is handled by store
+      // Error is handled by mutation
     } finally {
       setIsLoading(false)
     }

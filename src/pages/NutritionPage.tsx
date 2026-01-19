@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback, lazy, Suspense, useMemo } from "react"
 import { format, addDays, subDays, parseISO } from "date-fns"
-import { Link } from "react-router-dom"
-import {
-  CalendarIcon,
+import { Link } from "@tanstack/react-router"
+import { 
+  CalendarIcon, 
   ChevronLeft,
   ChevronRight,
-  History,
-  Coffee,
-  Utensils,
-  Moon,
-  Cookie,
-  Loader2,
-  type LucideIcon,
+  History, 
+  Coffee, 
+  Utensils, 
+  Moon, 
+  Cookie, 
+  Loader2, 
+  type LucideIcon 
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
@@ -27,9 +27,20 @@ import {
 } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useNutritionStore, getTodayDate } from "@/stores/nutritionStore"
-import { useDailyNutrition, useFoodsDB, useMealTemplatesDB } from "@/hooks/db/useNutritionDB"
-import { useSettingsStore } from "@/stores/settingsStore"
+import { getToday } from "@/lib/dateUtils"
+import { useDailyNutrition, useFavoriteFoods, useCustomFoods, useMealTemplates } from "@/features/nutrition/queries"
+import { 
+  useAddMealEntry, 
+  useUpdateMealEntry, 
+  useRemoveMealEntry, 
+  useAddFood, 
+  useDeleteFood, 
+  useToggleFavoriteFood, 
+  useSaveMealTemplate, 
+  useDeleteMealTemplate, 
+  useApplyMealTemplate 
+} from "@/features/nutrition/mutations"
+import { useSettings } from "@/features/settings/queries"
 import { searchFoods, getProductByBarcode } from "@/services/openFoodFacts"
 import { db } from "@/services/db"
 import { toast } from "sonner"
@@ -48,7 +59,7 @@ const mealTypes: { type: MealType; label: string; icon: LucideIcon }[] = [
 ]
 
 export function NutritionPage() {
-  const [selectedDate, setSelectedDate] = useState(getTodayDate())
+  const [selectedDate, setSelectedDate] = useState(getToday())
   const [showAddSheet, setShowAddSheet] = useState(false)
   const [selectedMealType, setSelectedMealType] = useState<MealType>("breakfast")
   const [searchQuery, setSearchQuery] = useState("")
@@ -64,22 +75,32 @@ export function NutritionPage() {
   const [newTemplateName, setNewTemplateName] = useState("")
   const [isSavingTemplate, setIsSavingTemplate] = useState(false)
 
-  const addFood = useNutritionStore((s) => s.addFood)
-  const addMealEntry = useNutritionStore((s) => s.addMealEntry)
-  const updateMealEntry = useNutritionStore((s) => s.updateMealEntry)
-  const removeMealEntry = useNutritionStore((s) => s.removeMealEntry)
-  const toggleFavorite = useNutritionStore((s) => s.toggleFavorite)
-  const deleteFood = useNutritionStore((s) => s.deleteFood)
-  const saveMealTemplate = useNutritionStore((s) => s.saveMealTemplate)
-  const deleteMealTemplate = useNutritionStore((s) => s.deleteMealTemplate)
-  const applyMealTemplate = useNutritionStore((s) => s.applyMealTemplate)
+  const addFoodMutation = useAddFood()
+  const addMealEntryMutation = useAddMealEntry()
+  const updateMealEntryMutation = useUpdateMealEntry()
+  const removeMealEntryMutation = useRemoveMealEntry()
+  const toggleFavoriteMutation = useToggleFavoriteFood()
+  const deleteFoodMutation = useDeleteFood()
+  const saveMealTemplateMutation = useSaveMealTemplate()
+  const deleteMealTemplateMutation = useDeleteMealTemplate()
+  const applyMealTemplateMutation = useApplyMealTemplate()
 
-  const { totals, entriesWithFood } = useDailyNutrition(selectedDate)
-  const favorites = useFoodsDB("", "favorites")
-  const customFoods = useFoodsDB("", "custom")
-  const mealTemplates = useMealTemplatesDB()
+  const { data: nutritionData } = useDailyNutrition(selectedDate)
+  const { data: favorites = [] } = useFavoriteFoods()
+  const { data: customFoods = [] } = useCustomFoods()
+  const { data: mealTemplates = [] } = useMealTemplates()
 
-  const nutritionGoals = useSettingsStore((s) => s.settings.nutritionGoals)
+  const { data: settings } = useSettings()
+  const nutritionGoals = settings?.nutritionGoals ?? {
+    calories: 2000,
+    protein: 150,
+    carbs: 250,
+    fat: 65,
+    fiber: 30,
+    sugar: 50
+  }
+  const totals = nutritionData?.totals
+  const entriesWithFood = useMemo(() => nutritionData?.entriesWithFood ?? [], [nutritionData?.entriesWithFood])
 
   const getEntriesByMealType = useCallback((type: MealType) => {
     return entriesWithFood.filter(e => e.mealType === type)
@@ -133,24 +154,28 @@ export function NutritionPage() {
   }, [searchQuery, handleSearch])
 
   const handleAddFood = useCallback(async (food: FoodItem, qty: number) => {
-    try {
-      let foodId = food.id
+    let foodId = food.id
 
-      // If it's from OpenFoodFacts and not in our database, add it
-      const exists = await db.foods.get(food.id)
-      if (!food.isCustom && !exists) {
-        const newFood = await addFood({ ...food })
-        foodId = newFood.id
-      }
-
-      await addMealEntry(selectedDate, foodId, qty, selectedMealType)
-      setShowAddSheet(false)
-      setSearchQuery("")
-      setSearchResults([])
-    } catch {
-      // Store methods already toast; swallow to avoid unhandled rejections.
+    // If it's from OpenFoodFacts and not in our database, add it
+    const exists = await db.foods.get(food.id)
+    if (!food.isCustom && !exists) {
+      const newFood = await addFoodMutation.mutateAsync({ ...food, isCustom: false })
+      foodId = newFood.id
     }
-  }, [selectedDate, selectedMealType, addFood, addMealEntry])
+
+    addMealEntryMutation.mutate({ 
+      date: selectedDate, 
+      foodId, 
+      quantity: qty, 
+      mealType: selectedMealType 
+    }, {
+      onSuccess: () => {
+        setShowAddSheet(false)
+        setSearchQuery("")
+        setSearchResults([])
+      }
+    })
+  }, [selectedDate, selectedMealType, addFoodMutation, addMealEntryMutation])
 
   const handleOpenAddSheet = useCallback((mealType: MealType) => {
     setSelectedMealType(mealType)
@@ -186,7 +211,7 @@ export function NutritionPage() {
     }
   }, [])
 
-  const isToday = selectedDate === getTodayDate()
+  const isToday = selectedDate === getToday()
   const displayDate = isToday
     ? "Today"
     : format(parseISO(selectedDate), "EEE, MMM d")
@@ -242,7 +267,7 @@ export function NutritionPage() {
                 variant="ghost"
                 size="sm"
                 className="h-6 text-xs text-muted-foreground"
-                onClick={() => setSelectedDate(getTodayDate())}
+                onClick={() => setSelectedDate(getToday())}
               >
                 Go to today
               </Button>
@@ -261,8 +286,13 @@ export function NutritionPage() {
           mealTypes={mealTypes}
           getEntriesByMealType={getEntriesByMealType}
           openAddSheet={handleOpenAddSheet}
-          onUpdateQuantity={(id, quantity) => updateMealEntry(selectedDate, id, { quantity })}
-          onRemoveEntry={(id) => removeMealEntry(selectedDate, id)}
+        onUpdateQuantity={async (id, quantity) => {
+          await updateMealEntryMutation.mutateAsync({ date: selectedDate, entryId: id, updates: { quantity } })
+        }}
+        onRemoveEntry={async (id) => {
+          await removeMealEntryMutation.mutateAsync({ date: selectedDate, entryId: id })
+        }}
+
           onSaveTemplate={(type, label) => {
             setTemplateMealType(type)
             setNewTemplateName(`${label} Template`)
@@ -271,7 +301,6 @@ export function NutritionPage() {
         />
       </div>
 
-      {/* Add Food Sheet */}
       <AddFoodSheet
         isOpen={showAddSheet}
         onOpenChange={setShowAddSheet}
@@ -285,39 +314,35 @@ export function NutritionPage() {
         searchResults={searchResults}
         onScanBarcode={() => setShowScanner(true)}
         onAddFood={handleAddFood}
-        onToggleFavorite={toggleFavorite}
-        onDeleteFood={deleteFood}
+        onToggleFavorite={async (id: string) => {
+          const food = [...favorites, ...customFoods, ...searchResults].find(f => f.id === id)
+          if (food) {
+            await toggleFavoriteMutation.mutateAsync({ id, isFavorite: !food.isFavorite })
+          }
+        }}
+        onDeleteFood={(id: string) => deleteFoodMutation.mutateAsync(id)}
         favorites={favorites}
         customFoods={customFoods}
         mealTemplates={mealTemplates}
         scannedBarcode={scannedBarcode}
         onClearBarcode={() => setScannedBarcode(null)}
         onSaveCustomFood={async (food) => {
-          try {
-            await addFood(food)
-            setScannedBarcode(null)
-          } catch {
-            // Store already toasts
-          }
+          await addFoodMutation.mutateAsync({ ...food, isCustom: true })
+          setScannedBarcode(null)
         }}
         onSaveAndAddCustomFood={async (food) => {
-          try {
-            const newFood = await addFood(food)
-            await handleAddFood(newFood, 1)
-            setScannedBarcode(null)
-          } catch {
-            // Store already toasts
-          }
+          const newFood = await addFoodMutation.mutateAsync({ ...food, isCustom: true })
+          await handleAddFood(newFood, 1)
+          setScannedBarcode(null)
         }}
-        onDeleteTemplate={deleteMealTemplate}
-        onApplyTemplate={async (templateId) => {
-          try {
-            await applyMealTemplate(templateId, selectedDate, selectedMealType)
-            setShowAddSheet(false)
-            toast.success("Template applied")
-          } catch {
-            // Store already toasts
-          }
+        onDeleteTemplate={(id: string) => {
+          deleteMealTemplateMutation.mutate(id)
+          return Promise.resolve()
+        }}
+        onApplyTemplate={async (templateId: string) => {
+          applyMealTemplateMutation.mutate({ templateId, date: selectedDate, mealType: selectedMealType }, {
+            onSuccess: () => setShowAddSheet(false)
+          })
         }}
       />
 
@@ -363,20 +388,19 @@ export function NutritionPage() {
                   try {
                     const entries = getEntriesByMealType(templateMealType)
                     if (entries.length > 0) {
-                      await saveMealTemplate(
-                        newTemplateName.trim(),
-                        entries.map((e) => ({
+                      await saveMealTemplateMutation.mutateAsync({
+                        name: newTemplateName.trim(),
+                        entries: entries.map((e) => ({
                           foodId: e.foodId,
                           quantity: e.quantity,
                           mealType: e.mealType,
                         }))
-                      )
-                      toast.success(`Saved "${newTemplateName.trim()}"`)
+                      })
                       setShowSaveTemplateDialog(false)
                       setNewTemplateName("")
                     }
                   } catch {
-                    // Store already toasts
+                    // Mutation already toasts
                   } finally {
                     setIsSavingTemplate(false)
                   }

@@ -1,9 +1,21 @@
 import { db } from "@/services/db"
-import { useAchievementsStore } from "@/stores/achievementsStore"
 import { format, startOfWeek, eachDayOfInterval, subDays, differenceInCalendarDays, parseISO } from "date-fns"
-import type { MuscleGroup } from "@/lib/types"
+import type { MuscleGroup, UnlockedAchievement, StreakData } from "@/lib/types"
+import { achievements } from "@/data/achievements"
+import { toast } from "sonner"
+import { queryClient } from "@/lib/queryClient"
+import { queryKeys } from "@/lib/queryKeys"
 
 const DEFAULT_TEMPLATE_COUNT = 5
+
+const defaultStreaks: StreakData = {
+  currentWorkoutStreak: 0,
+  longestWorkoutStreak: 0,
+  lastWorkoutDate: null,
+  currentNutritionStreak: 0,
+  longestNutritionStreak: 0,
+  lastNutritionDate: null,
+}
 
 /**
  * Service to check and update achievements and streaks.
@@ -27,7 +39,6 @@ export const achievementService = {
     const personalRecords = await db.personalRecords.toArray()
     const templates = await db.workoutTemplates.toArray()
     
-    // Simple mock of exerciseStore functionality to avoid hook dependency
     const exercises = await db.exercises.toArray()
     const exercisesById = new Map(exercises.map(e => [e.id, e]))
 
@@ -68,46 +79,48 @@ export const achievementService = {
         })
       })
 
-    const { streaks } = useAchievementsStore.getState()
+    const data = await db.achievements.get("achievements")
+    const streaks = data?.streaks || defaultStreaks
 
     // Workout count achievements
-    this.tryUnlock("first-workout", totalWorkouts >= 1)
-    this.tryUnlock("ten-workouts", totalWorkouts >= 10)
-    this.tryUnlock("fifty-workouts", totalWorkouts >= 50)
-    this.tryUnlock("century-club", totalWorkouts >= 100)
+    await this.tryUnlock("first-workout", totalWorkouts >= 1)
+    await this.tryUnlock("ten-workouts", totalWorkouts >= 10)
+    await this.tryUnlock("fifty-workouts", totalWorkouts >= 50)
+    await this.tryUnlock("century-club", totalWorkouts >= 100)
 
     // Streak achievements
-    this.tryUnlock("week-warrior", streaks.currentWorkoutStreak >= 7)
-    this.tryUnlock("month-master", streaks.currentWorkoutStreak >= 30)
+    await this.tryUnlock("week-warrior", streaks.currentWorkoutStreak >= 7)
+    await this.tryUnlock("month-master", streaks.currentWorkoutStreak >= 30)
 
     // Volume achievements
-    this.tryUnlock("10k-club", totalVolume >= 10000)
-    this.tryUnlock("100k-crusher", totalVolume >= 100000)
-    this.tryUnlock("500k-beast", totalVolume >= 500000)
-    this.tryUnlock("million-pounder", totalVolume >= 1000000)
+    await this.tryUnlock("10k-club", totalVolume >= 10000)
+    await this.tryUnlock("100k-crusher", totalVolume >= 100000)
+    await this.tryUnlock("500k-beast", totalVolume >= 500000)
+    await this.tryUnlock("million-pounder", totalVolume >= 1000000)
 
     // PR achievements
-    this.tryUnlock("first-pr", prCount >= 1)
-    this.tryUnlock("pr-collector", prCount >= 10)
-    this.tryUnlock("pr-master", prCount >= 25)
+    await this.tryUnlock("first-pr", prCount >= 1)
+    await this.tryUnlock("pr-collector", prCount >= 10)
+    await this.tryUnlock("pr-master", prCount >= 25)
 
     // Template achievements
-    this.tryUnlock("template-creator", customTemplateCount >= 3)
+    await this.tryUnlock("template-creator", customTemplateCount >= 3)
 
     // Variety achievements
-    this.tryUnlock("full-body", muscleGroupsThisWeek.size >= 6)
+    await this.tryUnlock("full-body", muscleGroupsThisWeek.size >= 6)
   },
 
   async checkNutritionAchievements() {
     const dailyLogs = await db.nutritionLogs.toArray()
     const daysLogged = dailyLogs.filter((day) => day.entries.length > 0).length
-    const { streaks } = useAchievementsStore.getState()
+    const data = await db.achievements.get("achievements")
+    const streaks = data?.streaks || defaultStreaks
     
     // Days logged achievements
-    this.tryUnlock("macro-tracker", daysLogged >= 7)
+    await this.tryUnlock("macro-tracker", daysLogged >= 7)
 
     // Nutrition streak
-    this.tryUnlock("nutrition-streak", streaks.currentNutritionStreak >= 30)
+    await this.tryUnlock("nutrition-streak", streaks.currentNutritionStreak >= 30)
   },
 
   async updateStreaks() {
@@ -121,7 +134,9 @@ export const achievementService = {
   },
 
   async recalculateStreaks(workoutDates: string[], nutritionDates: string[]) {
-    const { streaks: currentStreaks, unlockedAchievements } = useAchievementsStore.getState()
+    const data = await db.achievements.get("achievements")
+    const currentStreaks = data?.streaks || defaultStreaks
+    const unlockedAchievements = data?.unlockedAchievements || []
     
     // Sort dates descending (most recent first)
     const sortedWorkoutDates = [...workoutDates].sort().reverse()
@@ -179,14 +194,16 @@ export const achievementService = {
         streaks: newStreaks,
       })
       
-      useAchievementsStore.setState({ streaks: newStreaks })
+      queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
     } catch (error) {
       console.error("Failed to save recalculated streaks:", error)
     }
   },
 
   async updateWorkoutStreak(workoutDate: string) {
-    const { streaks, unlockedAchievements } = useAchievementsStore.getState()
+    const data = await db.achievements.get("achievements")
+    const streaks = data?.streaks || defaultStreaks
+    const unlockedAchievements = data?.unlockedAchievements || []
     const { lastWorkoutDate, currentWorkoutStreak, longestWorkoutStreak } = streaks
 
     const today = format(new Date(), "yyyy-MM-dd")
@@ -226,11 +243,13 @@ export const achievementService = {
       streaks: newStreaks,
     })
     
-    useAchievementsStore.setState({ streaks: newStreaks })
+    queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
   },
 
   async updateNutritionStreak(nutritionDate: string) {
-    const { streaks, unlockedAchievements } = useAchievementsStore.getState()
+    const data = await db.achievements.get("achievements")
+    const streaks = data?.streaks || defaultStreaks
+    const unlockedAchievements = data?.unlockedAchievements || []
     const {
       lastNutritionDate,
       currentNutritionStreak,
@@ -277,15 +296,42 @@ export const achievementService = {
       streaks: newStreaks,
     })
     
-    useAchievementsStore.setState({ streaks: newStreaks })
+    queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
   },
 
-  tryUnlock(id: string, condition: boolean) {
-    const { isAchievementUnlocked, unlockAchievement } = useAchievementsStore.getState()
-    if (condition && !isAchievementUnlocked(id)) {
-      unlockAchievement(id).catch((err) => 
-        console.error(`Failed to unlock achievement ${id}:`, err)
-      )
-    }
+  async tryUnlock(id: string, condition: boolean) {
+    if (!condition) return
+    
+    await db.transaction("rw", db.achievements, async () => {
+      const currentData = await db.achievements.get("achievements")
+      const unlocked = currentData?.unlockedAchievements || []
+      
+      const existing = unlocked.find((a) => a.id === id)
+      if (existing) return
+
+      const achievement = achievements.find((a) => a.id === id)
+      if (!achievement) return
+
+      const newAchievement: UnlockedAchievement = {
+        id,
+        unlockedAt: new Date().toISOString(),
+      }
+
+      const newUnlocked = [...unlocked, newAchievement]
+      
+      await db.achievements.put({
+        id: "achievements",
+        unlockedAchievements: newUnlocked,
+        streaks: currentData?.streaks || defaultStreaks,
+      })
+
+      // Show toast notification
+      toast.success(`Achievement Unlocked: ${achievement.name}`, {
+        description: achievement.description,
+        duration: 5000,
+      })
+
+      queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
+    })
   }
 }

@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react"
 import { toast } from "sonner"
-import { useNavigate, Navigate } from "react-router-dom"
+import { useNavigate, Navigate } from "@tanstack/react-router"
 import {
   Plus,
   Save,
@@ -20,33 +20,41 @@ import {
 } from "@/components/ui/dialog"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
 import { WorkoutExerciseCard } from "@/components/workout/WorkoutExerciseCard"
-import { useWorkoutStore } from "@/stores/workout"
-import { useTemplatesDB } from "@/hooks/db/useWorkoutsDB"
-import { useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
-import { useSettingsStore } from "@/stores/settingsStore"
+import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
+import { useTemplates } from "@/features/workout/queries"
+import { useCreateTemplate } from "@/features/workout/mutations"
+import { useExercisesByIds } from "@/features/exercises/queries"
+import { useSettings } from "@/features/settings/queries"
 import { useRestTimer } from "@/hooks/useRestTimer"
 import { useCountdownTimer } from "@/hooks/useCountdownTimer"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import { useElapsedTime } from "@/hooks/useElapsedTime"
 import { playDingSound, unlockAudio } from "@/lib/audio"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/queryKeys"
 
 export function ActiveWorkout() {
   const navigate = useNavigate()
-  const activeSession = useWorkoutStore((state) => state.activeSession)
-  const finishWorkout = useWorkoutStore((state) => state.finishWorkout)
-  const cancelWorkout = useWorkoutStore((state) => state.cancelWorkout)
-  const addExerciseToWorkout = useWorkoutStore((state) => state.addExerciseToWorkout)
-  const removeExerciseFromWorkout = useWorkoutStore((state) => state.removeExerciseFromWorkout)
-  const addSet = useWorkoutStore((state) => state.addSet)
-  const updateSet = useWorkoutStore((state) => state.updateSet)
-  const removeSet = useWorkoutStore((state) => state.removeSet)
-  const toggleSetComplete = useWorkoutStore((state) => state.toggleSetComplete)
-  const createTemplate = useWorkoutStore((state) => state.createTemplate)
-  const updateExerciseNotes = useWorkoutStore((state) => state.updateExerciseNotes)
+  const queryClient = useQueryClient()
+  const { 
+    session: activeSession, 
+    finishWorkout, 
+    cancelWorkout, 
+    addExercise, 
+    removeExercise, 
+    addSet, 
+    updateSet, 
+    removeSet, 
+    toggleSetComplete,
+    updateExerciseNotes
+  } = useActiveSessionStore()
+  
+  const createTemplateMutation = useCreateTemplate()
 
-  const restTimerDuration = useSettingsStore((state) => state.settings.restTimerDuration)
+  const { data: settings } = useSettings()
+  const restTimerDuration = settings?.restTimerDuration ?? 90
   const weightUnit = useWeightUnit()
-  const templates = useTemplatesDB()
+  const { data: templates = [] } = useTemplates()
 
   const [showExerciseSheet, setShowExerciseSheet] = useState(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
@@ -93,32 +101,44 @@ export function ActiveWorkout() {
     () => workout?.exercises.map(e => e.exerciseId) ?? [],
     [workout?.exercises]
   )
-  const exercisesById = useExercisesByIdsDB(exerciseIds)
+  const { data: exercisesById = new Map() } = useExercisesByIds(exerciseIds)
 
   const handleFinish = useCallback(async () => {
-    if (!finishWorkout || !createTemplate) return
     setIsFinishing(true)
     try {
       const completed = await finishWorkout()
-      if (completed && saveAsTemplate && templateName.trim()) {
-        await createTemplate(templateName.trim(), completed)
-        toast.success(`Workout saved & template "${templateName.trim()}" created!`)
-      } else {
-        toast.success("Workout saved!")
+      if (completed) {
+        // Invalidate workout queries
+        queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
+        
+        if (saveAsTemplate && templateName.trim()) {
+          await createTemplateMutation.mutateAsync({ 
+            name: templateName.trim(), 
+            exercises: completed.exercises.map(e => ({
+              exerciseId: e.exerciseId,
+              targetSets: e.sets.length,
+              targetReps: e.sets[0]?.reps ?? 0,
+              targetWeight: e.sets[0]?.weight ?? 0
+            }))
+          })
+          toast.success(`Workout saved & template "${templateName.trim()}" created!`)
+        } else {
+          toast.success("Workout saved!")
+        }
       }
-      navigate("/workout")
-    } catch {
+      navigate({ to: "/workout" })
+    } catch (error) {
+      console.error(error)
       toast.error("Failed to finish workout")
     } finally {
       setIsFinishing(false)
     }
-  }, [finishWorkout, saveAsTemplate, templateName, createTemplate, navigate])
+  }, [finishWorkout, saveAsTemplate, templateName, createTemplateMutation, navigate, queryClient])
 
   const handleCancel = useCallback(async () => {
-    if (!cancelWorkout) return
     try {
       await cancelWorkout()
-      navigate("/workout")
+      navigate({ to: "/workout" })
     } catch {
       toast.error("Failed to cancel workout")
     }
@@ -129,13 +149,12 @@ export function ActiveWorkout() {
   }, [])
 
   const handleAddExercise = useCallback(async (exerciseId: string) => {
-    if (!addExerciseToWorkout) return
     try {
-      await addExerciseToWorkout(exerciseId)
+      await addExercise(exerciseId)
     } catch {
       toast.error("Failed to add exercise")
     }
-  }, [addExerciseToWorkout])
+  }, [addExercise])
 
   // Automatically expand newly added exercises
   const [prevExerciseCount, setPrevExerciseCount] = useState(workout?.exercises.length ?? 0)
@@ -281,7 +300,7 @@ export function ActiveWorkout() {
             onRemoveSet={removeSet}
             onUpdateSet={updateSet}
             onToggleSetComplete={toggleSetComplete}
-            onRemoveExercise={removeExerciseFromWorkout}
+            onRemoveExercise={removeExercise}
             onUpdateNotes={updateExerciseNotes}
             weightUnitLabel={weightUnit.unitLabel}
             activeSetId={countdown.activeSetId ?? undefined}

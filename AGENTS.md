@@ -38,13 +38,14 @@ src/
 │   ├── layout/             # Layout, Header, BottomNav
 │   ├── ui/                 # shadcn/ui components (avoid modifying)
 │   └── [feature]/          # Feature-specific components
+├── features/               # React Query mutations & queries by domain
 ├── hooks/                  # Custom hooks (useTheme, useRestTimer, etc.)
 ├── lib/
+│   ├── queryKeys.ts        # Centralized React Query keys
 │   ├── types.ts            # Shared TypeScript interfaces/types
 │   └── utils.ts            # Helpers (cn, formatDuration)
 ├── pages/                  # Route page components
 ├── services/               # External APIs, DB, notifications
-├── stores/                 # Zustand stores
 └── data/                   # Static data, exercise database
 ```
 
@@ -72,7 +73,7 @@ import { useNutritionStore } from "../stores/nutritionStore"  // Relative path
 
 1. React/external libraries
 2. Internal components (`@/components/`)
-3. Stores (`@/stores/`)
+3. Features/Queries (`@/features/`)
 4. Hooks (`@/hooks/`)
 5. Types (`@/lib/types`)
 6. Utils (`@/lib/utils`)
@@ -82,12 +83,12 @@ import { useNutritionStore } from "../stores/nutritionStore"  // Relative path
 - **Named exports:** `export function ComponentName() { ... }`
 - **File naming:** PascalCase for components (`Dashboard.tsx`)
 - **Props:** Define inline or as separate interface above component
-- **State:** `useState` for local, Zustand stores for global/persistent
+- **State:** `useState` for local, React Query for server state
 
 ```typescript
 // Page component pattern
 export function Dashboard() {
-  const { data } = useSomeStore()
+  const { data } = useWorkouts() // Custom hook from @/features/workout/queries
   
   return (
     <div className="space-y-4 p-4">
@@ -115,27 +116,31 @@ import { cn } from "@/lib/utils"
 )} />
 ```
 
-### Zustand Stores
+### Data Fetching (React Query)
 
-- **Naming:** `useNameStore` (e.g., `useNutritionStore`)
-- **Location:** `src/stores/`
-- **Persistence:** Use Dexie for IndexedDB storage (not Zustand persist)
-- **Async init:** Stores load from Dexie via `init()` method
+- **Location:** `src/features/[domain]/` (e.g., `queries.ts`, `mutations.ts`)
+- **Keys:** Define in `src/lib/queryKeys.ts`
+- **Mutations:** Invalidate relevant queries on success
 
 ```typescript
-interface StoreState {
-  items: Item[]
-  isInitialized: boolean
-  init: () => Promise<void>
-  addItem: (item: Omit<Item, "id">) => Promise<void>
+// queries.ts
+export function useWorkouts(limit?: number) {
+  return useQuery({
+    queryKey: queryKeys.workouts.list(limit),
+    queryFn: async () => { /* db call */ }
+  })
 }
 
-export const useItemStore = create<StoreState>((set, get) => ({
-  items: [],
-  isInitialized: false,
-  init: async () => { /* load from db */ },
-  addItem: async (item) => { /* save to db, update state */ },
-}))
+// mutations.ts
+export function useCreateWorkout() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (workout) => { /* db call */ },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
+    }
+  })
+}
 ```
 
 ### Error Handling
@@ -171,12 +176,12 @@ try {
    ```
 4. Update `src/components/layout/BottomNav.tsx` if adding to main navigation
 
-### Adding a Zustand Store
+### Adding a Feature (Query/Mutation)
 
-1. Create `src/stores/useNewStore.ts`
-2. Define interface with state and actions
-3. Implement with Dexie for persistence
-4. Add initialization call in `src/components/AppInitializer.tsx`
+1. Create `src/features/[feature]/` if it doesn't exist
+2. Add keys to `src/lib/queryKeys.ts`
+3. Create `queries.ts` for data fetching hooks
+4. Create `mutations.ts` for data modification hooks (handle invalidation here)
 
 ### Database Operations
 
@@ -262,10 +267,9 @@ Key rules enabled (see `oxlintrc.json` and `package.json`):
 
 | Purpose | File |
 |---------|------|
-| Types | `src/lib/types.ts` |
-| Utils | `src/lib/utils.ts` |
+| Types | `src/lib/types/` |
+| Query Keys | `src/lib/queryKeys.ts` |
 | Database | `src/services/db.ts` |
 | Router | `src/App.tsx` |
-| Theme/Settings | `src/stores/settingsStore.ts` |
-| Workout State | `src/stores/workout/` |
-| Nutrition State | `src/stores/nutritionStore.ts` |
+| Workout Features | `src/features/workout/` |
+| Nutrition Features | `src/features/nutrition/` |

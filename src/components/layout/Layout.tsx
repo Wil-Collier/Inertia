@@ -1,16 +1,20 @@
-import { Outlet } from "react-router-dom"
 import { BottomNav } from "./BottomNav"
 import { Toaster } from "@/components/ui/sonner"
 import { useTheme } from "@/hooks/useTheme"
+import type { ReactNode } from "react"
 
-export function Layout() {
+interface LayoutProps {
+  children?: ReactNode
+}
+
+export function Layout({ children }: LayoutProps) {
   // Initialize theme
   useTheme()
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <main className="flex-1 pb-20">
-        <Outlet />
+        {children}
       </main>
       <BottomNav />
       <Toaster position="top-center" richColors />

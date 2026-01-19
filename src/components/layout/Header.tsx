@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { ChevronLeft } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { useRouter } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -22,13 +22,13 @@ export function Header({
   className,
   bottomContent,
 }: HeaderProps) {
-  const navigate = useNavigate()
+  const router = useRouter()
 
   const handleBack = () => {
     if (onBack) {
       onBack()
     } else {
-      navigate(-1)
+      router.history.back()
     }
   }
 

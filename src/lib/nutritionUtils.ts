@@ -1,6 +1,6 @@
 import type { MealEntry, FoodItem, NutritionTotals } from "@/lib/types"
 
-const INITIAL_TOTALS: NutritionTotals = { 
+export const INITIAL_TOTALS: NutritionTotals = { 
   calories: 0, 
   protein: 0, 
   carbs: 0, 
