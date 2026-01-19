@@ -33,13 +33,8 @@ type MigrationFn = (data: DexieExportData) => DexieExportData
  * Registry of backup migrations.
  * Key is the source version, function transforms data to the next version.
  *
- * When adding a new schema version:
- * 1. Increment CURRENT_SCHEMA_VERSION in db.ts
- * 2. Add version().stores().upgrade() in db.ts for live DB migration
- * 3. Add migration function here for backup import compatibility
- *
- * Example for future v2 -> v3 migration:
- *   2: (data) => {
+ * Example for future v1 -> v2 migration:
+ *   1: (data) => {
  *     const workouts = findTable(data, "workoutSessions")
  *     workouts?.rows.forEach(row => {
  *       row.newField = "default"
@@ -48,8 +43,7 @@ type MigrationFn = (data: DexieExportData) => DexieExportData
  *   }
  */
 const backupMigrations: Record<number, MigrationFn> = {
-  // v1 -> v2: Only index changes, no data transformation needed
-  1: (data) => data,
+  // Initial version, no migrations yet
 }
 
 /**

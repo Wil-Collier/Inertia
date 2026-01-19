@@ -5,7 +5,7 @@ Guidelines for AI coding agents working on this codebase.
 ## Project Overview
 
 A **Progressive Web App (PWA)** for tracking workouts and nutrition.
-- **Stack:** Vite 7, React 19, TypeScript 5.9, Tailwind CSS v4, Zustand, React Router v7
+- **Stack:** Vite 7, React 19, TypeScript 5.9, Tailwind CSS v4, Zustand, @tanstack/react-router
 - **UI:** shadcn/ui (base-nova), Recharts, Lucide icons
 - **Database:** Dexie (IndexedDB wrapper) for offline-first storage
 - **Hosting:** Cloudflare Pages (`wrangler.toml`)
@@ -208,9 +208,9 @@ Schema version is tracked in `CURRENT_SCHEMA_VERSION` in `src/services/db.ts`. W
 
 ```typescript
 // src/services/db.ts
-export const CURRENT_SCHEMA_VERSION = 3  // Increment
+export const CURRENT_SCHEMA_VERSION = 2  // Increment
 
-this.version(3)
+this.version(2)
   .stores({
     workoutSessions: "id, date, templateId, completedAt, *exerciseIds, newField"
   })
@@ -227,8 +227,7 @@ this.version(3)
 ```typescript
 // src/services/backupMigrations.ts
 const backupMigrations: Record<number, MigrationFn> = {
-  1: (data) => data,
-  2: (data) => {  // Add migration from v2 -> v3
+  1: (data) => {  // Add migration from v1 -> v2
     const workouts = findTable(data, "workoutSessions")
     workouts?.rows.forEach(row => {
       row.newField = "default"

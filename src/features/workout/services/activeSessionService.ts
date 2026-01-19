@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import type { Workout, WorkoutExercise, WorkoutSet, ActiveWorkoutSession } from "@/lib/types"
 import { achievementService } from "@/services/achievementService"
 import { buildWorkoutExerciseFromTemplate } from "@/lib/workoutUtils"
+import { getToday } from "@/lib/dateUtils"
 
 export const activeSessionService = {
   async getSession(): Promise<ActiveWorkoutSession | null> {
@@ -24,7 +25,7 @@ export const activeSessionService = {
       const workout: Workout = {
         id: crypto.randomUUID(),
         name,
-        date: new Date().toISOString().split("T")[0],
+        date: getToday(),
         exercises: resolvedExercises,
       }
 

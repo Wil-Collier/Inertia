@@ -22,7 +22,7 @@ import type {
  * 1. The version().upgrade() chain below (for live DB upgrades)
  * 2. backupMigrations.ts (for importing old backups)
  */
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 1
 
 /** Metadata record for storing app-level key-value data */
 export interface MetadataRecord {
@@ -58,11 +58,11 @@ export class TrainingAppDatabase extends Dexie {
     // We add indexes for fields we want to query by.
     this.version(1).stores({
       exercises: "id, name, muscleGroup, category",
-      workoutSessions: "id, date, templateId, completedAt",
+      workoutSessions: "id, date, templateId, completedAt, *exerciseIds",
       workoutTemplates: "id, name",
       personalRecords: "exerciseId, date",
 
-      foods: "id, name, brand",
+      foods: "id, name, brand, isFavorite, isCustom",
       nutritionLogs: "date",
       mealTemplates: "id, name",
 
@@ -70,13 +70,7 @@ export class TrainingAppDatabase extends Dexie {
       bodyWeight: "id, date",
       achievements: "id",
       restTimer: "id",
-      activeSession: "id"
-    })
-
-    // Version 2: Added indexes for better filtering + metadata table
-    this.version(2).stores({
-      foods: "id, name, brand, isFavorite, isCustom",
-      workoutSessions: "id, date, templateId, completedAt, *exerciseIds",
+      activeSession: "id",
       metadata: "key"
     })
 
