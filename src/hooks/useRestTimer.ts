@@ -27,6 +27,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
   const store = useRestTimerStore()
   const { data: settings } = useSettings()
   const areNotificationsEnabled = settings?.areNotificationsEnabled ?? false
+  const areNotificationsEnabledRef = useRef(areNotificationsEnabled)
   const { timer } = store
   const onCompleteRef = useRef(onComplete)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -37,10 +38,14 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
   // Track the duration setting separately (for when timer is not running)
   const [configuredDuration, setConfiguredDuration] = useState(defaultDuration)
 
-  // Keep callback ref updated
+  // Keep callback refs updated
   useEffect(() => {
     onCompleteRef.current = onComplete
   }, [onComplete])
+
+  useEffect(() => {
+    areNotificationsEnabledRef.current = areNotificationsEnabled
+  }, [areNotificationsEnabled])
 
   // Set up interval for ticking the timer
   useEffect(() => {
@@ -51,8 +56,8 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
         if (remaining <= 0) {
           store.reset()
           
-          // Show notification if enabled
-          if (areNotificationsEnabled && canShowNotifications()) {
+          // Show notification if enabled (use ref to avoid stale closure or restarting interval)
+          if (areNotificationsEnabledRef.current && canShowNotifications()) {
             showRestTimerNotification()
           }
           
@@ -78,7 +83,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
         intervalRef.current = null
       }
     }
-  }, [timer.isRunning, timer.isPaused, store, areNotificationsEnabled])
+  }, [timer.isRunning, timer.isPaused, store]) // Removed areNotificationsEnabled from deps
 
   const start = useCallback(
     (customDuration?: number) => {

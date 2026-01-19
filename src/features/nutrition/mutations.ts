@@ -104,6 +104,9 @@ export function useRemoveMealEntry() {
           entries: existing.entries.filter((e) => e.id !== entryId),
         })
       })
+      
+      // Check nutrition achievements after entry removal
+      await achievementService.checkNutritionAchievements()
     },
     onMutate: async ({ date, entryId }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.nutrition.daily(date) })
@@ -157,13 +160,12 @@ export function useAddFood() {
   return useMutation({
     mutationFn: async (food: Omit<FoodItem, "id">) => {
       const id = crypto.randomUUID()
-      const newFood = { ...food, id, isCustom: true }
+      const newFood = { ...food, id, isCustom: food.isCustom ?? true }
       await db.foods.add(newFood)
       return newFood
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
-      toast.success("Food added")
     },
     onError: () => {
       toast.error("Failed to add food")
@@ -176,14 +178,28 @@ export function useDeleteFood() {
   
   return useMutation({
     mutationFn: async (id: string) => {
+      // Check if food is used in any meal entries
+      // Use cursor-based iteration with early termination instead of loading all logs into memory
+      let isUsed = false
+      await db.nutritionLogs.each((log) => {
+        if (log.entries.some((entry) => entry.foodId === id)) {
+          isUsed = true
+          return false // Stop iteration early
+        }
+      })
+      
+      if (isUsed) {
+        throw new Error("Cannot delete food that is used in meal entries. Remove the entries first.")
+      }
+
       await db.foods.delete(id)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
       toast.success("Food deleted")
     },
-    onError: () => {
-      toast.error("Failed to delete food")
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to delete food")
     }
   })
 }

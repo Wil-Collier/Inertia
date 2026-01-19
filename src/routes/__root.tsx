@@ -5,6 +5,7 @@ import { PageLoader } from "@/components/ui/PageLoader"
 import { Suspense } from "react"
 import { AppInitializer } from "@/components/AppInitializer"
 import { DevSeedingHandler } from "@/components/DevSeedingHandler"
+import { PageErrorBoundary } from "@/components/PageErrorBoundary"
 
 export const Route = createRootRoute({
   component: () => (
@@ -12,9 +13,11 @@ export const Route = createRootRoute({
       <DevSeedingHandler />
       <AppInitializer>
         <Layout>
-          <Suspense fallback={<PageLoader />}>
-            <Outlet />
-          </Suspense>
+          <PageErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
+          </PageErrorBoundary>
         </Layout>
       </AppInitializer>
 

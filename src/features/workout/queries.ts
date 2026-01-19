@@ -47,11 +47,11 @@ export function useWorkoutsByExercise(exerciseId: string) {
   return useQuery({
     queryKey: queryKeys.workouts.byExercise(exerciseId),
     queryFn: async () => {
-      return db.workoutSessions
+      const results = await db.workoutSessions
         .where("exerciseIds")
         .equals(exerciseId)
-        .reverse()
         .sortBy("date")
+      return results.reverse()
     },
     enabled: !!exerciseId,
   })
@@ -84,8 +84,8 @@ export function useWorkoutDates() {
   return useQuery({
     queryKey: [...queryKeys.workouts.all, "dates"],
     queryFn: async () => {
-      const workouts = await db.workoutSessions.toArray()
-      return workouts.map((w) => w.date).sort()
+      const dates = await db.workoutSessions.orderBy("date").uniqueKeys()
+      return dates as string[]
     },
   })
 }
@@ -168,10 +168,10 @@ export function useProgressStats() {
         .aboveOrEqual(thirtyDaysAgo)
         .count()
       
-      const allWorkouts = await db.workoutSessions.toArray()
-      const totalVolume = allWorkouts.reduce((total, workout) => {
-        return total + calculateWorkoutVolume(workout)
-      }, 0)
+      let totalVolume = 0
+      await db.workoutSessions.each(workout => {
+        totalVolume += calculateWorkoutVolume(workout)
+      })
 
       const prsCount = await db.personalRecords.count()
 

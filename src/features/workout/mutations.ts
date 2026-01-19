@@ -14,14 +14,23 @@ export function useCreateWorkout() {
   return useMutation({
     mutationFn: async (workout: Omit<Workout, "id">) => {
       const id = crypto.randomUUID()
-      const newWorkout = { ...workout, id }
-      await db.workoutSessions.add(newWorkout)
+      const exerciseIds = workout.exercises.map(e => e.exerciseId)
+      
+      // Ensure weightUnit is set
+      let weightUnit = workout.weightUnit
+      if (!weightUnit) {
+        const settings = await db.settings.get("settings")
+        weightUnit = settings?.unitPreferences?.weight || "kg"
+      }
+
+      const newWorkout = { ...workout, id, exerciseIds, weightUnit }
+      await db.workoutSessions.add(newWorkout as Workout)
       
       // Update streaks and check achievements
       await achievementService.updateWorkoutStreak(newWorkout.date)
       await achievementService.checkWorkoutAchievements()
       
-      return newWorkout
+      return newWorkout as Workout
     },
     onSuccess: (workout) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
@@ -40,7 +49,12 @@ export function useUpdateWorkout() {
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Workout> }) => {
       await db.workoutSessions.update(id, updates)
-      return db.workoutSessions.get(id)
+      const workout = await db.workoutSessions.get(id)
+      
+      // Check achievements after workout update
+      await achievementService.checkWorkoutAchievements()
+      
+      return workout
     },
     onSuccess: (workout, { id }) => {
       if (workout) {
@@ -60,6 +74,10 @@ export function useDeleteWorkout() {
   return useMutation({
     mutationFn: async (id: string) => {
       await db.workoutSessions.delete(id)
+      
+      // Check achievements after workout deletion (volume/count may change)
+      await achievementService.checkWorkoutAchievements()
+      
       return id
     },
     onSuccess: () => {
@@ -82,6 +100,10 @@ export function useCreateTemplate() {
       const id = crypto.randomUUID()
       const newTemplate = { ...template, id }
       await db.workoutTemplates.add(newTemplate)
+      
+      // Check template achievements (lightweight, doesn't load all workouts)
+      await achievementService.checkTemplateAchievements()
+      
       return newTemplate
     },
     onSuccess: () => {
@@ -120,6 +142,10 @@ export function useDeleteTemplate() {
   return useMutation({
     mutationFn: async (id: string) => {
       await db.workoutTemplates.delete(id)
+      
+      // Check template achievements (lightweight, doesn't load all workouts)
+      await achievementService.checkTemplateAchievements()
+      
       return id
     },
     onSuccess: () => {

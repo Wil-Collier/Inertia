@@ -29,7 +29,10 @@ export function useDeleteExercise() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await db.exercises.delete(id)
+      await db.transaction("rw", [db.exercises, db.personalRecords], async () => {
+        await db.exercises.delete(id)
+        await db.personalRecords.where("exerciseId").equals(id).delete()
+      })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })

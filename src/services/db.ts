@@ -22,7 +22,7 @@ import type {
  * 1. The version().upgrade() chain below (for live DB upgrades)
  * 2. backupMigrations.ts (for importing old backups)
  */
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 /** Metadata record for storing app-level key-value data */
 export interface MetadataRecord {
@@ -74,15 +74,23 @@ export class TrainingAppDatabase extends Dexie {
       metadata: "key"
     })
 
+    // Migration for v2: Add weightUnit to existing workouts
+    this.version(2).stores({}).upgrade(async (tx) => {
+      const settings = await tx.table("settings").get("settings")
+      const currentUnit = settings?.unitPreferences?.weight || "kg"
+      
+      await tx.table("workoutSessions").toCollection().modify((workout) => {
+        if (!workout.weightUnit) {
+          workout.weightUnit = currentUnit
+        }
+      })
+    })
+
     // Initialize schema version in metadata on database ready
     this.on("ready", async () => {
-      const existing = await this.metadata.get("schemaVersion")
-      if (!existing) {
-        await this.metadata.put({ key: "schemaVersion", value: CURRENT_SCHEMA_VERSION })
-      } else if (existing.value !== CURRENT_SCHEMA_VERSION) {
-        // Update stored version after successful migration
-        await this.metadata.put({ key: "schemaVersion", value: CURRENT_SCHEMA_VERSION })
-      }
+      // We don't need to manually sync this anymore if we use Dexie version chain correctly,
+      // but we'll keep it as a convenience for exports, updated automatically.
+      await this.metadata.put({ key: "schemaVersion", value: this.verno })
     })
   }
 }
@@ -124,8 +132,9 @@ export async function recoverDatabase(): Promise<void> {
       request.addEventListener("success", () => resolve())
       request.addEventListener("error", () => reject(request.error))
       request.addEventListener("blocked", () => {
-        console.warn("Database deletion blocked, forcing...")
-        resolve()
+        console.warn("Database deletion blocked. Please close all other tabs of this app.")
+        // Reject the promise if blocked, prompting caller (or UI) to ask user to close tabs
+        reject(new Error("Database deletion blocked. Please close all other tabs."))
       })
     })
   } catch (error) {

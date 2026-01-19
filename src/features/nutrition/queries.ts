@@ -44,7 +44,9 @@ export function useFavoriteFoods() {
   return useQuery({
     queryKey: queryKeys.foods.favorites(),
     queryFn: async () => {
-      return db.foods.where("isFavorite").equals(1).toArray()
+      return db.foods
+        .filter((food) => !!food.isFavorite)
+        .toArray()
     },
   })
 }
@@ -53,7 +55,9 @@ export function useCustomFoods() {
   return useQuery({
     queryKey: [...queryKeys.foods.all, "custom"],
     queryFn: async () => {
-      return db.foods.where("isCustom").equals(1).toArray()
+      return db.foods
+        .filter((food) => !!food.isCustom)
+        .toArray()
     },
   })
 }

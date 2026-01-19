@@ -27,39 +27,58 @@ export const achievementService = {
    * Can be heavy, so use sparingly.
    */
   async checkAll() {
-    await Promise.all([
-      this.checkWorkoutAchievements(),
-      this.checkNutritionAchievements(),
-      this.updateStreaks()
-    ])
+    await db.transaction("rw", [db.achievements, db.workoutSessions, db.workoutTemplates, db.personalRecords, db.exercises, db.nutritionLogs, db.settings], async () => {
+      await this.ensureInitialized()
+
+      await this.checkWorkoutAchievements()
+      await this.checkNutritionAchievements()
+      await this.updateStreaks()
+    })
+  },
+
+  async ensureInitialized() {
+    const existing = await db.achievements.get("achievements")
+    if (!existing) {
+      await db.achievements.put({
+        id: "achievements",
+        unlockedAchievements: [],
+        streaks: defaultStreaks
+      })
+    }
   },
 
   async checkWorkoutAchievements() {
+    await this.ensureInitialized()
+    const workoutsCount = await db.workoutSessions.count()
+    const personalRecordsCount = await db.personalRecords.count()
+    const templatesCount = await db.workoutTemplates.count()
+    const customTemplateCount = Math.max(0, templatesCount - DEFAULT_TEMPLATE_COUNT)
+
+    // Only load full workout objects if we need to calculate volume or muscle groups
     const workouts = await db.workoutSessions.toArray()
-    const personalRecords = await db.personalRecords.toArray()
-    const templates = await db.workoutTemplates.toArray()
+    // We calculate volume in LBS internally for consistency across achievements
     
+    const totalVolumeLbs = workouts.reduce((total, workout) => {
+      const workoutVolume = workout.exercises.reduce((exTotal, ex) => {
+        return (
+          exTotal +
+          ex.sets
+            .filter((s) => s.isCompleted)
+            .reduce((setTotal, set) => {
+              return setTotal + set.weight * set.reps
+            }, 0)
+        )
+      }, 0)
+      
+      // Use the unit stored with the workout, defaulting to kg if not present (legacy)
+      const unit = workout.weightUnit || "kg"
+      const conversionFactor = unit === "kg" ? 2.20462 : 1
+      
+      return total + (workoutVolume * conversionFactor)
+    }, 0)
+
     const exercises = await db.exercises.toArray()
     const exercisesById = new Map(exercises.map(e => [e.id, e]))
-
-    const totalWorkouts = workouts.length
-    const totalVolume = workouts.reduce((total, workout) => {
-      return (
-        total +
-        workout.exercises.reduce((exTotal, ex) => {
-          return (
-            exTotal +
-            ex.sets
-              .filter((s) => s.isCompleted)
-              .reduce((setTotal, set) => {
-                return setTotal + set.weight * set.reps
-              }, 0)
-          )
-        }, 0)
-      )
-    }, 0)
-    const prCount = personalRecords.length
-    const customTemplateCount = Math.max(0, templates.length - DEFAULT_TEMPLATE_COUNT)
 
     // Muscle groups trained this week
     const today = new Date()
@@ -83,25 +102,25 @@ export const achievementService = {
     const streaks = data?.streaks || defaultStreaks
 
     // Workout count achievements
-    await this.tryUnlock("first-workout", totalWorkouts >= 1)
-    await this.tryUnlock("ten-workouts", totalWorkouts >= 10)
-    await this.tryUnlock("fifty-workouts", totalWorkouts >= 50)
-    await this.tryUnlock("century-club", totalWorkouts >= 100)
+    await this.tryUnlock("first-workout", workoutsCount >= 1)
+    await this.tryUnlock("ten-workouts", workoutsCount >= 10)
+    await this.tryUnlock("fifty-workouts", workoutsCount >= 50)
+    await this.tryUnlock("century-club", workoutsCount >= 100)
 
     // Streak achievements
     await this.tryUnlock("week-warrior", streaks.currentWorkoutStreak >= 7)
     await this.tryUnlock("month-master", streaks.currentWorkoutStreak >= 30)
 
-    // Volume achievements
-    await this.tryUnlock("10k-club", totalVolume >= 10000)
-    await this.tryUnlock("100k-crusher", totalVolume >= 100000)
-    await this.tryUnlock("500k-beast", totalVolume >= 500000)
-    await this.tryUnlock("million-pounder", totalVolume >= 1000000)
+    // Volume achievements (Thresholds are in lbs)
+    await this.tryUnlock("10k-club", totalVolumeLbs >= 10000)
+    await this.tryUnlock("100k-crusher", totalVolumeLbs >= 100000)
+    await this.tryUnlock("500k-beast", totalVolumeLbs >= 500000)
+    await this.tryUnlock("million-pounder", totalVolumeLbs >= 1000000)
 
     // PR achievements
-    await this.tryUnlock("first-pr", prCount >= 1)
-    await this.tryUnlock("pr-collector", prCount >= 10)
-    await this.tryUnlock("pr-master", prCount >= 25)
+    await this.tryUnlock("first-pr", personalRecordsCount >= 1)
+    await this.tryUnlock("pr-collector", personalRecordsCount >= 10)
+    await this.tryUnlock("pr-master", personalRecordsCount >= 25)
 
     // Template achievements
     await this.tryUnlock("template-creator", customTemplateCount >= 3)
@@ -110,7 +129,20 @@ export const achievementService = {
     await this.tryUnlock("full-body", muscleGroupsThisWeek.size >= 6)
   },
 
+  /**
+   * Lightweight check for template-related achievements only.
+   * Use this instead of checkWorkoutAchievements when only templates have changed.
+   */
+  async checkTemplateAchievements() {
+    await this.ensureInitialized()
+    const templatesCount = await db.workoutTemplates.count()
+    const customTemplateCount = Math.max(0, templatesCount - DEFAULT_TEMPLATE_COUNT)
+
+    await this.tryUnlock("template-creator", customTemplateCount >= 3)
+  },
+
   async checkNutritionAchievements() {
+    await this.ensureInitialized()
     const dailyLogs = await db.nutritionLogs.toArray()
     const daysLogged = dailyLogs.filter((day) => day.entries.length > 0).length
     const data = await db.achievements.get("achievements")
@@ -124,10 +156,8 @@ export const achievementService = {
   },
 
   async updateStreaks() {
-    const workouts = await db.workoutSessions.toArray()
+    const workoutDates = await db.workoutSessions.orderBy("date").uniqueKeys() as string[]
     const logs = await db.nutritionLogs.toArray()
-
-    const workoutDates = [...new Set(workouts.map((w) => w.date))]
     const nutritionDates = logs.filter((day) => day.entries.length > 0).map((day) => day.date)
 
     await this.recalculateStreaks(workoutDates, nutritionDates)
@@ -138,19 +168,18 @@ export const achievementService = {
     const currentStreaks = data?.streaks || defaultStreaks
     const unlockedAchievements = data?.unlockedAchievements || []
     
-    // Sort dates descending (most recent first)
-    const sortedWorkoutDates = [...workoutDates].sort().reverse()
-    const sortedNutritionDates = [...nutritionDates].sort().reverse()
+    const workoutDateSet = new Set(workoutDates)
+    const nutritionDateSet = new Set(nutritionDates)
 
     // Calculate workout streak
     let workoutStreak = 0
     let longestWorkoutStreak = currentStreaks.longestWorkoutStreak
-    if (sortedWorkoutDates.length > 0) {
+    if (workoutDates.length > 0) {
       let tempStreak = 0
 
       for (let i = 0; i <= 365; i++) {
         const checkDate = format(subDays(new Date(), i), "yyyy-MM-dd")
-        if (sortedWorkoutDates.includes(checkDate)) {
+        if (workoutDateSet.has(checkDate)) {
           tempStreak++
         } else if (tempStreak > 0) {
           break
@@ -163,12 +192,12 @@ export const achievementService = {
     // Calculate nutrition streak
     let nutritionStreak = 0
     let longestNutritionStreak = currentStreaks.longestNutritionStreak
-    if (sortedNutritionDates.length > 0) {
+    if (nutritionDates.length > 0) {
       let tempStreak = 0
 
       for (let i = 0; i <= 365; i++) {
         const checkDate = format(subDays(new Date(), i), "yyyy-MM-dd")
-        if (sortedNutritionDates.includes(checkDate)) {
+        if (nutritionDateSet.has(checkDate)) {
           tempStreak++
         } else if (tempStreak > 0) {
           break
@@ -177,6 +206,9 @@ export const achievementService = {
       nutritionStreak = tempStreak
       longestNutritionStreak = Math.max(tempStreak, longestNutritionStreak)
     }
+
+    const sortedWorkoutDates = [...workoutDates].sort().reverse()
+    const sortedNutritionDates = [...nutritionDates].sort().reverse()
 
     const newStreaks = {
       currentWorkoutStreak: workoutStreak,
@@ -201,107 +233,116 @@ export const achievementService = {
   },
 
   async updateWorkoutStreak(workoutDate: string) {
-    const data = await db.achievements.get("achievements")
-    const streaks = data?.streaks || defaultStreaks
-    const unlockedAchievements = data?.unlockedAchievements || []
-    const { lastWorkoutDate, currentWorkoutStreak, longestWorkoutStreak } = streaks
+    try {
+      const data = await db.achievements.get("achievements")
+      const streaks = data?.streaks || defaultStreaks
+      const unlockedAchievements = data?.unlockedAchievements || []
+      const { lastWorkoutDate, currentWorkoutStreak, longestWorkoutStreak } = streaks
 
-    const today = format(new Date(), "yyyy-MM-dd")
-    const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd")
+      const today = format(new Date(), "yyyy-MM-dd")
+      const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd")
 
-    let newStreak = currentWorkoutStreak
+      let newStreak = currentWorkoutStreak
 
-    if (!lastWorkoutDate) {
-      newStreak = 1
-    } else if (workoutDate === lastWorkoutDate) {
-      newStreak = currentWorkoutStreak
-    } else if (lastWorkoutDate === yesterday || lastWorkoutDate === today) {
-      if (workoutDate === today && lastWorkoutDate !== today) {
-        newStreak = currentWorkoutStreak + 1
-      }
-    } else {
-      const daysSinceLastWorkout = differenceInCalendarDays(
-        parseISO(today),
-        parseISO(lastWorkoutDate)
-      )
-      if (daysSinceLastWorkout > 1) {
+      if (!lastWorkoutDate) {
         newStreak = 1
+      } else if (workoutDate === lastWorkoutDate) {
+        newStreak = currentWorkoutStreak
+      } else if (lastWorkoutDate === yesterday || lastWorkoutDate === today) {
+        if (workoutDate === today && lastWorkoutDate !== today) {
+          newStreak = currentWorkoutStreak + 1
+        }
+      } else {
+        const daysSinceLastWorkout = differenceInCalendarDays(
+          parseISO(today),
+          parseISO(lastWorkoutDate)
+        )
+        if (daysSinceLastWorkout > 1) {
+          newStreak = 1
+        }
       }
-    }
 
-    const newLongest = Math.max(newStreak, longestWorkoutStreak)
-    const newStreaks = {
-      ...streaks,
-      currentWorkoutStreak: newStreak,
-      longestWorkoutStreak: newLongest,
-      lastWorkoutDate: workoutDate,
-    }
+      const newLongest = Math.max(newStreak, longestWorkoutStreak)
+      const newStreaks = {
+        ...streaks,
+        currentWorkoutStreak: newStreak,
+        longestWorkoutStreak: newLongest,
+        lastWorkoutDate: workoutDate,
+      }
 
-    await db.achievements.put({
-      id: "achievements",
-      unlockedAchievements,
-      streaks: newStreaks,
-    })
-    
-    queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
+      await db.achievements.put({
+        id: "achievements",
+        unlockedAchievements,
+        streaks: newStreaks,
+      })
+      
+      queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
+    } catch (error) {
+      console.error("Failed to update workout streak:", error)
+    }
   },
 
   async updateNutritionStreak(nutritionDate: string) {
-    const data = await db.achievements.get("achievements")
-    const streaks = data?.streaks || defaultStreaks
-    const unlockedAchievements = data?.unlockedAchievements || []
-    const {
-      lastNutritionDate,
-      currentNutritionStreak,
-      longestNutritionStreak,
-    } = streaks
+    try {
+      const data = await db.achievements.get("achievements")
+      const streaks = data?.streaks || defaultStreaks
+      const unlockedAchievements = data?.unlockedAchievements || []
+      const {
+        lastNutritionDate,
+        currentNutritionStreak,
+        longestNutritionStreak,
+      } = streaks
 
-    const today = format(new Date(), "yyyy-MM-dd")
-    const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd")
+      const today = format(new Date(), "yyyy-MM-dd")
+      const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd")
 
-    let newStreak = currentNutritionStreak
+      let newStreak = currentNutritionStreak
 
-    if (!lastNutritionDate) {
-      newStreak = 1
-    } else if (nutritionDate === lastNutritionDate) {
-      newStreak = currentNutritionStreak
-    } else if (
-      lastNutritionDate === yesterday ||
-      lastNutritionDate === today
-    ) {
-      if (nutritionDate === today && lastNutritionDate !== today) {
-        newStreak = currentNutritionStreak + 1
-      }
-    } else {
-      const daysSinceLastLog = differenceInCalendarDays(
-        parseISO(today),
-        parseISO(lastNutritionDate)
-      )
-      if (daysSinceLastLog > 1) {
+      if (!lastNutritionDate) {
         newStreak = 1
+      } else if (nutritionDate === lastNutritionDate) {
+        newStreak = currentNutritionStreak
+      } else if (
+        lastNutritionDate === yesterday ||
+        lastNutritionDate === today
+      ) {
+        if (nutritionDate === today && lastNutritionDate !== today) {
+          newStreak = currentNutritionStreak + 1
+        }
+      } else {
+        const daysSinceLastLog = differenceInCalendarDays(
+          parseISO(today),
+          parseISO(lastNutritionDate)
+        )
+        if (daysSinceLastLog > 1) {
+          newStreak = 1
+        }
       }
-    }
 
-    const newLongest = Math.max(newStreak, longestNutritionStreak)
-    const newStreaks = {
-      ...streaks,
-      currentNutritionStreak: newStreak,
-      longestNutritionStreak: newLongest,
-      lastNutritionDate: nutritionDate,
-    }
+      const newLongest = Math.max(newStreak, longestNutritionStreak)
+      const newStreaks = {
+        ...streaks,
+        currentNutritionStreak: newStreak,
+        longestNutritionStreak: newLongest,
+        lastNutritionDate: nutritionDate,
+      }
 
-    await db.achievements.put({
-      id: "achievements",
-      unlockedAchievements,
-      streaks: newStreaks,
-    })
-    
-    queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
+      await db.achievements.put({
+        id: "achievements",
+        unlockedAchievements,
+        streaks: newStreaks,
+      })
+      
+      queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
+    } catch (error) {
+      console.error("Failed to update nutrition streak:", error)
+    }
   },
 
   async tryUnlock(id: string, condition: boolean) {
     if (!condition) return
     
+    // Use transaction to avoid race conditions with other unlocks or streak updates
     await db.transaction("rw", db.achievements, async () => {
       const currentData = await db.achievements.get("achievements")
       const unlocked = currentData?.unlockedAchievements || []

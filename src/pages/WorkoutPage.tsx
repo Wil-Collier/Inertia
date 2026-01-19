@@ -1,6 +1,7 @@
 import { useState, useMemo, Fragment } from "react"
 import { useNavigate, Link, Navigate } from "@tanstack/react-router"
 import { Plus, Dumbbell, Clock, LayoutTemplate, History, ChevronRight } from "lucide-react"
+import { toast } from "sonner"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -59,18 +60,35 @@ export function WorkoutPage() {
   
   const [newWorkoutName, setNewWorkoutName] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isStarting, setIsStarting] = useState(false)
 
   const handleStartBlankWorkout = async () => {
-    const name = newWorkoutName.trim() || getDefaultWorkoutName()
-    await startWorkout({ name })
-    setNewWorkoutName("")
-    setIsDialogOpen(false)
-    navigate({ to: "/workout/active" })
+    try {
+      setIsStarting(true)
+      const name = newWorkoutName.trim() || getDefaultWorkoutName()
+      await startWorkout({ name })
+      setNewWorkoutName("")
+      setIsDialogOpen(false)
+      navigate({ to: "/workout/active" })
+    } catch (error) {
+      console.error("Failed to start blank workout:", error)
+      toast.error("Failed to start workout. Please try again.")
+    } finally {
+      setIsStarting(false)
+    }
   }
 
   const handleStartFromTemplate = async (templateId: string, templateName: string) => {
-    await startWorkout({ name: templateName, templateId })
-    navigate({ to: "/workout/active" })
+    try {
+      setIsStarting(true)
+      await startWorkout({ name: templateName, templateId })
+      navigate({ to: "/workout/active" })
+    } catch (error) {
+      console.error("Failed to start workout from template:", error)
+      toast.error("Failed to start template workout. Please try again.")
+    } finally {
+      setIsStarting(false)
+    }
   }
 
   // Calculate Stats
@@ -185,8 +203,13 @@ export function WorkoutPage() {
                     }}
                   />
                 </div>
-                <Button onClick={handleStartBlankWorkout} size="xl" className="w-full">
-                  Let's Go
+                <Button 
+                  onClick={handleStartBlankWorkout} 
+                  size="xl" 
+                  className="w-full"
+                  disabled={isStarting}
+                >
+                  {isStarting ? "Starting..." : "Let's Go"}
                 </Button>
               </div>
             </DialogContent>

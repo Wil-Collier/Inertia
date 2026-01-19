@@ -49,14 +49,21 @@ export const activeSessionService = {
       const session = await db.activeSession.get("current")
       if (!session) return null
 
+      // Get current weight unit preference
+      const settings = await db.settings.get("settings")
+      const weightUnit = settings?.unitPreferences?.weight || "kg"
+
       const completedWorkout: Workout = {
         ...session.workout,
         completedAt: new Date().toISOString(),
         exerciseIds: session.workout.exercises.map((e) => e.exerciseId),
+        weightUnit,
       }
 
-      await db.workoutSessions.add(completedWorkout)
-      await db.activeSession.delete("current")
+      await db.transaction("rw", [db.workoutSessions, db.activeSession], async () => {
+        await db.workoutSessions.add(completedWorkout)
+        await db.activeSession.delete("current")
+      })
 
       // Update streaks and check achievements
       await achievementService.updateWorkoutStreak(completedWorkout.date)

@@ -8,10 +8,10 @@ export async function getLastPerformance(exerciseId: string): Promise<LastPerfor
   const sessions = await db.workoutSessions
     .where("exerciseIds")
     .equals(exerciseId)
-    .toArray()
+    .sortBy("date")
 
-  // Sort by date descending
-  sessions.sort((a, b) => b.date.localeCompare(a.date))
+  // Most recent first
+  sessions.reverse()
 
   for (const workout of sessions) {
     const workoutExercise = workout.exercises.find(

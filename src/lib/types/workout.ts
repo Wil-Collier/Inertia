@@ -27,6 +27,7 @@ export interface Workout {
   exerciseIds?: string[]
   duration?: number
   completedAt?: string
+  weightUnit?: "kg" | "lbs"
 }
 
 export interface TemplateExercise {

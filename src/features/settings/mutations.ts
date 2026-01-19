@@ -9,14 +9,23 @@ export function useUpdateSettings() {
   return useMutation({
     mutationFn: async (updates: Partial<UserSettings>) => {
       const existing = await db.settings.get("settings")
+      
+      const defaultUnitPreferences: UserSettings["unitPreferences"] = { weight: "kg", distance: "km" }
+      const defaultNutritionGoals: UserSettings["nutritionGoals"] = { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 }
+
       const newSettings: UserSettings & { id: string } = { 
-        theme: "system" as ThemeMode,
-        restTimerDuration: 90,
-        areNotificationsEnabled: false,
-        unitPreferences: { weight: "kg", distance: "km" },
-        nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
-        ...existing, 
-        ...updates, 
+        theme: existing?.theme ?? ("system" as ThemeMode),
+        restTimerDuration: existing?.restTimerDuration ?? 90,
+        areNotificationsEnabled: existing?.areNotificationsEnabled ?? false,
+        ...updates,
+        unitPreferences: {
+          ...(existing?.unitPreferences || defaultUnitPreferences),
+          ...(updates.unitPreferences || {})
+        },
+        nutritionGoals: {
+          ...(existing?.nutritionGoals || defaultNutritionGoals),
+          ...(updates.nutritionGoals || {})
+        },
         id: "settings" 
       }
       await db.settings.put(newSettings)
