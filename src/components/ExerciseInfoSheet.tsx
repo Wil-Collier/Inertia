@@ -45,7 +45,7 @@ export function ExerciseInfoSheet({ exercise, isOpen, onOpenChange }: ExerciseIn
             {instructions?.instructions && instructions.instructions.length > 0 && (
               <div className="space-y-3">
                 <h3 className="flex items-center gap-2 text-sm font-medium">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <CheckCircle2 className="h-4 w-4 text-success" />
                   How to Perform
                 </h3>
                 <ol className="space-y-2">

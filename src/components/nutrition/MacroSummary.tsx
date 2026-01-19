@@ -26,10 +26,10 @@ export function MacroSummary({ totals, goals }: MacroSummaryProps) {
     <Card className="overflow-hidden">
       <CardContent className="py-6">
         <div className="mb-6 flex items-center justify-between">
-          <div className="space-y-1">
+            <div className="space-y-1">
             <p className="text-5xl font-black tracking-tighter">{Math.round(totals?.calories ?? 0)}</p>
             <div className="flex items-center gap-2">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <p className="text-xxs font-bold text-muted-foreground uppercase tracking-widest">
                 Calories Consumed
               </p>
               {(totals?.calories ?? 0) > goals.calories && (

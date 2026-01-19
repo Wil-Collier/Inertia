@@ -9,6 +9,8 @@ import {
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -327,15 +329,13 @@ export function ActiveWorkout() {
             </p>
 
             <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={saveAsTemplate}
-                  onChange={(e) => setSaveAsTemplate(e.target.checked)}
-                  className="h-4 w-4"
+              <Label className="flex items-center gap-3 py-2 cursor-pointer">
+                <Checkbox 
+                  checked={saveAsTemplate} 
+                  onCheckedChange={(checked) => setSaveAsTemplate(!!checked)}
                 />
                 <span className="text-sm">Save as template</span>
-              </label>
+              </Label>
 
               {saveAsTemplate && (
                 <Input

@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from "react"
 import { startOfWeek, eachDayOfInterval } from "date-fns"
 import { Trophy, TrendingUp, Dumbbell, Calendar } from "lucide-react"
+import { cn } from "@/lib/utils"
 import {
   LineChart,
   Line,
@@ -14,6 +15,7 @@ import type { ValueType } from "recharts/types/component/DefaultTooltipContent"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AchievementBadge } from "@/components/AchievementBadge"
 import { useExercisesDB, useExercisesByIdsDB } from "@/hooks/db/useExercisesDB"
 import { useBodyWeightStore } from "@/stores/bodyWeightStore"
 import { useBodyWeightDB } from "@/hooks/db/useBodyWeightDB"
@@ -22,6 +24,7 @@ import { calculateOneRepMax, calculateSetVolume } from "@/lib/workoutUtils"
 import { getNinetyDaysAgo, getToday, formatDate } from "@/lib/dateUtils"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import { useProgressStatsDB } from "@/hooks/db/useProgressStatsDB"
+import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 
 // Internal Components
 import { StatCard } from "@/components/progress/StatCard"
@@ -32,12 +35,6 @@ import { AchievementsTab } from "@/components/progress/AchievementsTab"
 
 // Chart Configuration Constants
 const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }
-const CHART_AXIS_STYLE = { fontSize: 12 }
-const TOOLTIP_CONTENT_STYLE = {
-  backgroundColor: "hsl(var(--background))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "8px",
-}
 const LINE_DOT_CONFIG = { fill: "hsl(var(--primary))" }
 
 export function ProgressPage() {
@@ -187,34 +184,36 @@ export function ProgressPage() {
               </CardHeader>
               <CardContent>
                 {weeklyData.some((d) => d.volume > 0) ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={weeklyData} margin={CHART_MARGIN}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis
-                        dataKey="week"
-                        tick={CHART_AXIS_STYLE}
-                        className="text-muted-foreground"
-                      />
-                      <YAxis
-                        tick={CHART_AXIS_STYLE}
-                        className="text-muted-foreground"
-                        tickFormatter={volumeTickFormatter}
-                      />
-                      <Tooltip
-                        contentStyle={TOOLTIP_CONTENT_STYLE}
-                        formatter={volumeTooltipFormatter}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="volume"
-                        stroke="hsl(var(--primary))"
-                        strokeWidth={2}
-                        dot={LINE_DOT_CONFIG}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <div className={CHART_HEIGHTS.md}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={weeklyData} margin={CHART_MARGIN}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis
+                          dataKey="week"
+                          tick={CHART_AXIS_STYLE}
+                          className="text-muted-foreground"
+                        />
+                        <YAxis
+                          tick={CHART_AXIS_STYLE}
+                          className="text-muted-foreground"
+                          tickFormatter={volumeTickFormatter}
+                        />
+                        <Tooltip
+                          contentStyle={CHART_TOOLTIP_STYLE.contentStyle}
+                          formatter={volumeTooltipFormatter}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="volume"
+                          stroke="hsl(var(--primary))"
+                          strokeWidth={2}
+                          dot={LINE_DOT_CONFIG}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 ) : (
-                  <div className="flex h-[200px] items-center justify-center text-muted-foreground">
+                  <div className={cn("flex items-center justify-center text-muted-foreground", CHART_HEIGHTS.md)}>
                     Complete some workouts to see your progress!
                   </div>
                 )}
@@ -258,9 +257,7 @@ export function ProgressPage() {
                   {sortedPRs.map((personalRecord) => (
                     <Card key={personalRecord.exerciseId}>
                       <CardContent className="flex items-center gap-4 py-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500">
-                          <Trophy className="h-5 w-5" />
-                        </div>
+                        <AchievementBadge icon={Trophy} />
                         <div className="flex-1">
                           <p className="font-medium">{personalRecord.exercise?.name}</p>
                           <p className="text-sm text-muted-foreground">
@@ -271,7 +268,7 @@ export function ProgressPage() {
                           <p className="font-bold text-primary">
                             {weightUnit.format(Math.round(personalRecord.oneRepMax))} 
                           </p>
-                          <p className="text-xs text-muted-foreground">Est. 1RM</p>
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Est. 1RM</p>
                         </div>
                       </CardContent>
                     </Card>

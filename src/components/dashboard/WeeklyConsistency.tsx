@@ -33,7 +33,7 @@ export function WeeklyConsistency({ workoutDates, nutritionDates }: WeeklyConsis
         <div className="flex justify-between gap-1">
           {last7Days.map((day) => (
             <div key={day.dateStr} className="flex flex-col items-center gap-2">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase">
+              <span className="text-xxs font-medium text-muted-foreground uppercase">
                 {day.label}
               </span>
               <div className="flex flex-col gap-1">

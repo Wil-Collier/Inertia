@@ -91,7 +91,7 @@ export const FoodListItem = memo(({
           onClick={handleToggleFavorite}
         >
           <Star
-            className={`h-4 w-4 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`}
+            className={`h-4 w-4 ${isFavorite ? "fill-favorite text-favorite" : ""}`}
           />
         </Button>
         {showDelete && onDelete && (

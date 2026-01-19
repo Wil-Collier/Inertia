@@ -15,14 +15,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { getTodayDate } from "@/stores/bodyWeightStore"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 
 const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }
-const CHART_AXIS_STYLE = { fontSize: 12 }
-const TOOLTIP_CONTENT_STYLE = {
-  backgroundColor: "hsl(var(--background))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "8px",
-}
 const LINE_DOT_CONFIG = { fill: "hsl(var(--primary))" }
 
 interface BodyWeightTabProps {
@@ -124,34 +120,36 @@ export function BodyWeightTab({
         </CardHeader>
         <CardContent>
           {chartData.length >= 2 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData} margin={CHART_MARGIN}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis
-                  dataKey="date"
-                  tick={CHART_AXIS_STYLE}
-                  className="text-muted-foreground"
-                />
-                <YAxis
-                  tick={CHART_AXIS_STYLE}
-                  className="text-muted-foreground"
-                  domain={weightDomain}
-                />
-                <Tooltip
-                  contentStyle={TOOLTIP_CONTENT_STYLE}
-                  formatter={weightTooltipFormatter}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="weight"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={LINE_DOT_CONFIG}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className={CHART_HEIGHTS.md}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={CHART_MARGIN}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    dataKey="date"
+                    tick={CHART_AXIS_STYLE}
+                    className="text-muted-foreground"
+                  />
+                  <YAxis
+                    tick={CHART_AXIS_STYLE}
+                    className="text-muted-foreground"
+                    domain={weightDomain}
+                  />
+                  <Tooltip
+                    contentStyle={CHART_TOOLTIP_STYLE.contentStyle}
+                    formatter={weightTooltipFormatter}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="weight"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={LINE_DOT_CONFIG}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="flex h-[200px] items-center justify-center text-muted-foreground">
+            <div className={cn("flex items-center justify-center text-muted-foreground", CHART_HEIGHTS.md)}>
               <div className="text-center">
                 <Scale className="mx-auto mb-2 h-8 w-8" />
                 <p>Log at least 2 entries to see your trend</p>

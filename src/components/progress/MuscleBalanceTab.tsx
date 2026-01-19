@@ -14,13 +14,8 @@ import type { MuscleGroup } from "@/lib/types"
 import { muscleGroupLabels } from "@/lib/muscleGroups"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-
-const CHART_AXIS_STYLE = { fontSize: 12 }
-const TOOLTIP_CONTENT_STYLE = {
-  backgroundColor: "hsl(var(--background))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "8px",
-}
+import { cn } from "@/lib/utils"
+import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 
 // Muscle group balance data for radar chart
 const MUSCLE_GROUPS: MuscleGroup[] = ["chest", "back", "shoulders", "arms", "legs", "core"]
@@ -129,33 +124,35 @@ export function MuscleBalanceTab({
         </CardHeader>
         <CardContent>
           {hasData ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <RadarChart data={muscleData} cx="50%" cy="50%" outerRadius="70%">
-                <PolarGrid className="stroke-muted" />
-                <PolarAngleAxis
-                  dataKey="muscle"
-                  tick={CHART_AXIS_STYLE}
-                  className="text-muted-foreground"
-                />
-                <PolarRadiusAxis
-                  angle={90}
-                  domain={radarDomain}
-                  tick={radarAxisStyle}
-                  className="text-muted-foreground"
-                />
-                <Radar
-                  name="Workouts"
-                  dataKey="frequency"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.5}
-                  strokeWidth={2}
-                />
-                <Tooltip contentStyle={TOOLTIP_CONTENT_STYLE} />
-              </RadarChart>
-            </ResponsiveContainer>
+            <div className={CHART_HEIGHTS.lg}>
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={muscleData} cx="50%" cy="50%" outerRadius="70%">
+                  <PolarGrid className="stroke-muted" />
+                  <PolarAngleAxis
+                    dataKey="muscle"
+                    tick={CHART_AXIS_STYLE}
+                    className="text-muted-foreground"
+                  />
+                  <PolarRadiusAxis
+                    angle={90}
+                    domain={radarDomain}
+                    tick={radarAxisStyle}
+                    className="text-muted-foreground"
+                  />
+                  <Radar
+                    name="Workouts"
+                    dataKey="frequency"
+                    stroke="hsl(var(--primary))"
+                    fill="hsl(var(--primary))"
+                    fillOpacity={0.5}
+                    strokeWidth={2}
+                  />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE.contentStyle} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="flex h-[280px] items-center justify-center text-muted-foreground">
+            <div className={cn("flex items-center justify-center text-muted-foreground", CHART_HEIGHTS.lg)}>
               <div className="text-center">
                 <Activity className="mx-auto mb-2 h-8 w-8" />
                 <p>Complete some workouts to see your balance!</p>

@@ -67,6 +67,10 @@
     --category-nutrition: var(--calories);
     --category-variety: var(--muscle-shoulders);
     --category-bodyweight: var(--macro-protein);
+
+    --achievement: 45 93% 47%;
+    --favorite: 45 93% 47%;
+    --success: 142 71% 45%;
 }
 
 .dark {
@@ -165,6 +169,13 @@
     --color-category-variety: var(--category-variety);
     --color-category-bodyweight: var(--category-bodyweight);
 
+    --color-achievement: hsl(var(--achievement));
+    --color-favorite: hsl(var(--favorite));
+    --color-success: hsl(var(--success));
+
+    --font-size-xxs: 0.625rem;
+    --font-size-xxs--line-height: 0.875rem;
+
     --color-ring: var(--ring);
     --color-input: var(--input);
     --color-border: var(--border);
@@ -240,4 +251,10 @@
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+@layer components {
+  .interactive-card {
+    @apply transition-transform hover:scale-[1.02] active:scale-[0.98];
+  }
 }

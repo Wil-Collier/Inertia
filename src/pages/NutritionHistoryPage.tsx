@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useNutritionHistory, useNutritionDatesDB } from "@/hooks/db/useNutritionDB"
 import { useSettingsStore } from "@/stores/settingsStore"
+import { CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 
 type DateRange = "7d" | "30d" | "90d"
 
@@ -29,12 +30,6 @@ const dateRangeOptions: { value: DateRange; label: string }[] = [
 ]
 
 // Chart Configuration Constants
-const CHART_AXIS_STYLE = { fontSize: 10 }
-const TOOLTIP_STYLE = {
-  backgroundColor: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "8px",
-}
 const CALORIES_BAR_RADIUS: [number, number, number, number] = [4, 4, 0, 0]
 const MACRO_LINE_STROKE_WIDTH = 2
 
@@ -127,12 +122,12 @@ export function NutritionHistoryPage() {
         <div className="grid grid-cols-2 gap-3">
           <Card>
             <CardContent className="py-4">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Avg. Calories</p>
+              <p className="text-xxs font-bold text-muted-foreground uppercase tracking-widest mb-1">Avg. Calories</p>
               <div className="flex items-center gap-2">
                 <p className="text-4xl font-black tracking-tighter">{averages.calories}</p>
                 {caloriesTrend !== null && (
                   <span
-                    className={`flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    className={`flex items-center text-xxs font-bold px-1.5 py-0.5 rounded-full ${
                       caloriesTrend > 0
                         ? "bg-trend-positive/10 text-trend-positive"
                         : caloriesTrend < 0
@@ -151,7 +146,7 @@ export function NutritionHistoryPage() {
                   </span>
                 )}
               </div>
-              <p className="text-[10px] font-medium text-muted-foreground/60 italic mt-1">
+              <p className="text-xxs font-medium text-muted-foreground/60 italic mt-1">
                 Goal: {nutritionGoals.calories} kcal
               </p>
             </CardContent>
@@ -159,9 +154,9 @@ export function NutritionHistoryPage() {
 
           <Card>
             <CardContent className="py-4">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Days Logged</p>
+              <p className="text-xxs font-bold text-muted-foreground uppercase tracking-widest mb-1">Days Logged</p>
               <p className="text-4xl font-black tracking-tighter">{daysWithData}</p>
-              <p className="text-[10px] font-medium text-muted-foreground/60 italic mt-1">
+              <p className="text-xxs font-medium text-muted-foreground/60 italic mt-1">
                 of {dailyTotals.length} days
               </p>
             </CardContent>
@@ -253,7 +248,7 @@ export function NutritionHistoryPage() {
                           domain={[0, "dataMax + 200"]}
                         />
                         <Tooltip
-                          contentStyle={TOOLTIP_STYLE}
+                          contentStyle={CHART_TOOLTIP_STYLE.contentStyle}
                           labelFormatter={caloriesLabelFormatter}
                           formatter={caloriesTooltipFormatter}
                         />
@@ -299,7 +294,7 @@ export function NutritionHistoryPage() {
                           className="text-muted-foreground"
                         />
                         <Tooltip
-                          contentStyle={TOOLTIP_STYLE}
+                          contentStyle={CHART_TOOLTIP_STYLE.contentStyle}
                           labelFormatter={caloriesLabelFormatter}
                         />
                         <Legend />
@@ -366,11 +361,11 @@ function MacroStat({
 }) {
   return (
     <div className="text-center space-y-1">
-      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
+      <p className="text-xxs font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
       <p className={`text-2xl font-black tracking-tighter ${color}`}>
         {value}{unit}
       </p>
-      <p className="text-[10px] font-medium text-muted-foreground/60 italic">
+      <p className="text-xxs font-medium text-muted-foreground/60 italic">
         Goal: {goal}{unit}
       </p>
     </div>

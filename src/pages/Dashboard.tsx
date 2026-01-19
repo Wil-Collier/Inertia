@@ -6,6 +6,7 @@ import { Dumbbell, Utensils, Clock, Flame, Target, Trophy, Plus, ChevronRight } 
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
+import { AchievementBadge } from "@/components/AchievementBadge"
 import { useWorkoutStore } from "@/stores/workout"
 import { getTodayDate } from "@/stores/nutritionStore"
 import { useDailyNutrition, useNutritionDatesDB } from "@/hooks/db/useNutritionDB"
@@ -87,7 +88,7 @@ export function Dashboard() {
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-2 gap-3">
           <Link to={activeSession ? "/workout/active" : "/workout"}>
-            <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-none bg-primary text-primary-foreground shadow-md">
+            <Card className="h-full interactive-card border-none bg-primary text-primary-foreground shadow-md">
               <CardContent className="flex items-center gap-3 p-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
                   <Dumbbell className="h-5 w-5" />
@@ -100,7 +101,7 @@ export function Dashboard() {
           </Link>
 
           <Link to="/nutrition">
-            <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-none bg-category-nutrition text-white shadow-md">
+            <Card className="h-full interactive-card border-none bg-category-nutrition text-primary-foreground shadow-md">
               <CardContent className="flex items-center gap-3 p-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
                   <Plus className="h-5 w-5" />
@@ -198,11 +199,9 @@ export function Dashboard() {
             </div>
             <div className="grid grid-cols-1 gap-2">
               {recentAchievements.map((achievement) => (
-                <Card key={achievement.id} className="bg-yellow-500/5 border-yellow-500/20">
+                <Card key={achievement.id} className="bg-achievement/5 border-achievement/20">
                   <CardContent className="flex items-center gap-3 py-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500 text-white shadow-sm">
-                      <Trophy className="h-5 w-5" />
-                    </div>
+                    <AchievementBadge icon={Trophy} />
                     <div>
                       <p className="text-sm font-bold">{achievement.name}</p>
                       <p className="text-xs text-muted-foreground line-clamp-1">
@@ -226,11 +225,11 @@ export function Dashboard() {
           </CardHeader>
           <CardContent className="pt-2">
             {isWorkoutsLoading ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
+              <div className="py-8 text-center text-sm text-muted-foreground">
                 Loading today's workouts...
               </div>
             ) : todayWorkouts.length === 0 ? (
-              <div className="py-6 text-center space-y-2">
+              <div className="py-8 text-center space-y-2">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <Dumbbell className="h-6 w-6" />
                 </div>
@@ -297,7 +296,7 @@ function CompactMacro({
   return (
     <div className="space-y-1.5">
       <div className="flex flex-col">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
+        <span className="text-xxs font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
         <span className="text-sm font-black">
           {Math.round(value)}g
         </span>

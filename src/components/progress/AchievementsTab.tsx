@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import { Award } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { AchievementBadge } from "@/components/AchievementBadge"
 import { StreakDisplay } from "@/components/StreakDisplay"
 import { AchievementCard } from "@/components/AchievementCard"
 import { useAchievementsStore } from "@/stores/achievementsStore"
@@ -67,9 +68,7 @@ export function AchievementsTab({
       <Card>
         <CardContent className="py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500">
-              <Award className="h-6 w-6" />
-            </div>
+            <AchievementBadge icon={Award} className="h-12 w-12 [&_svg]:h-6 [&_svg]:w-6" />
             <div>
               <p className="text-2xl font-bold">
                 {unlockedCount} / {totalCount}

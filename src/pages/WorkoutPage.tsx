@@ -117,7 +117,7 @@ export function WorkoutPage() {
            <Card className="bg-primary/5 border-none shadow-none">
             <CardContent className="pt-4 pb-3">
               <p className="text-3xl font-black tracking-tight">{stats.workoutsThisMonth}</p>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Workouts this month</p>
+              <p className="text-xxs font-bold text-muted-foreground uppercase tracking-wider">Workouts this month</p>
             </CardContent>
           </Card>
           <Card className="bg-primary/5 border-none shadow-none">
@@ -134,7 +134,7 @@ export function WorkoutPage() {
                   />
                 ))}
               </div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">4-Week Momentum</p>
+              <p className="text-xxs font-bold text-muted-foreground uppercase tracking-wider">4-Week Momentum</p>
             </CardContent>
           </Card>
         </section>
@@ -147,7 +147,7 @@ export function WorkoutPage() {
             </h2>
           </div>
           <Card 
-            className="cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] border-none bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+            className="cursor-pointer interactive-card border-none bg-primary text-primary-foreground shadow-lg shadow-primary/20"
             onClick={() => setIsDialogOpen(true)}
           >
             <CardContent className="flex items-center gap-4 py-6">
@@ -183,7 +183,7 @@ export function WorkoutPage() {
                     }}
                   />
                 </div>
-                <Button onClick={handleStartBlankWorkout} className="w-full py-6 font-bold text-base">
+                <Button onClick={handleStartBlankWorkout} size="xl" className="w-full">
                   Let's Go
                 </Button>
               </div>
@@ -199,7 +199,7 @@ export function WorkoutPage() {
             </h2>
             <Link 
               to="/workout/templates" 
-              className="text-[10px] font-bold text-primary uppercase bg-primary/10 px-2 py-1 rounded"
+              className="text-xxs font-bold text-primary uppercase bg-primary/10 px-2 py-1 rounded"
             >
               Manage
             </Link>
@@ -207,13 +207,13 @@ export function WorkoutPage() {
 
           {templates.length === 0 ? (
             <Card className="border-dashed border-2 bg-transparent">
-              <CardContent className="py-10 text-center space-y-4">
+              <CardContent className="py-8 text-center space-y-4">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                   <LayoutTemplate className="h-6 w-6" />
                 </div>
                 <div className="space-y-1">
                   <p className="font-bold text-muted-foreground">No templates yet</p>
-                  <p className="text-xs text-muted-foreground/60 max-w-[200px] mx-auto">
+                  <p className="text-xs text-muted-foreground/60 max-w-48 mx-auto">
                     Save your favorite routines to start them faster next time.
                   </p>
                 </div>
@@ -237,7 +237,7 @@ export function WorkoutPage() {
                 return (
                   <Card
                     key={template.id}
-                    className="cursor-pointer transition-all hover:bg-muted/30 active:scale-[0.98]"
+                    className="cursor-pointer interactive-card"
                     onClick={() =>
                       handleStartFromTemplate(template.id, template.name)
                     }
@@ -249,13 +249,13 @@ export function WorkoutPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-black uppercase italic text-sm truncate">{template.name}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
+                          <span className="text-xxs font-bold text-muted-foreground uppercase tracking-tighter">
                             {template.exercises.length} Exercises
                           </span>
                           {muscleGroups.length > 0 && (
                             <>
                               <span className="text-muted-foreground/30">•</span>
-                              <span className="text-[10px] font-bold text-primary/70 uppercase truncate">
+                              <span className="text-xxs font-bold text-primary/70 uppercase truncate">
                                 {muscleGroups.slice(0, 2).join(" • ")}
                                 {muscleGroups.length > 2 && " +"}
                               </span>
@@ -293,7 +293,7 @@ export function WorkoutPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-sm truncate">{workout.name}</p>
-                            <p className="text-[10px] font-medium text-muted-foreground">
+                            <p className="text-xxs font-medium text-muted-foreground">
                               {format(parseISO(workout.date), "MMM d, yyyy")}
                               {workout.duration && ` • ${workout.duration}m`}
                             </p>
