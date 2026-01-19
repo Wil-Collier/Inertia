@@ -44,14 +44,14 @@ export function MealLogger({
 
         return (
           <Card key={type} className="overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between py-4">
-              <CardTitle className="flex items-center gap-3 text-base font-bold uppercase tracking-widest text-muted-foreground">
-                <Icon className="h-6 w-6 text-primary" />
+            <CardHeader className="flex flex-row items-center justify-between py-3">
+              <CardTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <Icon className="h-4 w-4 text-primary" />
                 {label}
               </CardTitle>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-black">
-                  {Math.round(mealCalories)} <span className="text-xs font-bold text-muted-foreground uppercase tracking-tighter">kcal</span>
+                <span className="text-sm font-black">
+                  {Math.round(mealCalories)} <span className="text-xxs font-bold text-muted-foreground uppercase tracking-tighter">kcal</span>
                 </span>
                 <Button
                   size="icon-sm"

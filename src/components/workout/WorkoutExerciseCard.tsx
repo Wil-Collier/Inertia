@@ -60,7 +60,7 @@ export const WorkoutExerciseCard = memo(({
   const isTimeBased = exercise?.isTimeBased ?? false
 
   return (
-    <Card>
+    <Card className={cn("transition-all", !isExpanded && "gap-0")}>
       <CardHeader
         className="cursor-pointer py-3"
         onClick={() => onToggleExpanded(workoutExercise.id)}
@@ -110,8 +110,8 @@ export const WorkoutExerciseCard = memo(({
               "gap-2 text-xs text-muted-foreground grid",
               isTimeBased
                 ? "grid-cols-[1fr_4fr_auto]"
-                : exercise?.isWeighted 
-                  ? "grid-cols-[1fr_3fr_3fr_auto]" 
+                : exercise?.isWeighted
+                  ? "grid-cols-[1fr_3fr_3fr_auto]"
                   : "grid-cols-[1fr_6fr_auto]"
             )}>
               <span>Set</span>
@@ -125,7 +125,7 @@ export const WorkoutExerciseCard = memo(({
               const isActiveCountdown = activeSetId === set.id
               const canComplete = isTimeBased
                 ? set.reps > 0
-                : exercise?.isWeighted 
+                : exercise?.isWeighted
                   ? set.weight > 0 && set.reps > 0
                   : set.reps > 0
 

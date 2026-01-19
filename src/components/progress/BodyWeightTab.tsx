@@ -34,8 +34,8 @@ const LINE_DOT_CONFIG = { fill: "hsl(var(--primary))" }
 interface BodyWeightTabProps {
   newWeight: string
   setNewWeight: (value: string) => void
-  addWeightEntry: (weight: number, date?: string, note?: string) => void
-  deleteWeightEntry: (id: string) => void
+  addWeightEntry: (weight: number, date?: string, note?: string) => Promise<any>
+  deleteWeightEntry: (id: string) => Promise<any>
   preferredUnit: "lbs" | "kg"
   weightEntries: { id: string; date: string; weight: number; note?: string }[]
 }
@@ -71,13 +71,13 @@ export function BodyWeightTab({
       }))
   }, [weightEntries])
 
-  const handleAddWeight = () => {
+  const handleAddWeight = async () => {
     const weight = parseFloat(newWeight)
     if (isNaN(weight) || weight <= 0) {
       toast.error("Please enter a valid weight")
       return
     }
-    addWeightEntry(weight, getTodayDate())
+    await addWeightEntry(weight, getTodayDate())
     setNewWeight("")
     toast.success("Weight logged!")
   }

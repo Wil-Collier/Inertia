@@ -1,14 +1,14 @@
 import Dexie, { type Table } from "dexie"
 import "dexie-export-import"
-import type { 
-  Exercise, 
-  Workout, 
-  WorkoutTemplate, 
-  PersonalRecord, 
-  FoodItem, 
-  DailyNutrition, 
+import type {
+  Exercise,
+  Workout,
+  WorkoutTemplate,
+  PersonalRecord,
+  FoodItem,
+  DailyNutrition,
   MealEntry,
-  UserSettings, 
+  UserSettings,
   WeightEntry,
   UnlockedAchievement,
   StreakData,
@@ -22,11 +22,11 @@ export class TrainingAppDatabase extends Dexie {
   workoutSessions!: Table<Workout>
   workoutTemplates!: Table<WorkoutTemplate>
   personalRecords!: Table<PersonalRecord>
-  
+
   foods!: Table<FoodItem>
   nutritionLogs!: Table<DailyNutrition>
   mealTemplates!: Table<{ id: string; name: string; entries: Omit<MealEntry, "id">[] }>
-  
+
   settings!: Table<UserSettings & { id: string }>
   bodyWeight!: Table<WeightEntry>
   achievements!: Table<{ id: string; unlockedAchievements: UnlockedAchievement[]; streaks: StreakData }>
@@ -35,7 +35,7 @@ export class TrainingAppDatabase extends Dexie {
 
   constructor() {
     super("TrainingAppDB")
-    
+
     // Schema definition
     // Note: ++id means auto-incrementing integer key, but our types use string UUIDs.
     // If using UUIDs, we just use 'id'.
@@ -45,11 +45,11 @@ export class TrainingAppDatabase extends Dexie {
       workoutSessions: "id, date, templateId, completedAt",
       workoutTemplates: "id, name",
       personalRecords: "exerciseId, date",
-      
+
       foods: "id, name, brand",
       nutritionLogs: "date",
       mealTemplates: "id, name",
-      
+
       settings: "id",
       bodyWeight: "id, date",
       achievements: "id",
@@ -88,28 +88,28 @@ export async function isDatabaseHealthy(): Promise<boolean> {
  */
 export async function recoverDatabase(): Promise<void> {
   console.log("Attempting database recovery...")
-  
+
   try {
     db.close()
   } catch {
     // Ignore close errors
   }
-  
+
   try {
     // Use the native IndexedDB API to ensure complete deletion
     await new Promise<void>((resolve, reject) => {
       const request = indexedDB.deleteDatabase("TrainingAppDB")
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-      request.onblocked = () => {
+      request.addEventListener("success", () => resolve())
+      request.addEventListener("error", () => reject(request.error))
+      request.addEventListener("blocked", () => {
         console.warn("Database deletion blocked, forcing...")
         resolve()
-      }
+      })
     })
   } catch (error) {
     console.error("Failed to delete database via IndexedDB API:", error)
   }
-  
+
   try {
     await db.open()
     console.log("Database recovery successful")
