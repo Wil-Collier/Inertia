@@ -7,7 +7,7 @@ import {
   Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
+import { useActiveSession } from "@/features/workout/hooks/useActiveSession"
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
@@ -20,7 +20,8 @@ const navItems = [
 export function BottomNav() {
   const routerState = useRouterState()
   const pathname = routerState.location.pathname
-  const hasActiveSession = useActiveSessionStore((s) => !!s.session)
+  const { data: activeSession } = useActiveSession()
+  const hasActiveSession = !!activeSession
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-area-bottom">

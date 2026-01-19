@@ -10,7 +10,7 @@ import { AchievementBadge } from "@/components/AchievementBadge"
 import { getToday } from "@/lib/dateUtils"
 import { useDailyNutrition, useNutritionDates } from "@/features/nutrition/queries"
 import { useWorkoutsByDate, useWorkoutDates } from "@/features/workout/queries"
-import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
+import { useActiveSession } from "@/features/workout/hooks/useActiveSession"
 import { useSettings } from "@/features/settings/queries"
 import { useAchievements } from "@/features/achievements/queries"
 import { WeeklyConsistency } from "@/components/dashboard/WeeklyConsistency"
@@ -22,7 +22,7 @@ export function Dashboard() {
   const today = getToday()
   const todayFormatted = format(new Date(), "EEEE, MMMM d")
 
-  const { session: activeSession } = useActiveSessionStore()
+  const { data: activeSession } = useActiveSession()
   const { data: nutritionData } = useDailyNutrition(today)
   const { data: todayWorkouts = [], isLoading: isWorkoutsLoading } = useWorkoutsByDate(today)
   const { data: settings } = useSettings()

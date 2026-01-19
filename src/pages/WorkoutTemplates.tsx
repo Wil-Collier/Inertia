@@ -31,7 +31,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
-import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
+import { useActiveSessionActions } from "@/features/workout/hooks/useActiveSession"
 import { useTemplates } from "@/features/workout/queries"
 import { 
   useCreateTemplate, 
@@ -43,7 +43,7 @@ import type { WorkoutTemplate } from "@/lib/types"
 
 export function WorkoutTemplates() {
   const navigate = useNavigate()
-  const { startWorkout } = useActiveSessionStore()
+  const { startWorkout } = useActiveSessionActions()
   const createTemplateMutation = useCreateTemplate()
   const updateTemplateMutation = useUpdateTemplate()
   const deleteTemplateMutation = useDeleteTemplate()
@@ -102,7 +102,7 @@ export function WorkoutTemplates() {
 
   const handleStartFromTemplate = useCallback(async (template: WorkoutTemplate) => {
     try {
-      await startWorkout(template.name, template.id)
+      await startWorkout({ name: template.name, templateId: template.id })
       navigate({ to: "/workout/active" })
     } catch {
       // Store already toasts

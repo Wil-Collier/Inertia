@@ -1,4 +1,4 @@
-import type { Workout, WorkoutExercise, WorkoutSet } from "@/lib/types"
+import type { TemplateExercise, Workout, WorkoutExercise, WorkoutSet } from "@/lib/types"
 
 /**
  * Brzycki formula for estimated 1RM
@@ -45,4 +45,24 @@ export function calculateWorkoutVolume(workout: Workout): number {
  */
 export function calculateExerciseVolume(exercise: WorkoutExercise): number {
   return calculateSetVolume(exercise.sets)
+}
+
+/**
+ * Builds a WorkoutExercise from a TemplateExercise
+ */
+export function buildWorkoutExerciseFromTemplate(templateExercise: TemplateExercise): WorkoutExercise {
+  const setCount = Math.max(1, templateExercise.targetSets || 0)
+  const reps = templateExercise.targetReps ?? 0
+  const weight = templateExercise.targetWeight ?? 0
+
+  return {
+    id: crypto.randomUUID(),
+    exerciseId: templateExercise.exerciseId,
+    sets: Array.from({ length: setCount }, () => ({
+      id: crypto.randomUUID(),
+      reps,
+      weight,
+      isCompleted: false,
+    })),
+  }
 }

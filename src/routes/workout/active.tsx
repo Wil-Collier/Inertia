@@ -1,13 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router"
 import { ActiveWorkout } from "@/pages/ActiveWorkout"
-import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
+import { db } from "@/services/db"
 
 export const Route = createFileRoute("/workout/active")({
   beforeLoad: async () => {
-    const store = useActiveSessionStore.getState()
-    await store.init()
+    const session = await db.activeSession.get("current")
 
-    if (!store.session) {
+    if (!session) {
       throw redirect({ to: "/workout" })
     }
   },

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
+import { useActiveSession, useActiveSessionActions } from "@/features/workout/hooks/useActiveSession"
 import { useTemplates, useWorkoutDates, useWorkoutStats } from "@/features/workout/queries"
 import { useExercisesByIds } from "@/features/exercises/queries"
 import { cn } from "@/lib/utils"
@@ -21,7 +21,8 @@ import type { MuscleGroup } from "@/lib/types"
 
 export function WorkoutPage() {
   const navigate = useNavigate()
-  const { session: activeSession, startWorkout } = useActiveSessionStore()
+  const { data: activeSession } = useActiveSession()
+  const { startWorkout } = useActiveSessionActions()
   
   const { data: templates = [] } = useTemplates()
   const { data: workoutDates = [] } = useWorkoutDates()
@@ -61,14 +62,14 @@ export function WorkoutPage() {
 
   const handleStartBlankWorkout = async () => {
     const name = newWorkoutName.trim() || getDefaultWorkoutName()
-    await startWorkout(name)
+    await startWorkout({ name })
     setNewWorkoutName("")
     setIsDialogOpen(false)
     navigate({ to: "/workout/active" })
   }
 
   const handleStartFromTemplate = async (templateId: string, templateName: string) => {
-    await startWorkout(templateName, templateId)
+    await startWorkout({ name: templateName, templateId })
     navigate({ to: "/workout/active" })
   }
 

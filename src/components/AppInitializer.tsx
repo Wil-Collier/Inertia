@@ -1,14 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { PageLoader } from "@/components/ui/PageLoader"
 import { isDatabaseHealthy, recoverDatabase } from "@/services/db"
-import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
 
 interface AppInitializerProps {
   children: ReactNode
 }
 
 /**
- * Checks database health and initializes the active session store.
+ * Checks database health and initializes the application.
  */
 export function AppInitializer({ children }: AppInitializerProps) {
   const [isInitializing, setIsInitializing] = useState(true)
@@ -25,9 +24,6 @@ export function AppInitializer({ children }: AppInitializerProps) {
           console.error("Database recovery failed:", error)
         }
       }
-
-      // Initialize active session store
-      await useActiveSessionStore.getState().init()
       
       setIsInitializing(false)
     }

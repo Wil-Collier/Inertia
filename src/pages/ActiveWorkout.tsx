@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
 import { WorkoutExerciseCard } from "@/components/workout/WorkoutExerciseCard"
-import { useActiveSessionStore } from "@/features/workout/activeSessionStore"
+import { useActiveSession, useActiveSessionActions } from "@/features/workout/hooks/useActiveSession"
 import { useTemplates } from "@/features/workout/queries"
 import { useCreateTemplate } from "@/features/workout/mutations"
 import { useExercisesByIds } from "@/features/exercises/queries"
@@ -30,14 +30,11 @@ import { useCountdownTimer } from "@/hooks/useCountdownTimer"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import { useElapsedTime } from "@/hooks/useElapsedTime"
 import { playDingSound, unlockAudio } from "@/lib/audio"
-import { useQueryClient } from "@tanstack/react-query"
-import { queryKeys } from "@/lib/queryKeys"
 
 export function ActiveWorkout() {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
+  const { data: activeSession, isLoading } = useActiveSession()
   const { 
-    session: activeSession, 
     finishWorkout, 
     cancelWorkout, 
     addExercise, 
@@ -47,7 +44,7 @@ export function ActiveWorkout() {
     removeSet, 
     toggleSetComplete,
     updateExerciseNotes
-  } = useActiveSessionStore()
+  } = useActiveSessionActions()
   
   const createTemplateMutation = useCreateTemplate()
 
@@ -78,7 +75,7 @@ export function ActiveWorkout() {
   const handleCountdownComplete = useCallback(
     (setId: string, workoutExerciseId: string) => {
       playDingSound()
-      toggleSetComplete(workoutExerciseId, setId)
+      toggleSetComplete({ workoutExerciseId, setId })
       timer.start() // Start rest timer after completing timed set
     },
     [toggleSetComplete, timer]
@@ -108,9 +105,6 @@ export function ActiveWorkout() {
     try {
       const completed = await finishWorkout()
       if (completed) {
-        // Invalidate workout queries
-        queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
-        
         if (saveAsTemplate && templateName.trim()) {
           await createTemplateMutation.mutateAsync({ 
             name: templateName.trim(), 
@@ -133,7 +127,7 @@ export function ActiveWorkout() {
     } finally {
       setIsFinishing(false)
     }
-  }, [finishWorkout, saveAsTemplate, templateName, createTemplateMutation, navigate, queryClient])
+  }, [finishWorkout, saveAsTemplate, templateName, createTemplateMutation, navigate])
 
   const handleCancel = useCallback(async () => {
     try {
@@ -222,6 +216,14 @@ export function ActiveWorkout() {
     await handleCancel()
   }, [hasChanges, handleCancel])
 
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
   if (!activeSession || !workout) {
     return <Navigate to="/workout" replace />
   }
@@ -297,11 +299,11 @@ export function ActiveWorkout() {
               isExpanded={expandedExerciseId === workoutExercise.id}
               onToggleExpanded={handleToggleExpanded}
               onAddSet={addSet}
-            onRemoveSet={removeSet}
-            onUpdateSet={updateSet}
-            onToggleSetComplete={toggleSetComplete}
+            onRemoveSet={(_weId, setId) => removeSet({ workoutExerciseId: workoutExercise.id, setId })}
+            onUpdateSet={(_weId, setId, updates) => updateSet({ workoutExerciseId: workoutExercise.id, setId, updates })}
+            onToggleSetComplete={(_weId, setId) => toggleSetComplete({ workoutExerciseId: workoutExercise.id, setId })}
             onRemoveExercise={removeExercise}
-            onUpdateNotes={updateExerciseNotes}
+            onUpdateNotes={(notes) => updateExerciseNotes({ workoutExerciseId: workoutExercise.id, notes })}
             weightUnitLabel={weightUnit.unitLabel}
             activeSetId={countdown.activeSetId ?? undefined}
             countdownFormattedTime={countdown.formattedTime}
