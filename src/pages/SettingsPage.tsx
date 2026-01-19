@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ export function SettingsPage() {
   const settings = useSettingsStore((s) => s.settings)
   const { theme, setTheme } = useTheme()
   const [showClearDialog, setShowClearDialog] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
 
   const handleToggleNotifications = async () => {
     if (!isNotificationSupported()) {
@@ -84,12 +86,15 @@ export function SettingsPage() {
   }
 
   const handleClearData = async () => {
+    setIsClearing(true)
     try {
       await clearAllData()
       setShowClearDialog(false)
       toast.success("All data cleared")
     } catch {
       toast.error("Failed to clear data")
+    } finally {
+      setIsClearing(false)
     }
   }
 
@@ -159,6 +164,7 @@ export function SettingsPage() {
                 variant="outline"
                 className="flex-1"
                 onClick={() => setShowClearDialog(false)}
+                disabled={isClearing}
               >
                 Cancel
               </Button>
@@ -166,8 +172,10 @@ export function SettingsPage() {
                 variant="destructive"
                 className="flex-1"
                 onClick={handleClearData}
+                disabled={isClearing}
               >
-                Delete Everything
+                {isClearing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isClearing ? "Clearing..." : "Delete Everything"}
               </Button>
             </div>
           </div>

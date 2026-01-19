@@ -7,6 +7,7 @@ import {
   Trash2,
   Pencil,
   Plus,
+  Loader2,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -52,29 +54,40 @@ export function WorkoutTemplates() {
   const [newTemplateName, setNewTemplateName] = useState("")
   const [editName, setEditName] = useState("")
   const [isAddExerciseOpen, setIsAddExerciseOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isCreatingNew, setIsCreatingNew] = useState(false)
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
 
   const handleDelete = useCallback(async () => {
     if (!templateToDelete) return
 
+    setIsDeleting(true)
     try {
       await deleteTemplate(templateToDelete.id)
       setTemplateToDelete(null)
+      toast.success("Template deleted")
     } catch {
       // Store already toasts
+    } finally {
+      setIsDeleting(false)
     }
   }, [templateToDelete, deleteTemplate])
 
   const handleCreate = useCallback(async () => {
     if (!newTemplateName.trim()) return
 
+    setIsCreatingNew(true)
     try {
       const template = await createTemplate(newTemplateName.trim())
       setNewTemplateName("")
       setIsCreating(false)
       setEditingTemplate(template)
       setEditName(template.name)
+      toast.success("Template created")
     } catch {
       // Store already toasts
+    } finally {
+      setIsCreatingNew(false)
     }
   }, [newTemplateName, createTemplate])
 
@@ -95,12 +108,16 @@ export function WorkoutTemplates() {
   const handleSaveEdit = useCallback(async () => {
     if (!editingTemplate || !editName.trim()) return false
 
+    setIsSavingEdit(true)
     try {
       await updateTemplate(editingTemplate.id, { name: editName.trim() })
+      toast.success("Template updated")
       return true
     } catch {
       // Store already toasts
       return false
+    } finally {
+      setIsSavingEdit(false)
     }
   }, [editingTemplate, editName, updateTemplate])
 
@@ -122,6 +139,7 @@ export function WorkoutTemplates() {
         exercises: updatedExercises,
       })
       setIsAddExerciseOpen(false)
+      toast.success("Exercise added")
     } catch {
       // Store already toasts
     }
@@ -140,6 +158,7 @@ export function WorkoutTemplates() {
         ...editingTemplate,
         exercises: updatedExercises,
       })
+      toast.success("Exercise removed")
     } catch {
       // Store already toasts
     }
@@ -273,8 +292,9 @@ export function WorkoutTemplates() {
                 }}
               />
             </div>
-            <Button onClick={handleCreate} className="w-full">
-              Create Template
+            <Button onClick={handleCreate} className="w-full" disabled={isCreatingNew}>
+              {isCreatingNew && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isCreatingNew ? "Creating..." : "Create Template"}
             </Button>
           </div>
         </DialogContent>
@@ -294,11 +314,12 @@ export function WorkoutTemplates() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTemplateToDelete(null)}>
+            <Button variant="outline" onClick={() => setTemplateToDelete(null)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -426,7 +447,7 @@ export function WorkoutTemplates() {
                 <div className="pt-2">
                   <Button 
                     className="w-full" 
-                    disabled={!editName.trim()}
+                    disabled={!editName.trim() || isSavingEdit}
                     onClick={async () => {
                       if (editName.trim() !== editingTemplate.name) {
                         const success = await handleSaveEdit()
@@ -435,7 +456,8 @@ export function WorkoutTemplates() {
                       setEditingTemplate(null)
                     }}
                   >
-                    Save
+                    {isSavingEdit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isSavingEdit ? "Saving..." : "Save"}
                   </Button>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import {
   Utensils,
   Moon,
   Cookie,
+  Loader2,
   type LucideIcon,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
@@ -61,6 +62,7 @@ export function NutritionPage() {
   const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false)
   const [templateMealType, setTemplateMealType] = useState<MealType>("breakfast")
   const [newTemplateName, setNewTemplateName] = useState("")
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false)
 
   const addFood = useNutritionStore((s) => s.addFood)
   const addMealEntry = useNutritionStore((s) => s.addMealEntry)
@@ -116,6 +118,7 @@ export function NutritionPage() {
       setSearchResults(combined)
     } catch (error) {
       console.error("Search error:", error)
+      toast.error("Search failed. Please try again.")
     } finally {
       setIsSearching(false)
     }
@@ -354,8 +357,9 @@ export function NutritionPage() {
               </Button>
               <Button
                 className="flex-1"
-                disabled={!newTemplateName.trim()}
+                disabled={!newTemplateName.trim() || isSavingTemplate}
                 onClick={async () => {
+                  setIsSavingTemplate(true)
                   try {
                     const entries = getEntriesByMealType(templateMealType)
                     if (entries.length > 0) {
@@ -373,10 +377,13 @@ export function NutritionPage() {
                     }
                   } catch {
                     // Store already toasts
+                  } finally {
+                    setIsSavingTemplate(false)
                   }
                 }}
               >
-                Save
+                {isSavingTemplate && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSavingTemplate ? "Saving..." : "Save"}
               </Button>
             </div>
           </div>

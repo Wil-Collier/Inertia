@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react"
+import { useMemo, useCallback, useState } from "react"
 import { format, subDays, parseISO } from "date-fns"
 import { Scale, TrendingUp, TrendingDown, Minus, Trash2 } from "lucide-react"
 import {
@@ -13,6 +13,16 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { getTodayDate } from "@/stores/bodyWeightStore"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -38,6 +48,7 @@ export function BodyWeightTab({
   preferredUnit,
   weightEntries,
 }: BodyWeightTabProps) {
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null)
   const latestEntry = weightEntries[0]
 
   // Get weight change
@@ -198,7 +209,7 @@ export function BodyWeightTab({
                     <Button
                       size="icon-sm"
                       variant="ghost"
-                      onClick={() => deleteWeightEntry(entry.id)}
+                      onClick={() => setEntryToDelete(entry.id)}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -213,6 +224,33 @@ export function BodyWeightTab({
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!entryToDelete} onOpenChange={(open) => !open && setEntryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete weight entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this weight entry. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (entryToDelete) {
+                  await deleteWeightEntry(entryToDelete)
+                  toast.success("Entry deleted")
+                  setEntryToDelete(null)
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

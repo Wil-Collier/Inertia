@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback } from "react"
 import { format, parseISO } from "date-fns"
-import { Dumbbell } from "lucide-react"
+import { Dumbbell, Loader2 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ export function WorkoutHistory() {
   const weightUnit = useWeightUnit()
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null)
   const [workoutToDelete, setWorkoutToDelete] = useState<Workout | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Sort workouts by date (newest first)
   const sortedWorkouts = useMemo(() => {
@@ -66,11 +68,15 @@ export function WorkoutHistory() {
   const handleDelete = useCallback(async () => {
     if (!workoutToDelete) return
 
+    setIsDeleting(true)
     try {
       await deleteWorkout(workoutToDelete.id)
       setWorkoutToDelete(null)
+      toast.success("Workout deleted")
     } catch {
       // Store already toasts
+    } finally {
+      setIsDeleting(false)
     }
   }, [workoutToDelete, deleteWorkout])
 
@@ -133,11 +139,12 @@ export function WorkoutHistory() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setWorkoutToDelete(null)}>
+            <Button variant="outline" onClick={() => setWorkoutToDelete(null)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

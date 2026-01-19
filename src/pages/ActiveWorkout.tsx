@@ -5,6 +5,7 @@ import {
   Plus,
   Save,
   Timer,
+  Loader2,
 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
@@ -53,6 +54,7 @@ export function ActiveWorkout() {
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
   const [templateName, setTemplateName] = useState("")
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null)
+  const [isFinishing, setIsFinishing] = useState(false)
 
   // Handler for when rest timer completes
   const handleRestTimerComplete = useCallback(() => {
@@ -95,14 +97,20 @@ export function ActiveWorkout() {
 
   const handleFinish = useCallback(async () => {
     if (!finishWorkout || !createTemplate) return
+    setIsFinishing(true)
     try {
       const completed = await finishWorkout()
       if (completed && saveAsTemplate && templateName.trim()) {
         await createTemplate(templateName.trim(), completed)
+        toast.success(`Workout saved & template "${templateName.trim()}" created!`)
+      } else {
+        toast.success("Workout saved!")
       }
       navigate("/workout")
     } catch {
       toast.error("Failed to finish workout")
+    } finally {
+      setIsFinishing(false)
     }
   }, [finishWorkout, saveAsTemplate, templateName, createTemplate, navigate])
 
@@ -351,11 +359,13 @@ export function ActiveWorkout() {
                 variant="outline"
                 className="flex-1"
                 onClick={() => setShowFinishDialog(false)}
+                disabled={isFinishing}
               >
                 Cancel
               </Button>
-              <Button className="flex-1" onClick={handleFinish}>
-                Finish
+              <Button className="flex-1" onClick={handleFinish} disabled={isFinishing}>
+                {isFinishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isFinishing ? "Saving..." : "Finish"}
               </Button>
             </div>
           </div>
