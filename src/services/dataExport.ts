@@ -1,6 +1,10 @@
-import { exportDatabase, importDatabase, db } from "@/services/db"
+import { exportDatabase, importDatabase, db, CURRENT_SCHEMA_VERSION } from "@/services/db"
+import { migrateBackupData, backupNeedsMigration, type DexieExportData } from "@/services/backupMigrations"
 import { z } from "zod"
 
+/**
+ * Schema for the raw Dexie export format.
+ */
 const DexieExportSchema = z.object({
   formatName: z.literal("dexie"),
   formatVersion: z.number(),
@@ -16,27 +20,68 @@ const DexieExportSchema = z.object({
   })
 })
 
-async function validateBackupFile(file: File): Promise<void> {
+/**
+ * Schema for wrapped export format with version metadata.
+ * This is the format we export and expect for imports.
+ */
+const WrappedExportSchema = z.object({
+  exportVersion: z.number(),
+  schemaVersion: z.number(),
+  exportedAt: z.string(),
+  appVersion: z.string().optional(),
+  data: DexieExportSchema
+})
+
+export type WrappedExport = z.infer<typeof WrappedExportSchema>
+
+/**
+ * Validate a backup file and return parsed content.
+ * Only accepts the new wrapped format.
+ */
+async function parseAndValidateBackup(file: File): Promise<WrappedExport> {
   const text = await file.text()
+
+  let json: unknown
   try {
-    const json = JSON.parse(text)
-    const result = DexieExportSchema.safeParse(json)
-    if (!result.success) {
-      console.error("Backup validation failed:", result.error)
-      throw new Error("Invalid backup file format. This doesn't look like a Training App backup.")
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message.includes("Invalid backup file format")) {
-      throw err
-    }
-    throw new Error("Failed to parse backup file. Please ensure it's a valid JSON file.", { cause: err })
+    json = JSON.parse(text)
+  } catch {
+    throw new Error("Failed to parse backup file. Please ensure it's a valid JSON file.")
   }
+
+  const result = WrappedExportSchema.safeParse(json)
+  if (!result.success) {
+    console.error("Backup validation failed:", result.error)
+    throw new Error(
+      "Invalid backup file format. This doesn't look like a Training App backup. " +
+      "Make sure you're using a backup created with the current version of the app."
+    )
+  }
+
+  return result.data
 }
 
+/**
+ * Export database with version metadata.
+ * Creates a wrapped export that includes schema version for future migration compatibility.
+ */
 export async function downloadExport(): Promise<void> {
   try {
     const blob = await exportDatabase()
-    const url = URL.createObjectURL(blob)
+    const dexieData = JSON.parse(await blob.text()) as DexieExportData
+
+    const wrappedExport: WrappedExport = {
+      exportVersion: 1,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      appVersion: "1.0.0",
+      data: dexieData
+    }
+
+    const wrappedBlob = new Blob([JSON.stringify(wrappedExport, null, 2)], {
+      type: "application/json"
+    })
+
+    const url = URL.createObjectURL(wrappedBlob)
     const a = document.createElement("a")
     a.href = url
     a.download = `training-app-backup-${new Date().toISOString().split("T")[0]}.json`
@@ -46,17 +91,39 @@ export async function downloadExport(): Promise<void> {
     URL.revokeObjectURL(url)
   } catch (error) {
     console.error("Export failed:", error)
-    alert("Export failed")
+    throw new Error("Failed to export data. Please try again.", { cause: error })
   }
 }
 
+/**
+ * Import data from a backup file.
+ * Handles schema migrations for older backups automatically.
+ */
 export async function importData(file: File): Promise<{ success: boolean; message: string }> {
   try {
-    await validateBackupFile(file)
-    await importDatabase(file)
-    // Note: reload() is async and the page will refresh, so caller won't receive this return
-    // But we return for completeness in case the reload is blocked
+    const backup = await parseAndValidateBackup(file)
+
+    let dataToImport = backup.data
+
+    // Check if backup needs migration
+    if (backupNeedsMigration(backup.schemaVersion)) {
+      console.log(
+        `Backup is from schema v${backup.schemaVersion}, ` +
+        `current is v${CURRENT_SCHEMA_VERSION}. Running migrations...`
+      )
+      dataToImport = migrateBackupData(backup.data, backup.schemaVersion)
+    }
+
+    // Convert migrated data back to blob for Dexie import
+    const importBlob = new Blob([JSON.stringify(dataToImport)], {
+      type: "application/json"
+    })
+
+    await importDatabase(importBlob)
+
+    // Reload to reinitialize stores with imported data
     window.location.reload()
+
     // This return is technically unreachable during normal operation
     return { success: true, message: "Data imported successfully" }
   } catch (error) {
@@ -66,18 +133,21 @@ export async function importData(file: File): Promise<{ success: boolean; messag
   }
 }
 
+/**
+ * Clear all data from the database and localStorage.
+ */
 export async function clearAllData(): Promise<void> {
   try {
     // Close any active connections first
     db.close()
-    
+
     // Delete the database
     await db.delete()
-    
+
     // Reopen the database to ensure schema is recreated
     // This is critical for Safari which may not complete deletion properly
     await db.open()
-    
+
     // Clear localStorage (old data)
     localStorage.clear()
 

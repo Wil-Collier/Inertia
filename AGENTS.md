@@ -195,6 +195,62 @@ await db.tableName.update(id, { field: value })
 await db.tableName.delete(id)
 ```
 
+### Database Schema Migrations
+
+Schema version is tracked in `CURRENT_SCHEMA_VERSION` in `src/services/db.ts`. When making schema changes:
+
+#### 1. Increment Version & Add Live Migration
+
+```typescript
+// src/services/db.ts
+export const CURRENT_SCHEMA_VERSION = 3  // Increment
+
+this.version(3)
+  .stores({
+    workoutSessions: "id, date, templateId, completedAt, *exerciseIds, newField"
+  })
+  .upgrade(async (tx) => {
+    // Transform existing records for live DB upgrade
+    await tx.table("workoutSessions").toCollection().modify((workout) => {
+      workout.newField = "default"
+    })
+  })
+```
+
+#### 2. Add Backup Migration
+
+```typescript
+// src/services/backupMigrations.ts
+const backupMigrations: Record<number, MigrationFn> = {
+  1: (data) => data,
+  2: (data) => {  // Add migration from v2 -> v3
+    const workouts = findTable(data, "workoutSessions")
+    workouts?.rows.forEach(row => {
+      row.newField = "default"
+    })
+    return data
+  },
+}
+```
+
+#### Migration Types
+
+| Change Type | Live Migration | Backup Migration |
+|-------------|----------------|------------------|
+| Add optional field | Schema only | Not needed |
+| Add required field | `.upgrade()` with default | Add to `backupMigrations` |
+| Rename field | `.upgrade()` copy + delete | Transform in `backupMigrations` |
+| Add new table | Schema only | Not needed |
+| Add index | Schema only | Not needed |
+
+#### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/services/db.ts` | Schema versions, `CURRENT_SCHEMA_VERSION`, live migrations |
+| `src/services/backupMigrations.ts` | Backup import migrations |
+| `src/services/dataExport.ts` | Export/import with version metadata |
+
 ## Linting Rules (Oxlint)
 
 Key rules enabled (see `oxlintrc.json` and `package.json`):

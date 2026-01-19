@@ -15,6 +15,21 @@ import type {
   ActiveWorkoutSession
 } from "@/lib/types"
 
+/**
+ * Current database schema version.
+ * Increment this when making schema changes and add corresponding
+ * migration logic in both:
+ * 1. The version().upgrade() chain below (for live DB upgrades)
+ * 2. backupMigrations.ts (for importing old backups)
+ */
+export const CURRENT_SCHEMA_VERSION = 2
+
+/** Metadata record for storing app-level key-value data */
+export interface MetadataRecord {
+  key: string
+  value: string | number | boolean
+}
+
 // Extend Dexie to handle our DB
 export class TrainingAppDatabase extends Dexie {
   // Tables
@@ -32,6 +47,7 @@ export class TrainingAppDatabase extends Dexie {
   achievements!: Table<{ id: string; unlockedAchievements: UnlockedAchievement[]; streaks: StreakData }>
   restTimer!: Table<{ id: string; duration: number }>
   activeSession!: Table<ActiveWorkoutSession & { id: string }>
+  metadata!: Table<MetadataRecord>
 
   constructor() {
     super("TrainingAppDB")
@@ -57,10 +73,22 @@ export class TrainingAppDatabase extends Dexie {
       activeSession: "id"
     })
 
-    // Version 2: Added indexes for better filtering
+    // Version 2: Added indexes for better filtering + metadata table
     this.version(2).stores({
       foods: "id, name, brand, isFavorite, isCustom",
       workoutSessions: "id, date, templateId, completedAt, *exerciseIds",
+      metadata: "key"
+    })
+
+    // Initialize schema version in metadata on database ready
+    this.on("ready", async () => {
+      const existing = await this.metadata.get("schemaVersion")
+      if (!existing) {
+        await this.metadata.put({ key: "schemaVersion", value: CURRENT_SCHEMA_VERSION })
+      } else if (existing.value !== CURRENT_SCHEMA_VERSION) {
+        // Update stored version after successful migration
+        await this.metadata.put({ key: "schemaVersion", value: CURRENT_SCHEMA_VERSION })
+      }
     })
   }
 }
