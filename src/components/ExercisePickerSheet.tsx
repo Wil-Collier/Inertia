@@ -154,12 +154,14 @@ export function ExercisePickerSheet({
               className="pl-9 pr-9"
             />
             {searchQuery && (
-              <button
+              <Button
+                size="icon-sm"
+                variant="ghost"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </Button>
             )}
           </div>
 
@@ -202,7 +204,7 @@ export function ExercisePickerSheet({
 
               {/* Exercise List */}
               <ScrollArea className="flex-1 overflow-hidden">
-                <div className="space-y-6 pr-4">
+                <div className="space-y-6 pr-4 pb-[env(safe-area-inset-bottom,1rem)]">
                   {filteredExercises.length === 0 ? (
                     <div className="py-8 text-center text-muted-foreground">
                       <p>No exercises found</p>

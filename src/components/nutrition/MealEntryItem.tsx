@@ -66,7 +66,7 @@ export const MealEntryItem = memo(({
       >
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate">{food.name}</p>
-          <p className="text-xxs font-medium text-muted-foreground uppercase tracking-tight">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-tight">
             {quantity !== 1 ? `${quantity}x ` : ""}
             {food.servingSize} • <span className="text-primary font-bold">{adjustedCalories} kcal</span>
           </p>

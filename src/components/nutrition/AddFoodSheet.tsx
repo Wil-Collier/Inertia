@@ -142,39 +142,41 @@ export function AddFoodSheet({
             </div>
 
             <ScrollArea className="mt-4 h-[50vh]">
-              {isSearching || isLookingUp ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  {isLookingUp ? "Looking up product..." : "Searching..."}
-                </p>
-              ) : searchResults.length > 0 ? (
-                <div className="space-y-2">
-                  {searchResults.map((food) => (
-                    <FoodListItem
-                      key={food.id}
-                      food={food}
-                      onAdd={(qty) => onAddFood(food, qty)}
-                      onToggleFavorite={() => onToggleFavorite(food.id)}
-                      isFavorite={food.isFavorite}
-                      isExpanded={expandedFoodId === food.id}
-                      onToggleExpand={() => handleToggleExpand(food.id)}
-                    />
-                  ))}
-                </div>
-              ) : searchQuery ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  No results found
-                </p>
-              ) : (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  Search for foods using the Open Food Facts database
-                </p>
-              )}
+              <div className="pb-[env(safe-area-inset-bottom,1rem)]">
+                {isSearching || isLookingUp ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    {isLookingUp ? "Looking up product..." : "Searching..."}
+                  </p>
+                ) : searchResults.length > 0 ? (
+                  <div className="space-y-2">
+                    {searchResults.map((food) => (
+                      <FoodListItem
+                        key={food.id}
+                        food={food}
+                        onAdd={(qty) => onAddFood(food, qty)}
+                        onToggleFavorite={() => onToggleFavorite(food.id)}
+                        isFavorite={food.isFavorite}
+                        isExpanded={expandedFoodId === food.id}
+                        onToggleExpand={() => handleToggleExpand(food.id)}
+                      />
+                    ))}
+                  </div>
+                ) : searchQuery ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    No results found
+                  </p>
+                ) : (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Search for foods using the Open Food Facts database
+                  </p>
+                )}
+              </div>
             </ScrollArea>
           </TabsContent>
 
           <TabsContent value="myfoods" className="mt-4">
             <ScrollArea className="h-[55vh]">
-              <div className="space-y-3">
+              <div className="space-y-3 pb-[env(safe-area-inset-bottom,1rem)]">
                 <CustomFoodForm
                   onSave={onSaveCustomFood}
                   onSaveAndAdd={onSaveAndAddCustomFood}
@@ -206,7 +208,8 @@ export function AddFoodSheet({
 
           <TabsContent value="favorites" className="mt-4">
             <ScrollArea className="h-[55vh]">
-              {favorites.length > 0 ? (
+              <div className="pb-[env(safe-area-inset-bottom,1rem)]">
+                {favorites.length > 0 ? (
                 <div className="space-y-2">
                   {favorites.map((food) => (
                     <FoodListItem
@@ -225,12 +228,14 @@ export function AddFoodSheet({
                   No favorites yet. Star foods to add them here!
                 </p>
               )}
+              </div>
             </ScrollArea>
           </TabsContent>
 
           <TabsContent value="templates" className="mt-4">
             <ScrollArea className="h-[55vh]">
-              {mealTemplates.length > 0 ? (
+              <div className="pb-[env(safe-area-inset-bottom,1rem)]">
+                {mealTemplates.length > 0 ? (
                 <div className="space-y-3">
                   {mealTemplates.map((template) => {
                     return (
@@ -277,6 +282,7 @@ export function AddFoodSheet({
                   </p>
                 </div>
               )}
+              </div>
             </ScrollArea>
           </TabsContent>
         </Tabs>
