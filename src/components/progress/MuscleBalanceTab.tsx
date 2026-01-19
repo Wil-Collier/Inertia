@@ -142,8 +142,8 @@ export function MuscleBalanceTab({
                   <Radar
                     name="Workouts"
                     dataKey="frequency"
-                    stroke="hsl(var(--primary))"
-                    fill="hsl(var(--primary))"
+                    stroke="var(--primary)"
+                    fill="var(--primary)"
                     fillOpacity={0.5}
                     strokeWidth={2}
                   />

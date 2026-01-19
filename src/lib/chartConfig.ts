@@ -6,15 +6,15 @@ export const CHART_HEIGHTS = {
 
 export const CHART_AXIS_STYLE = { 
   fontSize: 11,
-  fill: "hsl(var(--muted-foreground))"
+  fill: "var(--muted-foreground)"
 } as const
 
 export const CHART_TOOLTIP_STYLE = {
   contentStyle: {
-    backgroundColor: "hsl(var(--card))",
-    border: "1px solid hsl(var(--border))",
+    backgroundColor: "var(--card)",
+    border: "1px solid var(--border)",
     borderRadius: "8px",
     fontSize: "12px",
   },
-  cursor: { fill: "hsl(var(--muted))", opacity: 0.2 }
+  cursor: { fill: "var(--muted)", opacity: 0.2 }
 } as const

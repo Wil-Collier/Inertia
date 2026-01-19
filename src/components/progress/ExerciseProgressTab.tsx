@@ -16,11 +16,11 @@ import { useWeightUnit } from "@/hooks/useWeightUnit"
 const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }
 const CHART_AXIS_STYLE = { fontSize: 12 }
 const TOOLTIP_CONTENT_STYLE = {
-  backgroundColor: "hsl(var(--background))",
-  border: "1px solid hsl(var(--border))",
+  backgroundColor: "var(--background)",
+  border: "1px solid var(--border)",
   borderRadius: "8px",
 }
-const LINE_DOT_CONFIG = { fill: "hsl(var(--primary))" }
+const LINE_DOT_CONFIG = { fill: "var(--primary)" }
 
 interface ExerciseProgressTabProps {
   exercises: { id: string; name: string; muscleGroup: string }[]
@@ -120,7 +120,7 @@ export function ExerciseProgressTab({
                     <Line
                       type="monotone"
                       dataKey="weight"
-                      stroke="hsl(var(--primary))"
+                      stroke="var(--primary)"
                       strokeWidth={2}
                       dot={LINE_DOT_CONFIG}
                     />

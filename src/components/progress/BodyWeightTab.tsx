@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 
 const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }
-const LINE_DOT_CONFIG = { fill: "hsl(var(--primary))" }
+const LINE_DOT_CONFIG = { fill: "var(--primary)" }
 
 interface BodyWeightTabProps {
   newWeight: string
@@ -152,7 +152,7 @@ export function BodyWeightTab({
                   <Line
                     type="monotone"
                     dataKey="weight"
-                    stroke="hsl(var(--primary))"
+                    stroke="var(--primary)"
                     strokeWidth={2}
                     dot={LINE_DOT_CONFIG}
                   />
