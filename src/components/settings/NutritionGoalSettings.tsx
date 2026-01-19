@@ -20,7 +20,7 @@ export function NutritionGoalSettings({ goals, onGoalChange }: NutritionGoalSett
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label>Calories (kcal)</Label>
+          <Label>Calories (Cal)</Label>
           <Input
             type="number"
             value={goals.calories}

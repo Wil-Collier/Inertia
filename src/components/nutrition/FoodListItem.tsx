@@ -80,7 +80,7 @@ export const FoodListItem = memo(({
             <p className="text-xs text-muted-foreground">{food.brand}</p>
           )}
           <p className="text-sm text-muted-foreground">
-            {food.calories} kcal • P: {food.protein}g • C: {food.carbs}g • F:{" "}
+            {food.calories} Cal • P: {food.protein}g • C: {food.carbs}g • F:{" "}
             {food.fat}g
           </p>
           <p className="text-xs text-muted-foreground">{food.servingSize}</p>
@@ -143,7 +143,7 @@ export const FoodListItem = memo(({
 
             {/* Adjusted Macros */}
             <div className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{adjustedCalories} kcal</span>
+              <span className="font-medium text-foreground">{adjustedCalories} Cal</span>
               {" • "}P: {adjustedProtein}g • C: {adjustedCarbs}g • F: {adjustedFat}g
               <br />
               Fiber: {adjustedFiber}g • Sugar: {adjustedSugar}g

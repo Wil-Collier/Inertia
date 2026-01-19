@@ -116,7 +116,7 @@ export function NutritionHistoryPage() {
   }, [dailyTotals])
 
   // Chart Formatters
-  const caloriesTooltipFormatter = useCallback((value: number | string | Array<number | string> | undefined) => [`${String(value ?? 0)} kcal`, "Calories"] as [string, string], [])
+  const caloriesTooltipFormatter = useCallback((value: number | string | Array<number | string> | undefined) => [`${String(value ?? 0)} Cal`, "Calories"] as [string, string], [])
   const caloriesLabelFormatter = useCallback((_label: string | number, payload: readonly { payload?: { dateLabel?: string } }[]) => {
     if (payload?.[0]?.payload?.dateLabel) {
       return payload[0].payload.dateLabel
@@ -183,7 +183,7 @@ export function NutritionHistoryPage() {
                 )}
               </div>
               <p className="text-xxs font-medium text-muted-foreground/60 italic mt-1">
-                Goal: {nutritionGoals.calories} kcal
+                Goal: {nutritionGoals.calories} Cal
               </p>
             </CardContent>
           </Card>

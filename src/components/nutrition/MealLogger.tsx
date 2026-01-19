@@ -51,7 +51,7 @@ export function MealLogger({
               </CardTitle>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-black">
-                  {Math.round(mealCalories)} <span className="text-xxs font-bold text-muted-foreground uppercase tracking-tighter">kcal</span>
+                  {Math.round(mealCalories)} <span className="text-xxs font-bold text-muted-foreground uppercase tracking-tighter">Cal</span>
                 </span>
                 <Button
                   size="icon-sm"

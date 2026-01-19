@@ -68,7 +68,7 @@ export const MealEntryItem = memo(({
           <p className="text-sm font-bold truncate">{food.name}</p>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-tight">
             {quantity !== 1 ? `${quantity}x ` : ""}
-            {food.servingSize} • <span className="text-primary font-bold">{adjustedCalories} kcal</span>
+            {food.servingSize} • <span className="text-primary font-bold">{adjustedCalories} Cal</span>
           </p>
         </div>
         <ChevronDown
@@ -126,7 +126,7 @@ export const MealEntryItem = memo(({
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Calories</span>
-                  <span className="font-medium">{adjustedCalories} kcal</span>
+                  <span className="font-medium">{adjustedCalories} Cal</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Protein</span>

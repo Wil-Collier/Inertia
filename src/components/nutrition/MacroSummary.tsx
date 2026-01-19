@@ -37,7 +37,7 @@ export function MacroSummary({ totals, goals }: MacroSummaryProps) {
               )}
             </div>
             <p className="text-xs font-medium text-muted-foreground/60 italic">
-              Daily Goal: {goals.calories} kcal
+              Daily Goal: {goals.calories} Cal
             </p>
           </div>
           <div className="relative h-24 w-24">
