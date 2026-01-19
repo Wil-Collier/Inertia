@@ -4,7 +4,8 @@ import type { ActiveWorkoutSession } from "@/lib/types"
 export const workoutSessionService = {
   async saveActiveSession(session: ActiveWorkoutSession) {
     try {
-      await db.activeSession.put({ id: "current", ...session })
+      // Ensure callers can't accidentally override the primary key
+      await db.activeSession.put({ ...session, id: "current" })
     } catch (error) {
       console.error("Failed to save active session:", error)
       throw error

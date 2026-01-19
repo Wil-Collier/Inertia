@@ -1,3 +1,9 @@
+// TODO(ActiveWorkout):
+// - Split into smaller components/hooks (timers, dialogs, summary, exercise list) to reduce complexity.
+// - Extract and test `hasChanges` workout-vs-template comparison logic.
+// - Revisit template target derivation (per-set targets vs single reps/weight defaults).
+// - Consider making audio unlock once-per-session to avoid repeated calls.
+
 import { useState, useCallback, useMemo, useEffect } from "react"
 import { toast } from "sonner"
 import { useNavigate, Navigate } from "@tanstack/react-router"
@@ -104,22 +110,34 @@ export function ActiveWorkout() {
     setIsFinishing(true)
     try {
       const completed = await finishWorkout()
-      if (completed) {
-        if (saveAsTemplate && templateName.trim()) {
-          await createTemplateMutation.mutateAsync({ 
-            name: templateName.trim(), 
-            exercises: completed.exercises.map(e => ({
+
+      if (!completed) {
+        toast.error("Failed to finish workout")
+        return
+      }
+
+      if (saveAsTemplate && templateName.trim()) {
+        const to0 = (n: number | undefined) => (Number.isFinite(n) ? n : 0)
+
+        await createTemplateMutation.mutateAsync({
+          name: templateName.trim(),
+          exercises: completed.exercises.map((e) => {
+            const reps = e.sets.find((s) => (s.reps ?? 0) > 0)?.reps
+            const weight = e.sets.find((s) => (s.weight ?? 0) > 0)?.weight
+
+            return {
               exerciseId: e.exerciseId,
               targetSets: e.sets.length,
-              targetReps: e.sets[0]?.reps ?? 0,
-              targetWeight: e.sets[0]?.weight ?? 0
-            }))
-          })
-          toast.success(`Workout saved & template "${templateName.trim()}" created!`)
-        } else {
-          toast.success("Workout saved!")
-        }
+              targetReps: to0(reps),
+              targetWeight: to0(weight),
+            }
+          }),
+        })
+        toast.success(`Workout saved & template "${templateName.trim()}" created!`)
+      } else {
+        toast.success("Workout saved!")
       }
+
       navigate({ to: "/workout" })
     } catch (error) {
       console.error(error)

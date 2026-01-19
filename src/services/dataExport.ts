@@ -99,7 +99,7 @@ export async function downloadExport(): Promise<void> {
  * Import data from a backup file.
  * Handles schema migrations for older backups automatically.
  */
-export async function importData(file: File): Promise<{ success: boolean; message: string }> {
+export async function importData(file: File): Promise<{ success: boolean; message: string; shouldReload?: boolean }> {
   try {
     const backup = await parseAndValidateBackup(file)
 
@@ -109,23 +109,20 @@ export async function importData(file: File): Promise<{ success: boolean; messag
     if (backupNeedsMigration(backup.schemaVersion)) {
       console.log(
         `Backup is from schema v${backup.schemaVersion}, ` +
-        `current is v${CURRENT_SCHEMA_VERSION}. Running migrations...`
+          `current is v${CURRENT_SCHEMA_VERSION}. Running migrations...`
       )
       dataToImport = migrateBackupData(backup.data, backup.schemaVersion)
     }
 
     // Convert migrated data back to blob for Dexie import
     const importBlob = new Blob([JSON.stringify(dataToImport)], {
-      type: "application/json"
+      type: "application/json",
     })
 
     await importDatabase(importBlob)
 
-    // Reload to reinitialize stores with imported data
-    window.location.reload()
-
-    // This return is technically unreachable during normal operation
-    return { success: true, message: "Data imported successfully" }
+    // Caller should reload to reinitialize stores with imported data.
+    return { success: true, message: "Data imported successfully", shouldReload: true }
   } catch (error) {
     console.error("Import error:", error)
     const message = error instanceof Error ? error.message : "Failed to import backup file"

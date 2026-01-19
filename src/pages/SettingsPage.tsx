@@ -79,6 +79,10 @@ export function SettingsPage() {
     const result = await importData(file)
     if (result.success) {
       toast.success(result.message)
+      if (result.shouldReload) {
+        // Reload to reinitialize stores with imported data
+        window.location.reload()
+      }
     } else {
       toast.error(result.message)
     }
