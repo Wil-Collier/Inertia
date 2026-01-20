@@ -22,7 +22,7 @@ import type {
  * 1. The version().upgrade() chain below (for live DB upgrades)
  * 2. backupMigrations.ts (for importing old backups)
  */
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 1
 
 /** Metadata record for storing app-level key-value data */
 export interface MetadataRecord {
@@ -72,18 +72,6 @@ export class TrainingAppDatabase extends Dexie {
       restTimer: "id",
       activeSession: "id",
       metadata: "key"
-    })
-
-    // Migration for v2: Add weightUnit to existing workouts
-    this.version(2).stores({}).upgrade(async (tx) => {
-      const settings = await tx.table("settings").get("settings")
-      const currentUnit = settings?.unitPreferences?.weight || "kg"
-      
-      await tx.table("workoutSessions").toCollection().modify((workout) => {
-        if (!workout.weightUnit) {
-          workout.weightUnit = currentUnit
-        }
-      })
     })
 
     // Initialize schema version in metadata on database ready

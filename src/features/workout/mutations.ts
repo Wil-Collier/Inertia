@@ -15,22 +15,22 @@ export function useCreateWorkout() {
     mutationFn: async (workout: Omit<Workout, "id">) => {
       const id = crypto.randomUUID()
       const exerciseIds = workout.exercises.map(e => e.exerciseId)
-      
-      // Ensure weightUnit is set
+
+      // Ensure weightUnit is set (should always be provided, but fallback for safety)
       let weightUnit = workout.weightUnit
       if (!weightUnit) {
         const settings = await db.settings.get("settings")
-        weightUnit = settings?.unitPreferences?.weight || "kg"
+        weightUnit = settings?.unitPreferences?.weight ?? "kg"
       }
 
-      const newWorkout = { ...workout, id, exerciseIds, weightUnit }
-      await db.workoutSessions.add(newWorkout as Workout)
+      const newWorkout: Workout = { ...workout, id, exerciseIds, weightUnit }
+      await db.workoutSessions.add(newWorkout)
       
       // Update streaks and check achievements
       await achievementService.updateWorkoutStreak(newWorkout.date)
       await achievementService.checkWorkoutAchievements()
       
-      return newWorkout as Workout
+      return newWorkout
     },
     onSuccess: (workout) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })

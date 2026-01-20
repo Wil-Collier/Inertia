@@ -22,11 +22,16 @@ export const activeSessionService = {
         }
       }
 
+      // Capture weight unit at session start for data integrity
+      const settings = await db.settings.get("settings")
+      const weightUnit = settings?.unitPreferences?.weight ?? "kg"
+
       const workout: Workout = {
         id: crypto.randomUUID(),
         name,
         date: getToday(),
         exercises: resolvedExercises,
+        weightUnit,
       }
 
       const session: ActiveWorkoutSession = {
@@ -49,15 +54,10 @@ export const activeSessionService = {
       const session = await db.activeSession.get("current")
       if (!session) return null
 
-      // Get current weight unit preference
-      const settings = await db.settings.get("settings")
-      const weightUnit = settings?.unitPreferences?.weight || "kg"
-
       const completedWorkout: Workout = {
         ...session.workout,
         completedAt: new Date().toISOString(),
         exerciseIds: session.workout.exercises.map((e) => e.exerciseId),
-        weightUnit,
       }
 
       await db.transaction("rw", [db.workoutSessions, db.activeSession], async () => {

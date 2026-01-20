@@ -5,6 +5,7 @@ import { achievements } from "@/data/achievements"
 import { toast } from "sonner"
 import { queryClient } from "@/lib/queryClient"
 import { queryKeys } from "@/lib/queryKeys"
+import { KG_TO_LBS } from "@/lib/constants"
 
 const DEFAULT_TEMPLATE_COUNT = 5
 
@@ -56,8 +57,8 @@ export const achievementService = {
 
     // Only load full workout objects if we need to calculate volume or muscle groups
     const workouts = await db.workoutSessions.toArray()
-    // We calculate volume in LBS internally for consistency across achievements
     
+    // Calculate total volume normalized to lbs for consistent achievement thresholds
     const totalVolumeLbs = workouts.reduce((total, workout) => {
       const workoutVolume = workout.exercises.reduce((exTotal, ex) => {
         return (
@@ -70,10 +71,8 @@ export const achievementService = {
         )
       }, 0)
       
-      // Use the unit stored with the workout, defaulting to kg if not present (legacy)
-      const unit = workout.weightUnit || "kg"
-      const conversionFactor = unit === "kg" ? 2.20462 : 1
-      
+      // Convert to lbs if workout was recorded in kg
+      const conversionFactor = workout.weightUnit === "kg" ? KG_TO_LBS : 1
       return total + (workoutVolume * conversionFactor)
     }, 0)
 
@@ -111,7 +110,7 @@ export const achievementService = {
     await this.tryUnlock("week-warrior", streaks.currentWorkoutStreak >= 7)
     await this.tryUnlock("month-master", streaks.currentWorkoutStreak >= 30)
 
-    // Volume achievements (Thresholds are in lbs)
+    // Volume achievements (thresholds in lbs)
     await this.tryUnlock("10k-club", totalVolumeLbs >= 10000)
     await this.tryUnlock("100k-crusher", totalVolumeLbs >= 100000)
     await this.tryUnlock("500k-beast", totalVolumeLbs >= 500000)

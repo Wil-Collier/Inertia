@@ -27,7 +27,8 @@ export interface Workout {
   exerciseIds?: string[]
   duration?: number
   completedAt?: string
-  weightUnit?: "kg" | "lbs"
+  /** The unit weights were recorded in (kg or lbs) */
+  weightUnit: "kg" | "lbs"
 }
 
 export interface TemplateExercise {

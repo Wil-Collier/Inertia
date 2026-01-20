@@ -127,6 +127,7 @@ export async function seedTestData() {
       date: date.toISOString(),
       completedAt: date.toISOString(),
       duration: 45 + Math.floor(Math.random() * 30),
+      weightUnit: "kg",
       exercises: template.exercises.map(templateExercise => ({
         id: uuidv4(),
         exerciseId: templateExercise.exerciseId,

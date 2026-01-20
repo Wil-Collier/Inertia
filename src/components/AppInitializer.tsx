@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { PageLoader } from "@/components/ui/PageLoader"
-import { isDatabaseHealthy, recoverDatabase } from "@/services/db"
+import { isDatabaseHealthy, recoverDatabase, exportDatabase } from "@/services/db"
 
 interface AppInitializerProps {
   children: ReactNode
@@ -12,18 +12,20 @@ interface AppInitializerProps {
 export function AppInitializer({ children }: AppInitializerProps) {
   const [isInitializing, setIsInitializing] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [showCorruptionPrompt, setShowCorruptionPrompt] = useState(false)
+  const [isRecovering, setIsRecovering] = useState(false)
 
   useEffect(() => {
     async function initialize() {
       try {
-        // Check database health
         const healthy = await isDatabaseHealthy()
         if (!healthy) {
-          console.warn("Database corruption detected, attempting recovery...")
-          await recoverDatabase()
+          console.warn("Database corruption detected")
+          setShowCorruptionPrompt(true)
+          return
         }
       } catch (err) {
-        console.error("Database initialization/recovery failed:", err)
+        console.error("Database initialization failed:", err)
         setError(err instanceof Error ? err : new Error("Failed to initialize database"))
       } finally {
         setIsInitializing(false)
@@ -33,8 +35,72 @@ export function AppInitializer({ children }: AppInitializerProps) {
     initialize()
   }, [])
 
+  const handleExportBackup = async () => {
+    try {
+      const blob = await exportDatabase()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `training-app-corrupted-backup-${new Date().toISOString().split("T")[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error("Failed to export backup:", err)
+      // Still allow proceeding even if backup fails
+    }
+  }
+
+  const handleRecoverDatabase = async () => {
+    setIsRecovering(true)
+    try {
+      await recoverDatabase()
+      window.location.reload()
+    } catch (err) {
+      console.error("Database recovery failed:", err)
+      setError(err instanceof Error ? err : new Error("Failed to recover database"))
+      setShowCorruptionPrompt(false)
+      setIsInitializing(false)
+    }
+  }
+
   if (isInitializing) {
     return <PageLoader />
+  }
+
+  if (showCorruptionPrompt) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+        <div className="max-w-md w-full p-8 bg-card rounded-xl border shadow-lg">
+          <h1 className="text-2xl font-bold text-destructive mb-4">Database Issue Detected</h1>
+          <p className="text-muted-foreground mb-6">
+            The app's database appears to be corrupted. To continue using the app, 
+            the database needs to be reset. This will delete all your data.
+          </p>
+          <p className="text-sm text-muted-foreground mb-6">
+            We recommend downloading a backup first. The backup may be incomplete 
+            due to corruption, but it might help recover some data.
+          </p>
+          <div className="space-y-3">
+            <button 
+              onClick={handleExportBackup}
+              disabled={isRecovering}
+              className="w-full py-3 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              Download Backup (Recommended)
+            </button>
+            <button 
+              onClick={handleRecoverDatabase}
+              disabled={isRecovering}
+              className="w-full py-3 bg-destructive text-destructive-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {isRecovering ? "Resetting..." : "Reset Database"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (error) {
