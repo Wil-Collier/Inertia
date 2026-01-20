@@ -83,6 +83,7 @@ export function useCountdownTimer(
 
   const resume = useCallback(() => {
     if (timeRemaining > 0 && activeSetIdRef.current) {
+      clearTimer() // Clear any existing interval before creating a new one
       setIsRunning(true)
       intervalRef.current = setInterval(() => {
         setTimeRemaining((prev) => {

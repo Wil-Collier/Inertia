@@ -120,8 +120,8 @@ export function AchievementCard({ achievement, unlocked, progress }: Achievement
   )
 }
 
-// Compact badge version
-export function AchievementBadge({ achievement, unlocked }: {
+// Compact badge version for achievement cards
+export function AchievementBadgeCompact({ achievement, unlocked }: {
   achievement: AchievementDefinition
   unlocked?: UnlockedAchievement
 }) {

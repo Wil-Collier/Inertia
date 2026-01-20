@@ -1,0 +1,124 @@
+import { db } from "@/services/db"
+import type { Workout, UserStats } from "@/lib/types"
+import { defaultUserStats } from "@/lib/types"
+import { KG_TO_LBS } from "@/lib/constants"
+
+/**
+ * Service for managing incrementally tracked workout statistics.
+ * This avoids expensive full table scans when checking achievements.
+ */
+export const statsService = {
+  /**
+   * Get current stats, initializing if not present.
+   */
+  async getStats(): Promise<UserStats> {
+    const data = await db.userStats.get("stats")
+    if (!data) {
+      const stats = { ...defaultUserStats, id: "stats" }
+      await db.userStats.put(stats)
+      return stats
+    }
+    return data
+  },
+
+  /**
+   * Calculate volume in lbs for a workout (normalized for consistent thresholds).
+   */
+  calculateWorkoutVolumeLbs(workout: Workout): number {
+    const rawVolume = workout.exercises.reduce((exTotal, ex) => {
+      return (
+        exTotal +
+        ex.sets
+          .filter((s) => s.isCompleted)
+          .reduce((setTotal, set) => setTotal + set.weight * set.reps, 0)
+      )
+    }, 0)
+
+    // Convert to lbs if workout was recorded in kg
+    const conversionFactor = workout.weightUnit === "kg" ? KG_TO_LBS : 1
+    return rawVolume * conversionFactor
+  },
+
+  /**
+   * Add stats for a newly completed workout.
+   */
+  async addWorkout(workout: Workout): Promise<UserStats> {
+    const volumeLbs = this.calculateWorkoutVolumeLbs(workout)
+
+    return await db.transaction("rw", db.userStats, async () => {
+      const current = await this.getStats()
+      const updated: UserStats & { id: string } = {
+        id: "stats",
+        totalWorkouts: current.totalWorkouts + 1,
+        totalVolumeLbs: current.totalVolumeLbs + volumeLbs,
+        lastUpdated: new Date().toISOString(),
+      }
+      await db.userStats.put(updated)
+      return updated
+    })
+  },
+
+  /**
+   * Remove stats for a deleted workout.
+   */
+  async removeWorkout(workout: Workout): Promise<UserStats> {
+    const volumeLbs = this.calculateWorkoutVolumeLbs(workout)
+
+    return await db.transaction("rw", db.userStats, async () => {
+      const current = await this.getStats()
+      const updated: UserStats & { id: string } = {
+        id: "stats",
+        totalWorkouts: Math.max(0, current.totalWorkouts - 1),
+        totalVolumeLbs: Math.max(0, current.totalVolumeLbs - volumeLbs),
+        lastUpdated: new Date().toISOString(),
+      }
+      await db.userStats.put(updated)
+      return updated
+    })
+  },
+
+  /**
+   * Update stats when a workout is modified.
+   * Computes delta between old and new workout.
+   */
+  async updateWorkout(oldWorkout: Workout, newWorkout: Workout): Promise<UserStats> {
+    const oldVolumeLbs = this.calculateWorkoutVolumeLbs(oldWorkout)
+    const newVolumeLbs = this.calculateWorkoutVolumeLbs(newWorkout)
+    const volumeDelta = newVolumeLbs - oldVolumeLbs
+
+    return await db.transaction("rw", db.userStats, async () => {
+      const current = await this.getStats()
+      const updated: UserStats & { id: string } = {
+        id: "stats",
+        totalWorkouts: current.totalWorkouts, // count unchanged for update
+        totalVolumeLbs: Math.max(0, current.totalVolumeLbs + volumeDelta),
+        lastUpdated: new Date().toISOString(),
+      }
+      await db.userStats.put(updated)
+      return updated
+    })
+  },
+
+  /**
+   * Recalculate all stats from scratch.
+   * Use sparingly - only for data recovery or import.
+   */
+  async recalculateAll(): Promise<UserStats> {
+    const workouts = await db.workoutSessions.toArray()
+
+    let totalVolumeLbs = 0
+    for (const workout of workouts) {
+      totalVolumeLbs += this.calculateWorkoutVolumeLbs(workout)
+    }
+
+    const updated: UserStats & { id: string } = {
+      id: "stats",
+      totalWorkouts: workouts.length,
+      totalVolumeLbs,
+      lastUpdated: new Date().toISOString(),
+    }
+
+    await db.userStats.put(updated)
+    return updated
+  },
+}

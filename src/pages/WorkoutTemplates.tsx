@@ -1,42 +1,23 @@
 import { useState, useMemo, useCallback } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import {
-  LayoutTemplate,
-  Dumbbell,
-  Play,
-  Trash2,
-  Pencil,
-  Plus,
-  Loader2,
-} from "lucide-react"
+import { LayoutTemplate, Plus } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
-import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
+  TemplateCard,
+  CreateTemplateDialog,
+  DeleteTemplateDialog,
+  TemplateEditSheet,
+} from "@/components/templates"
 import { useActiveSessionActions } from "@/features/workout/hooks/useActiveSession"
 import { useTemplates } from "@/features/workout/queries"
-import { 
-  useCreateTemplate, 
-  useUpdateTemplate, 
-  useDeleteTemplate 
+import {
+  useCreateTemplate,
+  useUpdateTemplate,
+  useDeleteTemplate,
 } from "@/features/workout/mutations"
 import { useExercisesByIds } from "@/features/exercises/queries"
 import type { WorkoutTemplate } from "@/lib/types"
@@ -49,19 +30,29 @@ export function WorkoutTemplates() {
   const deleteTemplateMutation = useDeleteTemplate()
 
   const { data: templates = [] } = useTemplates()
-  
+
   // Resolve all exercise names in templates
   const allExerciseIds = useMemo(() => {
-    return [...new Set(templates.flatMap(template => template.exercises.map(exercise => exercise.exerciseId)))]
+    return [
+      ...new Set(
+        templates.flatMap((template) =>
+          template.exercises.map((exercise) => exercise.exerciseId)
+        )
+      ),
+    ]
   }, [templates])
   const { data: exercisesById = new Map() } = useExercisesByIds(allExerciseIds)
 
-  const [templateToDelete, setTemplateToDelete] = useState<WorkoutTemplate | null>(null)
-  const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null)
+  // Dialog/Sheet state
+  const [templateToDelete, setTemplateToDelete] =
+    useState<WorkoutTemplate | null>(null)
+  const [editingTemplate, setEditingTemplate] =
+    useState<WorkoutTemplate | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState("")
   const [editName, setEditName] = useState("")
-  const [isAddExerciseOpen, setIsAddExerciseOpen] = useState(false)
+
+  // Loading states
   const [isDeleting, setIsDeleting] = useState(false)
   const [isCreatingNew, setIsCreatingNew] = useState(false)
   const [isSavingEdit, setIsSavingEdit] = useState(false)
@@ -85,9 +76,9 @@ export function WorkoutTemplates() {
 
     setIsCreatingNew(true)
     try {
-      const template = await createTemplateMutation.mutateAsync({ 
+      const template = await createTemplateMutation.mutateAsync({
         name: newTemplateName.trim(),
-        exercises: []
+        exercises: [],
       })
       setNewTemplateName("")
       setIsCreating(false)
@@ -100,14 +91,17 @@ export function WorkoutTemplates() {
     }
   }, [newTemplateName, createTemplateMutation])
 
-  const handleStartFromTemplate = useCallback(async (template: WorkoutTemplate) => {
-    try {
-      await startWorkout({ name: template.name, templateId: template.id })
-      navigate({ to: "/workout/active" })
-    } catch {
-      // Store already toasts
-    }
-  }, [startWorkout, navigate])
+  const handleStartFromTemplate = useCallback(
+    async (template: WorkoutTemplate) => {
+      try {
+        await startWorkout({ name: template.name, templateId: template.id })
+        void navigate({ to: "/workout/active" })
+      } catch {
+        // Store already toasts
+      }
+    },
+    [startWorkout, navigate]
+  )
 
   const handleEditOpen = useCallback((template: WorkoutTemplate) => {
     setEditingTemplate(template)
@@ -119,9 +113,9 @@ export function WorkoutTemplates() {
 
     setIsSavingEdit(true)
     try {
-      await updateTemplateMutation.mutateAsync({ 
-        id: editingTemplate.id, 
-        updates: { name: editName.trim() } 
+      await updateTemplateMutation.mutateAsync({
+        id: editingTemplate.id,
+        updates: { name: editName.trim() },
       })
       return true
     } catch {
@@ -132,79 +126,84 @@ export function WorkoutTemplates() {
     }
   }, [editingTemplate, editName, updateTemplateMutation])
 
-  const handleAddExercise = useCallback(async (exerciseId: string) => {
-    if (!editingTemplate) {
-      setIsAddExerciseOpen(false)
-      return
-    }
+  const handleAddExercise = useCallback(
+    async (exerciseId: string) => {
+      if (!editingTemplate) return
 
-    const updatedExercises = [
-      ...editingTemplate.exercises,
-      { exerciseId, targetSets: 3, targetReps: 10 },
-    ]
+      const updatedExercises = [
+        ...editingTemplate.exercises,
+        { exerciseId, targetSets: 3, targetReps: 10 },
+      ]
 
-    try {
-      await updateTemplateMutation.mutateAsync({ 
-        id: editingTemplate.id, 
-        updates: { exercises: updatedExercises } 
-      })
-      setEditingTemplate({
-        ...editingTemplate,
-        exercises: updatedExercises,
-      })
-      setIsAddExerciseOpen(false)
-      toast.success("Exercise added")
-    } catch {
-      // Mutation toasts
-    }
-  }, [editingTemplate, updateTemplateMutation])
+      try {
+        await updateTemplateMutation.mutateAsync({
+          id: editingTemplate.id,
+          updates: { exercises: updatedExercises },
+        })
+        setEditingTemplate({
+          ...editingTemplate,
+          exercises: updatedExercises,
+        })
+        toast.success("Exercise added")
+      } catch {
+        // Mutation toasts
+      }
+    },
+    [editingTemplate, updateTemplateMutation]
+  )
 
-  const handleRemoveExercise = useCallback(async (exerciseId: string) => {
-    if (!editingTemplate) return
+  const handleRemoveExercise = useCallback(
+    async (exerciseId: string) => {
+      if (!editingTemplate) return
 
-    const updatedExercises = editingTemplate.exercises.filter(
-      (e) => e.exerciseId !== exerciseId
-    )
+      const updatedExercises = editingTemplate.exercises.filter(
+        (e) => e.exerciseId !== exerciseId
+      )
 
-    try {
-      await updateTemplateMutation.mutateAsync({ 
-        id: editingTemplate.id, 
-        updates: { exercises: updatedExercises } 
-      })
-      setEditingTemplate({
-        ...editingTemplate,
-        exercises: updatedExercises,
-      })
-      toast.success("Exercise removed")
-    } catch {
-      // Mutation toasts
-    }
-  }, [editingTemplate, updateTemplateMutation])
+      try {
+        await updateTemplateMutation.mutateAsync({
+          id: editingTemplate.id,
+          updates: { exercises: updatedExercises },
+        })
+        setEditingTemplate({
+          ...editingTemplate,
+          exercises: updatedExercises,
+        })
+        toast.success("Exercise removed")
+      } catch {
+        // Mutation toasts
+      }
+    },
+    [editingTemplate, updateTemplateMutation]
+  )
 
-  const handleUpdateTargets = useCallback(async (
-    exerciseId: string,
-    field: "targetSets" | "targetReps" | "targetWeight",
-    value: number
-  ) => {
-    if (!editingTemplate) return
+  const handleUpdateTargets = useCallback(
+    async (
+      exerciseId: string,
+      field: "targetSets" | "targetReps" | "targetWeight",
+      value: number
+    ) => {
+      if (!editingTemplate) return
 
-    const updatedExercises = editingTemplate.exercises.map((e) =>
-      e.exerciseId === exerciseId ? { ...e, [field]: value } : e
-    )
+      const updatedExercises = editingTemplate.exercises.map((e) =>
+        e.exerciseId === exerciseId ? { ...e, [field]: value } : e
+      )
 
-    try {
-      await updateTemplateMutation.mutateAsync({ 
-        id: editingTemplate.id, 
-        updates: { exercises: updatedExercises } 
-      })
-      setEditingTemplate({
-        ...editingTemplate,
-        exercises: updatedExercises,
-      })
-    } catch {
-      // Mutation toasts
-    }
-  }, [editingTemplate, updateTemplateMutation])
+      try {
+        await updateTemplateMutation.mutateAsync({
+          id: editingTemplate.id,
+          updates: { exercises: updatedExercises },
+        })
+        setEditingTemplate({
+          ...editingTemplate,
+          exercises: updatedExercises,
+        })
+      } catch {
+        // Mutation toasts
+      }
+    },
+    [editingTemplate, updateTemplateMutation]
+  )
 
   return (
     <div className="flex flex-col">
@@ -237,261 +236,49 @@ export function WorkoutTemplates() {
             </Card>
           ) : (
             templates.map((template) => (
-              <Card key={template.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <LayoutTemplate className="h-6 w-6" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{template.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {template.exercises.length} exercises
-                      </p>
-                      {template.exercises.length > 0 && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {template.exercises
-                            .slice(0, 3)
-                            .map((templateExercise) => exercisesById.get(templateExercise.exerciseId)?.name)
-                            .filter(Boolean)
-                            .join(", ")}
-                          {template.exercises.length > 3 &&
-                            ` +${template.exercises.length - 3} more`}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleStartFromTemplate(template)}
-                    >
-                      <Play className="mr-1 h-4 w-4" />
-                      Start
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditOpen(template)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => setTemplateToDelete(template)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <TemplateCard
+                key={template.id}
+                template={template}
+                exercisesById={exercisesById}
+                onStart={handleStartFromTemplate}
+                onEdit={handleEditOpen}
+                onDelete={setTemplateToDelete}
+              />
             ))
           )}
         </div>
       </ScrollArea>
 
       {/* Create Template Dialog */}
-      <Dialog open={isCreating} onOpenChange={setIsCreating}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Template</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Template Name</Label>
-              <Input
-                placeholder="e.g., Push Day, Upper Body"
-                value={newTemplateName}
-                onChange={(e) => setNewTemplateName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreate()
-                }}
-              />
-            </div>
-            <Button onClick={handleCreate} className="w-full" disabled={isCreatingNew}>
-              {isCreatingNew && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isCreatingNew ? "Creating..." : "Create Template"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CreateTemplateDialog
+        open={isCreating}
+        onOpenChange={setIsCreating}
+        templateName={newTemplateName}
+        onTemplateNameChange={setNewTemplateName}
+        onCreate={handleCreate}
+        isCreating={isCreatingNew}
+      />
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={templateToDelete !== null}
-        onOpenChange={(open) => !open && setTemplateToDelete(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Template</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{templateToDelete?.name}"? This
-              action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTemplateToDelete(null)} disabled={isDeleting}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isDeleting ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteTemplateDialog
+        template={templateToDelete}
+        onOpenChange={() => setTemplateToDelete(null)}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
       {/* Edit Template Sheet */}
-      <Sheet
-        open={editingTemplate !== null}
-        onOpenChange={(open) => !open && setEditingTemplate(null)}
-      >
-        <SheetContent side="bottom" className="h-[85vh]">
-          <SheetHeader>
-            <SheetTitle>Edit Template</SheetTitle>
-          </SheetHeader>
-
-              {editingTemplate && (
-                <div className="flex flex-col gap-4 h-[calc(85vh-100px)] p-4">
-                  {/* Template Name */}
-                  <div className="flex gap-2 mx-auto w-full max-w-lg">
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      placeholder="Template name"
-                      className="flex-1"
-                    />
-                  </div>
-
-                  {/* Exercises List */}
-                  <ScrollArea className="flex-1 overflow-hidden">
-                    <div className="mx-auto w-full max-w-lg space-y-3">
-                   {editingTemplate.exercises.length === 0 ? (
-                     <div className="rounded-lg border border-dashed p-6 text-center">
-                       <Dumbbell className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                       <p className="text-sm text-muted-foreground">
-                         No exercises yet. Add some to get started!
-                       </p>
-                     </div>
-                   ) : (
-                     editingTemplate.exercises.map((templateExercise, index) => {
-                       const exercise = exercisesById.get(templateExercise.exerciseId)
-                       return (
-                         <Card key={templateExercise.exerciseId}>
-                           <CardContent className="p-3">
-                             <div className="flex items-center justify-between">
-                               <span className="font-medium">
-                                 {index + 1}. {exercise?.name ?? "Unknown"}
-                               </span>
-                               <Button
-                                 variant="ghost"
-                                 size="sm"
-                                 className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                 onClick={() => handleRemoveExercise(templateExercise.exerciseId)}
-                               >
-                                 <Trash2 className="h-4 w-4" />
-                               </Button>
-                             </div>
-                             <div className="mt-2 grid grid-cols-3 gap-2">
-                               <div>
-                                 <Label className="text-xs">Sets</Label>
-                                 <Input
-                                   type="number"
-                                   value={templateExercise.targetSets}
-                                   onChange={(e) =>
-                                     handleUpdateTargets(
-                                       templateExercise.exerciseId,
-                                       "targetSets",
-                                       parseInt(e.target.value) || 1
-                                     )
-                                   }
-                                   min={1}
-                                   className="mt-1 h-8"
-                                 />
-                               </div>
-                               <div>
-                                 <Label className="text-xs">Reps</Label>
-                                 <Input
-                                   type="number"
-                                   value={templateExercise.targetReps ?? ""}
-                                   onChange={(e) =>
-                                     handleUpdateTargets(
-                                       templateExercise.exerciseId,
-                                       "targetReps",
-                                       parseInt(e.target.value) || 0
-                                     )
-                                   }
-                                   min={0}
-                                   className="mt-1 h-8"
-                                   placeholder="-"
-                                 />
-                               </div>
-                               <div>
-                                 <Label className="text-xs">Weight</Label>
-                                 <Input
-                                   type="number"
-                                   value={templateExercise.targetWeight ?? ""}
-                                   onChange={(e) =>
-                                     handleUpdateTargets(
-                                       templateExercise.exerciseId,
-                                       "targetWeight",
-                                       parseInt(e.target.value) || 0
-                                     )
-                                   }
-                                   min={0}
-                                   className="mt-1 h-8"
-                                   placeholder="-"
-                                 />
-                               </div>
-                             </div>
-                           </CardContent>
-                         </Card>
-                       )
-                     })
-                   )}
-
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => setIsAddExerciseOpen(true)}
-                    >
-                      <Plus className="mr-1 h-4 w-4" />
-                      Add Exercise
-                    </Button>
-                  </div>
-                </ScrollArea>
-                <div className="pt-2">
-                  <Button 
-                    className="w-full" 
-                    disabled={!editName.trim() || isSavingEdit}
-                    onClick={async () => {
-                      if (editName.trim() !== editingTemplate.name) {
-                        const success = await handleSaveEdit()
-                        if (!success) return
-                      }
-                      setEditingTemplate(null)
-                    }}
-                  >
-                    {isSavingEdit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isSavingEdit ? "Saving..." : "Save"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </SheetContent>
-        </Sheet>
-
-
-      {/* Add Exercise Sheet */}
-      <ExercisePickerSheet
-        isOpen={isAddExerciseOpen}
-        onOpenChange={setIsAddExerciseOpen}
-        onSelect={handleAddExercise}
-        addedExerciseIds={editingTemplate?.exercises.map((e) => e.exerciseId) ?? []}
+      <TemplateEditSheet
+        template={editingTemplate}
+        exercisesById={exercisesById}
+        editName={editName}
+        onEditNameChange={setEditName}
+        onSave={handleSaveEdit}
+        onClose={() => setEditingTemplate(null)}
+        onAddExercise={handleAddExercise}
+        onRemoveExercise={handleRemoveExercise}
+        onUpdateTargets={handleUpdateTargets}
+        isSaving={isSavingEdit}
       />
     </div>
   )

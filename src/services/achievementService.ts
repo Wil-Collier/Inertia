@@ -1,12 +1,15 @@
 import { db } from "@/services/db"
-import { format, startOfWeek, eachDayOfInterval, subDays, differenceInCalendarDays, parseISO } from "date-fns"
+import { format, startOfWeek, eachDayOfInterval, subDays, differenceInCalendarDays, parseISO, isSameDay } from "date-fns"
 import type { MuscleGroup, UnlockedAchievement, StreakData } from "@/lib/types"
 import { achievements } from "@/data/achievements"
 import { toast } from "sonner"
-import { queryClient } from "@/lib/queryClient"
-import { queryKeys } from "@/lib/queryKeys"
-import { KG_TO_LBS } from "@/lib/constants"
+import { statsService } from "@/services/statsService"
 
+/**
+ * Number of default workout templates provided by the app.
+ * Used to calculate how many custom templates the user has created
+ * (total templates - default templates = custom templates).
+ */
 const DEFAULT_TEMPLATE_COUNT = 5
 
 const defaultStreaks: StreakData = {
@@ -37,6 +40,10 @@ export const achievementService = {
     })
   },
 
+  /**
+   * Ensures the achievements record exists in the database.
+   * Creates default record if not present.
+   */
   async ensureInitialized() {
     const existing = await db.achievements.get("achievements")
     if (!existing) {
@@ -48,6 +55,10 @@ export const achievementService = {
     }
   },
 
+  /**
+   * Checks all workout-related achievements (count, volume, PRs, templates, muscle variety).
+   * Uses cached stats for O(1) volume lookups.
+   */
   async checkWorkoutAchievements() {
     await this.ensureInitialized()
     const workoutsCount = await db.workoutSessions.count()
@@ -55,47 +66,34 @@ export const achievementService = {
     const templatesCount = await db.workoutTemplates.count()
     const customTemplateCount = Math.max(0, templatesCount - DEFAULT_TEMPLATE_COUNT)
 
-    // Only load full workout objects if we need to calculate volume or muscle groups
-    const workouts = await db.workoutSessions.toArray()
-    
-    // Calculate total volume normalized to lbs for consistent achievement thresholds
-    const totalVolumeLbs = workouts.reduce((total, workout) => {
-      const workoutVolume = workout.exercises.reduce((exTotal, ex) => {
-        return (
-          exTotal +
-          ex.sets
-            .filter((s) => s.isCompleted)
-            .reduce((setTotal, set) => {
-              return setTotal + set.weight * set.reps
-            }, 0)
-        )
-      }, 0)
-      
-      // Convert to lbs if workout was recorded in kg
-      const conversionFactor = workout.weightUnit === "kg" ? KG_TO_LBS : 1
-      return total + (workoutVolume * conversionFactor)
-    }, 0)
+    // Use cached stats for volume (O(1) instead of O(N))
+    const stats = await statsService.getStats()
+    const totalVolumeLbs = stats.totalVolumeLbs
+
+    // Only load workouts from this week for muscle group calculation
+    const today = new Date()
+    const weekStart = startOfWeek(today)
+    const weekDates = eachDayOfInterval({ start: weekStart, end: today })
+    const weekDateStrings = weekDates.map((d) => format(d, "yyyy-MM-dd"))
+
+    // Query only this week's workouts instead of all workouts
+    const thisWeeksWorkouts = await db.workoutSessions
+      .where("date")
+      .anyOf(weekDateStrings)
+      .toArray()
 
     const exercises = await db.exercises.toArray()
     const exercisesById = new Map(exercises.map(e => [e.id, e]))
 
-    // Muscle groups trained this week
-    const today = new Date()
-    const weekStart = startOfWeek(today)
-    const weekDays = eachDayOfInterval({ start: weekStart, end: today })
-    const weekDates = new Set(weekDays.map((d) => format(d, "yyyy-MM-dd")))
-
     const muscleGroupsThisWeek = new Set<MuscleGroup>()
-    workouts
-      .filter((w) => weekDates.has(w.date))
-      .forEach((workout) => {
-        workout.exercises.forEach((ex) => {
-          const exercise = exercisesById.get(ex.exerciseId)
-          if (exercise && ex.sets.some((s) => s.isCompleted)) {
-            muscleGroupsThisWeek.add(exercise.muscleGroup)
-          }
-        })
+    thisWeeksWorkouts.forEach((workout) => {
+      workout.exercises.forEach((ex) => {
+        const exercise = exercisesById.get(ex.exerciseId)
+        if (exercise && ex.sets.some((s) => s.isCompleted)) {
+          muscleGroupsThisWeek.add(exercise.muscleGroup)
+        }
       })
+    })
 
     const data = await db.achievements.get("achievements")
     const streaks = data?.streaks || defaultStreaks
@@ -140,6 +138,9 @@ export const achievementService = {
     await this.tryUnlock("template-creator", customTemplateCount >= 3)
   },
 
+  /**
+   * Checks all nutrition-related achievements (days logged, streak).
+   */
   async checkNutritionAchievements() {
     await this.ensureInitialized()
     const dailyLogs = await db.nutritionLogs.toArray()
@@ -154,6 +155,9 @@ export const achievementService = {
     await this.tryUnlock("nutrition-streak", streaks.currentNutritionStreak >= 30)
   },
 
+  /**
+   * Updates both workout and nutrition streaks.
+   */
   async updateStreaks() {
     const workoutDates = await db.workoutSessions.orderBy("date").uniqueKeys() as string[]
     const logs = await db.nutritionLogs.toArray()
@@ -162,49 +166,58 @@ export const achievementService = {
     await this.recalculateStreaks(workoutDates, nutritionDates)
   },
 
+  /**
+   * Recalculates all streaks from the full history of workout and nutrition dates.
+   * @param workoutDates - Array of workout date strings (yyyy-MM-dd)
+   * @param nutritionDates - Array of nutrition log date strings (yyyy-MM-dd)
+   */
   async recalculateStreaks(workoutDates: string[], nutritionDates: string[]) {
     const data = await db.achievements.get("achievements")
     const currentStreaks = data?.streaks || defaultStreaks
     const unlockedAchievements = data?.unlockedAchievements || []
+
+    /**
+     * Calculate current streak by iterating backwards from today through sorted dates.
+     * No artificial limit - works for streaks of any length.
+     */
+    const calculateStreak = (dates: string[]): number => {
+      if (dates.length === 0) return 0
+      
+      // Sort dates descending (newest first)
+      const sortedDates = [...dates].sort().reverse()
+      const today = new Date()
+      let streak = 0
+      let currentDate = today
+      
+      for (const dateStr of sortedDates) {
+        const date = parseISO(dateStr)
+        
+        // If this date matches current day we're checking, increment streak
+        if (isSameDay(date, currentDate)) {
+          streak++
+          currentDate = subDays(currentDate, 1)
+        } else if (date < currentDate) {
+          // If we haven't started counting yet (streak is 0) and
+          // date is yesterday, start the streak
+          if (streak === 0 && isSameDay(date, subDays(today, 1))) {
+            streak++
+            currentDate = subDays(date, 1)
+          } else {
+            // Gap in streak - stop counting
+            break
+          }
+        }
+        // If date is in the future or same as today when we've already counted today, skip
+      }
+      
+      return streak
+    }
     
-    const workoutDateSet = new Set(workoutDates)
-    const nutritionDateSet = new Set(nutritionDates)
-
-    // Calculate workout streak
-    let workoutStreak = 0
-    let longestWorkoutStreak = currentStreaks.longestWorkoutStreak
-    if (workoutDates.length > 0) {
-      let tempStreak = 0
-
-      for (let i = 0; i <= 365; i++) {
-        const checkDate = format(subDays(new Date(), i), "yyyy-MM-dd")
-        if (workoutDateSet.has(checkDate)) {
-          tempStreak++
-        } else if (tempStreak > 0) {
-          break
-        }
-      }
-      workoutStreak = tempStreak
-      longestWorkoutStreak = Math.max(tempStreak, longestWorkoutStreak)
-    }
-
-    // Calculate nutrition streak
-    let nutritionStreak = 0
-    let longestNutritionStreak = currentStreaks.longestNutritionStreak
-    if (nutritionDates.length > 0) {
-      let tempStreak = 0
-
-      for (let i = 0; i <= 365; i++) {
-        const checkDate = format(subDays(new Date(), i), "yyyy-MM-dd")
-        if (nutritionDateSet.has(checkDate)) {
-          tempStreak++
-        } else if (tempStreak > 0) {
-          break
-        }
-      }
-      nutritionStreak = tempStreak
-      longestNutritionStreak = Math.max(tempStreak, longestNutritionStreak)
-    }
+    const workoutStreak = calculateStreak(workoutDates)
+    const nutritionStreak = calculateStreak(nutritionDates)
+    
+    const longestWorkoutStreak = Math.max(workoutStreak, currentStreaks.longestWorkoutStreak)
+    const longestNutritionStreak = Math.max(nutritionStreak, currentStreaks.longestNutritionStreak)
 
     const sortedWorkoutDates = [...workoutDates].sort().reverse()
     const sortedNutritionDates = [...nutritionDates].sort().reverse()
@@ -224,13 +237,15 @@ export const achievementService = {
         unlockedAchievements,
         streaks: newStreaks,
       })
-      
-      queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
     } catch (error) {
       console.error("Failed to save recalculated streaks:", error)
     }
   },
 
+  /**
+   * Incrementally updates workout streak for a new workout.
+   * @param workoutDate - Date of the new workout (yyyy-MM-dd)
+   */
   async updateWorkoutStreak(workoutDate: string) {
     try {
       const data = await db.achievements.get("achievements")
@@ -238,24 +253,23 @@ export const achievementService = {
       const unlockedAchievements = data?.unlockedAchievements || []
       const { lastWorkoutDate, currentWorkoutStreak, longestWorkoutStreak } = streaks
 
-      const today = format(new Date(), "yyyy-MM-dd")
-      const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd")
+      const today = new Date()
+      const yesterday = subDays(today, 1)
+      const workoutDateParsed = parseISO(workoutDate)
+      const lastWorkoutParsed = lastWorkoutDate ? parseISO(lastWorkoutDate) : null
 
       let newStreak = currentWorkoutStreak
 
-      if (!lastWorkoutDate) {
+      if (!lastWorkoutParsed) {
         newStreak = 1
-      } else if (workoutDate === lastWorkoutDate) {
+      } else if (isSameDay(workoutDateParsed, lastWorkoutParsed)) {
         newStreak = currentWorkoutStreak
-      } else if (lastWorkoutDate === yesterday || lastWorkoutDate === today) {
-        if (workoutDate === today && lastWorkoutDate !== today) {
+      } else if (isSameDay(lastWorkoutParsed, yesterday) || isSameDay(lastWorkoutParsed, today)) {
+        if (isSameDay(workoutDateParsed, today) && !isSameDay(lastWorkoutParsed, today)) {
           newStreak = currentWorkoutStreak + 1
         }
       } else {
-        const daysSinceLastWorkout = differenceInCalendarDays(
-          parseISO(today),
-          parseISO(lastWorkoutDate)
-        )
+        const daysSinceLastWorkout = differenceInCalendarDays(today, lastWorkoutParsed)
         if (daysSinceLastWorkout > 1) {
           newStreak = 1
         }
@@ -274,13 +288,15 @@ export const achievementService = {
         unlockedAchievements,
         streaks: newStreaks,
       })
-      
-      queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
     } catch (error) {
       console.error("Failed to update workout streak:", error)
     }
   },
 
+  /**
+   * Incrementally updates nutrition streak for a new log entry.
+   * @param nutritionDate - Date of the nutrition log (yyyy-MM-dd)
+   */
   async updateNutritionStreak(nutritionDate: string) {
     try {
       const data = await db.achievements.get("achievements")
@@ -292,27 +308,23 @@ export const achievementService = {
         longestNutritionStreak,
       } = streaks
 
-      const today = format(new Date(), "yyyy-MM-dd")
-      const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd")
+      const today = new Date()
+      const yesterday = subDays(today, 1)
+      const nutritionDateParsed = parseISO(nutritionDate)
+      const lastNutritionParsed = lastNutritionDate ? parseISO(lastNutritionDate) : null
 
       let newStreak = currentNutritionStreak
 
-      if (!lastNutritionDate) {
+      if (!lastNutritionParsed) {
         newStreak = 1
-      } else if (nutritionDate === lastNutritionDate) {
+      } else if (isSameDay(nutritionDateParsed, lastNutritionParsed)) {
         newStreak = currentNutritionStreak
-      } else if (
-        lastNutritionDate === yesterday ||
-        lastNutritionDate === today
-      ) {
-        if (nutritionDate === today && lastNutritionDate !== today) {
+      } else if (isSameDay(lastNutritionParsed, yesterday) || isSameDay(lastNutritionParsed, today)) {
+        if (isSameDay(nutritionDateParsed, today) && !isSameDay(lastNutritionParsed, today)) {
           newStreak = currentNutritionStreak + 1
         }
       } else {
-        const daysSinceLastLog = differenceInCalendarDays(
-          parseISO(today),
-          parseISO(lastNutritionDate)
-        )
+        const daysSinceLastLog = differenceInCalendarDays(today, lastNutritionParsed)
         if (daysSinceLastLog > 1) {
           newStreak = 1
         }
@@ -331,13 +343,17 @@ export const achievementService = {
         unlockedAchievements,
         streaks: newStreaks,
       })
-      
-      queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
     } catch (error) {
       console.error("Failed to update nutrition streak:", error)
     }
   },
 
+  /**
+   * Attempts to unlock an achievement if the condition is met.
+   * Shows a toast notification when newly unlocked.
+   * @param id - Achievement ID
+   * @param condition - Whether the unlock condition is met
+   */
   async tryUnlock(id: string, condition: boolean) {
     if (!condition) return
     
@@ -370,8 +386,6 @@ export const achievementService = {
         description: achievement.description,
         duration: 5000,
       })
-
-      queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
     })
   }
 }

@@ -40,7 +40,7 @@ interface AddFoodSheetProps {
   onClearBarcode: () => void
   onSaveCustomFood: (food: Omit<FoodItem, "id" | "isCustom">) => void
   onSaveAndAddCustomFood: (food: Omit<FoodItem, "id" | "isCustom">) => void
-  onDeleteTemplate: (id: string) => Promise<void>
+  onDeleteTemplate: (id: string) => void
   onApplyTemplate: (id: string) => Promise<void>
 }
 

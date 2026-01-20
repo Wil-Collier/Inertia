@@ -38,4 +38,9 @@ export interface NutritionGoals {
   sugar: number
 }
 
+/**
+ * Represents actual nutrition values consumed.
+ * Intentionally aliased to NutritionGoals since both share the same shape,
+ * but kept separate for semantic clarity (goals vs. actuals).
+ */
 export type NutritionTotals = NutritionGoals

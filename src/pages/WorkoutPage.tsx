@@ -69,7 +69,7 @@ export function WorkoutPage() {
       await startWorkout({ name })
       setNewWorkoutName("")
       setIsDialogOpen(false)
-      navigate({ to: "/workout/active" })
+      void navigate({ to: "/workout/active" })
     } catch (error) {
       console.error("Failed to start blank workout:", error)
       toast.error("Failed to start workout. Please try again.")
@@ -82,7 +82,7 @@ export function WorkoutPage() {
     try {
       setIsStarting(true)
       await startWorkout({ name: templateName, templateId })
-      navigate({ to: "/workout/active" })
+      void navigate({ to: "/workout/active" })
     } catch (error) {
       console.error("Failed to start workout from template:", error)
       toast.error("Failed to start template workout. Please try again.")
@@ -143,9 +143,9 @@ export function WorkoutPage() {
           <Card className="bg-primary/5 border-none shadow-none">
             <CardContent className="pt-4 pb-3">
               <div className="flex items-end gap-1.5 h-8 mb-1">
-                {stats.weeks.map((week, i) => (
+                {stats.weeks.map((week) => (
                   <div 
-                    key={i} 
+                    key={week.offset} 
                     className={cn(
                       "flex-1 rounded-t-sm transition-all duration-500",
                       week.count > 0 ? "bg-primary" : "bg-primary/20"
@@ -199,7 +199,7 @@ export function WorkoutPage() {
                     autoFocus
                     className="text-lg py-6"
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") handleStartBlankWorkout()
+                      if (e.key === "Enter") void handleStartBlankWorkout()
                     }}
                   />
                 </div>

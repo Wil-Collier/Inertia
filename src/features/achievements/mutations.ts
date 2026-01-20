@@ -45,7 +45,7 @@ export function useUnlockAchievement() {
     },
     onSuccess: (result) => {
       if (result && result.isNew) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
         toast.success(`Achievement Unlocked: ${result.achievement.name}`, {
           description: result.achievement.description,
           duration: 5000,

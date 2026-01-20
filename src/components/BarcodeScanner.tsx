@@ -122,11 +122,11 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
       }
     }
 
-    startScanner()
+    void startScanner()
 
     return () => {
       mounted = false
-      stopScanner()
+      void stopScanner()
     }
   }, [isOpen, stopScanner])
 

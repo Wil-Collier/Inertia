@@ -9,13 +9,19 @@ export function useAddExercise() {
   
   return useMutation({
     mutationFn: async (exercise: Omit<Exercise, "id">) => {
-      const id = crypto.randomUUID()
-      const newExercise = { ...exercise, id, isCustom: true }
-      await db.exercises.add(newExercise as Exercise)
+      const newExercise: Exercise = {
+        id: crypto.randomUUID(),
+        name: exercise.name,
+        muscleGroup: exercise.muscleGroup,
+        isCustom: true,
+        isWeighted: exercise.isWeighted,
+        isTimeBased: exercise.isTimeBased,
+      }
+      await db.exercises.add(newExercise)
       return newExercise
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
       toast.success("Exercise created")
     },
     onError: () => {
@@ -35,7 +41,7 @@ export function useDeleteExercise() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
       toast.success("Exercise deleted")
     },
     onError: () => {

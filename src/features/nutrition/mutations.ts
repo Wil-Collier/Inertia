@@ -49,8 +49,8 @@ export function useAddMealEntry() {
       return entry
     },
     onSuccess: (_, { date }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.nutrition.all, "dates"] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.nutrition.all, "dates"] })
     },
     onError: () => {
       toast.error("Failed to add food entry")
@@ -83,7 +83,7 @@ export function useUpdateMealEntry() {
       })
     },
     onSuccess: (_, { date }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
     },
     onError: () => {
       toast.error("Failed to update entry")
@@ -149,7 +149,7 @@ export function useRemoveMealEntry() {
       toast.error("Failed to remove entry")
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(variables.date) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(variables.date) })
     }
   })
 }
@@ -165,7 +165,7 @@ export function useAddFood() {
       return newFood
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
     },
     onError: () => {
       toast.error("Failed to add food")
@@ -178,15 +178,16 @@ export function useDeleteFood() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      // Check if food is used in any meal entries
-      // Use cursor-based iteration with early termination instead of loading all logs into memory
+      // Check if food is used in any meal entries using until() for proper early termination
       let isUsed = false
-      await db.nutritionLogs.each((log) => {
-        if (log.entries.some((entry) => entry.foodId === id)) {
-          isUsed = true
-          return false // Stop iteration early
-        }
-      })
+      await db.nutritionLogs
+        .toCollection()
+        .until(() => isUsed)
+        .each((log) => {
+          if (log.entries.some((entry) => entry.foodId === id)) {
+            isUsed = true
+          }
+        })
       
       if (isUsed) {
         throw new Error("Cannot delete food that is used in meal entries. Remove the entries first.")
@@ -195,7 +196,7 @@ export function useDeleteFood() {
       await db.foods.delete(id)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
       toast.success("Food deleted")
     },
     onError: (error) => {
@@ -212,7 +213,7 @@ export function useToggleFavoriteFood() {
       await db.foods.update(id, { isFavorite })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
     },
   })
 }
@@ -226,7 +227,7 @@ export function useSaveMealTemplate() {
       await db.mealTemplates.add({ id, name, entries })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })
       toast.success("Template saved")
     },
     onError: () => {
@@ -243,7 +244,7 @@ export function useDeleteMealTemplate() {
       await db.mealTemplates.delete(id)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })
       toast.success("Template deleted")
     },
     onError: () => {
@@ -290,8 +291,8 @@ export function useApplyMealTemplate() {
       await achievementService.checkNutritionAchievements()
     },
     onSuccess: (_, { date }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.nutrition.all, "dates"] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.nutrition.all, "dates"] })
       toast.success("Template applied")
     },
     onError: () => {

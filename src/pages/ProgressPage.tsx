@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from "react"
-import { startOfWeek, eachDayOfInterval } from "date-fns"
+import { startOfWeek, eachDayOfInterval, subWeeks, addDays, format } from "date-fns"
 import { Trophy, TrendingUp, Dumbbell, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -72,25 +72,18 @@ export function ProgressPage() {
 
   // Calculate weekly volume data
   const weeklyData = useMemo(() => {
-    // ... logic uses recentWorkouts instead of workouts
     const today = new Date()
     const weeks: { week: string; volume: number; workouts: number }[] = []
 
     for (let i = 7; i >= 0; i--) {
-      // Logic for calculating week boundaries
-      // Note: We manipulate dates here directly to match the chart logic
-      // Ideally this could be abstracted too but it's very specific to this chart view
-      const referenceDate = new Date(today)
-      referenceDate.setDate(today.getDate() - (i * 7))
-      
+      const referenceDate = subWeeks(today, i)
       const weekStart = startOfWeek(referenceDate)
-      const weekEnd = new Date(weekStart)
-      weekEnd.setDate(weekStart.getDate() + 6)
+      const weekEnd = addDays(weekStart, 6)
 
       const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
-      const weekDates = weekDays.map((d) => formatDate(d))
+      const weekDates = new Set(weekDays.map((d) => formatDate(d)))
 
-      const weekWorkouts = recentWorkouts.filter((w) => weekDates.includes(w.date))
+      const weekWorkouts = recentWorkouts.filter((w) => weekDates.has(w.date))
 
       const volume = weekWorkouts.reduce((total, workout) => {
         return (
@@ -102,12 +95,7 @@ export function ProgressPage() {
       }, 0)
 
       weeks.push({
-        week: formatDate(weekStart).slice(5), // "MM-dd"ish but original was "MMM d" using format
-        // Wait, original was format(weekStart, "MMM d"). Let's stick to import format from date-fns for display
-        // or add a formatDisplayDate utility. 
-        // For now, I'll import format from date-fns locally for display formatting to avoid breaking the chart x-axis look.
-        // Actually, let's keep format imported from date-fns for display strings, but use dateUtils for DB strings.
-        // Re-adding format to imports.
+        week: format(weekStart, "MMM d"),
         volume: Math.round(volume),
         workouts: weekWorkouts.length,
       })

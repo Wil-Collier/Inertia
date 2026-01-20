@@ -77,6 +77,12 @@ export async function playDingSound(): Promise<void> {
 
       oscillator.start(startTime)
       oscillator.stop(startTime + duration)
+      
+      // Clean up nodes after playback completes to prevent memory leaks
+      oscillator.addEventListener("ended", () => {
+        oscillator.disconnect()
+        gainNode.disconnect()
+      })
     })
   } catch (error) {
     console.error("Failed to play ding sound:", error)

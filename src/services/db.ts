@@ -1,3 +1,21 @@
+/**
+ * Database service using Dexie.js (IndexedDB wrapper).
+ *
+ * @module db
+ *
+ * ## Dexie Version Compatibility
+ *
+ * This app uses Dexie v3.x with dexie-export-import for backup/restore functionality.
+ *
+ * **Important:** The dexie-export-import library has limited Dexie v4 support.
+ * Before upgrading to Dexie v4, verify:
+ * 1. dexie-export-import compatibility (check their changelog/issues)
+ * 2. The export format hasn't changed (affects backup restoration)
+ * 3. Migration path for existing user databases
+ *
+ * @see https://dexie.org/docs/Dexie/Dexie
+ * @see https://github.com/dexie/Dexie.js/tree/master/addons/dexie-export-import
+ */
 import Dexie, { type Table } from "dexie"
 import "dexie-export-import"
 import type {
@@ -12,8 +30,10 @@ import type {
   WeightEntry,
   UnlockedAchievement,
   StreakData,
-  ActiveWorkoutSession
+  ActiveWorkoutSession,
+  UserStats
 } from "@/lib/types"
+import { KG_TO_LBS } from "@/lib/constants"
 
 /**
  * Current database schema version.
@@ -22,7 +42,7 @@ import type {
  * 1. The version().upgrade() chain below (for live DB upgrades)
  * 2. backupMigrations.ts (for importing old backups)
  */
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 /** Metadata record for storing app-level key-value data */
 export interface MetadataRecord {
@@ -48,6 +68,7 @@ export class TrainingAppDatabase extends Dexie {
   restTimer!: Table<{ id: string; duration: number }>
   activeSession!: Table<ActiveWorkoutSession & { id: string }>
   metadata!: Table<MetadataRecord>
+  userStats!: Table<UserStats & { id: string }>
 
   constructor() {
     super("TrainingAppDB")
@@ -74,11 +95,62 @@ export class TrainingAppDatabase extends Dexie {
       metadata: "key"
     })
 
+    // Version 2: Add userStats table for incremental stats tracking
+    this.version(2).stores({
+      exercises: "id, name, muscleGroup, category",
+      workoutSessions: "id, date, templateId, completedAt, *exerciseIds",
+      workoutTemplates: "id, name",
+      personalRecords: "exerciseId, date",
+
+      foods: "id, name, brand, isFavorite, isCustom",
+      nutritionLogs: "date",
+      mealTemplates: "id, name",
+
+      settings: "id",
+      bodyWeight: "id, date",
+      achievements: "id",
+      restTimer: "id",
+      activeSession: "id",
+      metadata: "key",
+      userStats: "id"
+    }).upgrade(async (tx) => {
+      // Calculate initial stats from existing workouts
+      const workouts = await tx.table<Workout>("workoutSessions").toArray()
+      
+      let totalVolumeLbs = 0
+      for (const workout of workouts) {
+        const rawVolume = workout.exercises.reduce((exTotal, ex) => {
+          return (
+            exTotal +
+            ex.sets
+              .filter((s) => s.isCompleted)
+              .reduce((setTotal, set) => setTotal + set.weight * set.reps, 0)
+          )
+        }, 0)
+        const conversionFactor = workout.weightUnit === "kg" ? KG_TO_LBS : 1
+        totalVolumeLbs += rawVolume * conversionFactor
+      }
+
+      await tx.table<UserStats & { id: string }>("userStats").put({
+        id: "stats",
+        totalWorkouts: workouts.length,
+        totalVolumeLbs,
+        lastUpdated: new Date().toISOString(),
+      })
+    })
+
     // Initialize schema version in metadata on database ready
     this.on("ready", async () => {
       // We don't need to manually sync this anymore if we use Dexie version chain correctly,
       // but we'll keep it as a convenience for exports, updated automatically.
       await this.metadata.put({ key: "schemaVersion", value: this.verno })
+    })
+
+    // Seed default exercises when database is first created
+    this.on("populate", async () => {
+      const { loadDefaultExercises } = await import("@/data/exerciseLoader")
+      const defaultExercises = await loadDefaultExercises()
+      await this.exercises.bulkAdd(defaultExercises)
     })
   }
 }
@@ -104,8 +176,15 @@ export async function isDatabaseHealthy(): Promise<boolean> {
  * Attempt to recover from a corrupted database state.
  * This deletes the database and recreates it fresh.
  */
+/**
+ * Attempt to recover from a corrupted database state.
+ * This deletes the database and recreates it fresh.
+ * @throws Error if database deletion or reopening fails
+ */
 export async function recoverDatabase(): Promise<void> {
-  console.log("Attempting database recovery...")
+  if (import.meta.env.DEV) {
+    console.log("Attempting database recovery...")
+  }
 
   try {
     db.close()
@@ -113,25 +192,22 @@ export async function recoverDatabase(): Promise<void> {
     // Ignore close errors
   }
 
-  try {
-    // Use the native IndexedDB API to ensure complete deletion
-    await new Promise<void>((resolve, reject) => {
-      const request = indexedDB.deleteDatabase("TrainingAppDB")
-      request.addEventListener("success", () => resolve())
-      request.addEventListener("error", () => reject(request.error))
-      request.addEventListener("blocked", () => {
-        console.warn("Database deletion blocked. Please close all other tabs of this app.")
-        // Reject the promise if blocked, prompting caller (or UI) to ask user to close tabs
-        reject(new Error("Database deletion blocked. Please close all other tabs."))
-      })
+  // Use the native IndexedDB API to ensure complete deletion
+  // This must succeed before we can proceed
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase("TrainingAppDB")
+    request.addEventListener("success", () => resolve())
+    request.addEventListener("error", () => reject(request.error))
+    request.addEventListener("blocked", () => {
+      reject(new Error("Database deletion blocked. Please close all other tabs of this app and try again."))
     })
-  } catch (error) {
-    console.error("Failed to delete database via IndexedDB API:", error)
-  }
+  })
 
   try {
     await db.open()
-    console.log("Database recovery successful")
+    if (import.meta.env.DEV) {
+      console.log("Database recovery successful")
+    }
   } catch (error) {
     console.error("Failed to reopen database after recovery:", error)
     throw error
@@ -144,7 +220,27 @@ export async function exportDatabase() {
   return blob
 }
 
+/**
+ * Import database from a backup file.
+ *
+ * Safety: Creates a backup of the current database before import.
+ * If import fails, the backup is used to restore the previous state.
+ *
+ * @param file - The backup file blob to import
+ * @throws Error if import fails and restoration also fails
+ */
 export async function importDatabase(file: Blob) {
+  // Create backup of current data before destructive operation
+  let backupBlob: Blob | null = null
+  try {
+    backupBlob = await db.export()
+  } catch (backupError) {
+    // If we can't backup, it's likely an empty or corrupt DB - proceed anyway
+    if (import.meta.env.DEV) {
+      console.log("Could not create backup before import (DB may be empty):", backupError)
+    }
+  }
+
   try {
     await db.delete()
   } catch (deleteError) {
@@ -156,7 +252,6 @@ export async function importDatabase(file: Blob) {
     await db.open()
   } catch (openError) {
     console.error("Failed to reopen database after delete:", openError)
-    // Try to recover by creating a fresh instance
     throw openError
   }
 
@@ -166,6 +261,26 @@ export async function importDatabase(file: Blob) {
     })
   } catch (importError) {
     console.error("Failed to import data:", importError)
+
+    // Attempt to restore from backup
+    if (backupBlob) {
+      try {
+        await db.delete()
+        await db.open()
+        await db.import(backupBlob, { clearTablesBeforeImport: true })
+        console.error("Restored previous data after failed import")
+      } catch (restoreError) {
+        console.error("Failed to restore backup after import failure:", restoreError)
+        // At this point we've lost data - include both errors for debugging
+        const combinedError = new Error(
+          "Import failed and backup restoration also failed. Database may be corrupted."
+        )
+        // Attach both the original import error and the restore error
+        combinedError.cause = { importError, restoreError }
+        throw combinedError
+      }
+    }
+
     throw importError
   }
 }

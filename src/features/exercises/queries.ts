@@ -1,20 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import { defaultExercises } from "@/data/defaultExercises"
 
 export function useExercises() {
   return useQuery({
     queryKey: queryKeys.exercises.list(),
     queryFn: async () => {
-      let exercises = await db.exercises.toArray()
-      
-      // Seed defaults if empty (replaces init() logic)
-      if (exercises.length === 0) {
-        await db.exercises.bulkAdd(defaultExercises)
-        exercises = defaultExercises
-      }
-      
+      // Exercises are seeded via Dexie's populate hook on first database creation
+      const exercises = await db.exercises.toArray()
       return exercises
     },
   })

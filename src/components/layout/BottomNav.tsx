@@ -9,7 +9,10 @@ import {
 import { cn } from "@/lib/utils"
 import { useActiveSession } from "@/features/workout/hooks/useActiveSession"
 
-const navItems = [
+type NavRoute = "/" | "/workout" | "/nutrition" | "/progress" | "/settings"
+type TargetRoute = NavRoute | "/workout/active"
+
+const navItems: { to: NavRoute; icon: typeof Home; label: string }[] = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/workout", icon: Dumbbell, label: "Workout" },
   { to: "/nutrition", icon: Utensils, label: "Nutrition" },
@@ -28,7 +31,7 @@ export function BottomNav() {
       <div className="flex h-16 items-center justify-around px-2">
         {navItems.map((item) => {
           // Redirect to active workout when there's an ongoing session
-          const to = item.to === "/workout" && hasActiveSession 
+          const to: TargetRoute = item.to === "/workout" && hasActiveSession 
             ? "/workout/active" 
             : item.to
           
@@ -40,7 +43,7 @@ export function BottomNav() {
           return (
             <Link
               key={item.to}
-              to={to as any}
+              to={to}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs transition-colors",
                 isActive

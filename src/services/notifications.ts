@@ -107,18 +107,3 @@ export function showRestTimerNotification(): Notification | null {
 export function canShowNotifications(): boolean {
   return isNotificationSupported() && Notification.permission === "granted"
 }
-
-/**
- * Vibrate the device if supported (for haptic feedback)
- */
-export function vibrateDevice(pattern: number | number[] = 200): boolean {
-  if ("vibrate" in navigator) {
-    try {
-      navigator.vibrate(pattern)
-      return true
-    } catch {
-      return false
-    }
-  }
-  return false
-}

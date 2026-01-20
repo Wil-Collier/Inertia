@@ -1,4 +1,6 @@
 import { CURRENT_SCHEMA_VERSION } from "@/services/db"
+import { KG_TO_LBS } from "@/lib/constants"
+import type { Workout } from "@/lib/types"
 
 /**
  * Structure of a Dexie export blob's data section.
@@ -32,18 +34,51 @@ type MigrationFn = (data: DexieExportData) => DexieExportData
 /**
  * Registry of backup migrations.
  * Key is the source version, function transforms data to the next version.
- *
- * Example for future v1 -> v2 migration:
- *   1: (data) => {
- *     const workouts = findTable(data, "workoutSessions")
- *     workouts?.rows.forEach(row => {
- *       row.newField = "default"
- *     })
- *     return data
- *   }
  */
 const backupMigrations: Record<number, MigrationFn> = {
-  // Initial version, no migrations yet
+  // v1 -> v2: Add userStats table with calculated stats from workouts
+  1: (data) => {
+    const workoutsTable = findTable(data, "workoutSessions")
+    const workouts = (workoutsTable?.rows || []) as unknown as Workout[]
+
+    // Calculate total volume in lbs from all workouts
+    let totalVolumeLbs = 0
+    for (const workout of workouts) {
+      const rawVolume = workout.exercises.reduce((exTotal, ex) => {
+        return (
+          exTotal +
+          ex.sets
+            .filter((s) => s.isCompleted)
+            .reduce((setTotal, set) => setTotal + set.weight * set.reps, 0)
+        )
+      }, 0)
+      const conversionFactor = workout.weightUnit === "kg" ? KG_TO_LBS : 1
+      totalVolumeLbs += rawVolume * conversionFactor
+    }
+
+    // Add userStats table to schema
+    data.data.tables.push({
+      name: "userStats",
+      schema: "id",
+      rowCount: 1,
+    })
+
+    // Add userStats data
+    data.data.data.push({
+      tableName: "userStats",
+      inbound: true,
+      rows: [
+        {
+          id: "stats",
+          totalWorkouts: workouts.length,
+          totalVolumeLbs,
+          lastUpdated: new Date().toISOString(),
+        },
+      ],
+    })
+
+    return data
+  },
 }
 
 /**
@@ -85,7 +120,9 @@ export function migrateBackupData(
       )
     }
 
-    console.log(`Migrating backup data from v${version} to v${version + 1}`)
+    if (import.meta.env.DEV) {
+      console.log(`Migrating backup data from v${version} to v${version + 1}`)
+    }
     currentData = migrator(currentData)
     version++
   }

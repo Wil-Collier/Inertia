@@ -1,9 +1,9 @@
-export interface AntigravityGlobal {
+export interface DevSeedGlobal {
   seed: () => Promise<void>;
 }
 
 declare global {
   interface Window {
-    antigravity?: AntigravityGlobal;
+    __DEV_SEED__?: DevSeedGlobal;
   }
 }

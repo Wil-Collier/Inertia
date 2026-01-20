@@ -24,6 +24,15 @@ export interface Workout {
   date: string
   name: string
   exercises: WorkoutExercise[]
+  /**
+   * Derived field: Array of exerciseIds for Dexie multi-entry indexing.
+   * This is automatically computed when a workout is saved via:
+   * - activeSessionService.finishWorkout()
+   * - useAddWorkout mutation
+   * - useUpdateWorkout mutation (when exercises are updated)
+   * 
+   * Optional during active session; always present on completed workouts.
+   */
   exerciseIds?: string[]
   duration?: number
   completedAt?: string

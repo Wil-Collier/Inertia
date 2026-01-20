@@ -14,7 +14,7 @@ function ErrorFallback({ error, reset }: ErrorFallbackProps) {
 
   const handleGoHome = () => {
     reset()
-    navigate({ to: "/" })
+    void navigate({ to: "/" })
   }
 
   const handleRetry = () => {

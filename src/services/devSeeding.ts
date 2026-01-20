@@ -1,5 +1,4 @@
 import { db } from "./db"
-import { v4 as uuidv4 } from "uuid"
 import { subDays, format } from "date-fns"
 import type { 
   Workout, 
@@ -10,6 +9,7 @@ import type {
   MealType
 } from "@/lib/types"
 import { exerciseDatabase } from "@/data/exerciseDatabase"
+import { statsService } from "@/services/statsService"
 
 // Helper to get a random exercise from a muscle group
 const getExerciseByMuscle = (muscle: string) => {
@@ -36,7 +36,7 @@ export async function seedTestData() {
   for (let i = 30; i >= 0; i -= 2) {
     currentWeight -= (Math.random() * 0.5) - 0.2 // Slight downward trend
     weightEntries.push({
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       date: format(subDays(new Date(), i), "yyyy-MM-dd"),
       weight: parseFloat(currentWeight.toFixed(1)),
       note: i === 30 ? "Starting point" : undefined
@@ -47,7 +47,7 @@ export async function seedTestData() {
   // 3. Seed Foods (Some custom items)
   const customFoods: FoodItem[] = [
     {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name: "Protein Shake",
       brand: "Optimum Nutrition",
       calories: 120,
@@ -61,7 +61,7 @@ export async function seedTestData() {
       isFavorite: true
     },
     {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name: "Chicken Breast",
       brand: "Home Cooked",
       calories: 165,
@@ -83,7 +83,7 @@ export async function seedTestData() {
   for (let i = 0; i < 7; i++) {
     const date = format(subDays(new Date(), i), "yyyy-MM-dd")
     const entries = mealTypes.map(type => ({
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       foodId: customFoods[Math.floor(Math.random() * customFoods.length)].id,
       quantity: 1 + Math.random() * 2,
       mealType: type
@@ -95,7 +95,7 @@ export async function seedTestData() {
   // 5. Seed Workout Templates
   const templates: WorkoutTemplate[] = [
     {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name: "Upper Body Power",
       exercises: [
         { exerciseId: getExerciseByMuscle("chest").id, targetSets: 3, targetReps: 5 },
@@ -104,7 +104,7 @@ export async function seedTestData() {
       ]
     },
     {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name: "Lower Body Hypertrophy",
       exercises: [
         { exerciseId: getExerciseByMuscle("legs").id, targetSets: 4, targetReps: 12 },
@@ -122,17 +122,17 @@ export async function seedTestData() {
     const date = subDays(new Date(), i * 3 + 1)
     
     workouts.push({
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name: template.name,
-      date: date.toISOString(),
+      date: format(date, "yyyy-MM-dd"),
       completedAt: date.toISOString(),
       duration: 45 + Math.floor(Math.random() * 30),
       weightUnit: "kg",
       exercises: template.exercises.map(templateExercise => ({
-        id: uuidv4(),
+        id: crypto.randomUUID(),
         exerciseId: templateExercise.exerciseId,
         sets: Array.from({ length: templateExercise.targetSets }).map(() => ({
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           reps: (templateExercise.targetReps || 10) + Math.floor(Math.random() * 3) - 1,
           weight: 100 + Math.floor(Math.random() * 100),
           isCompleted: true
@@ -142,12 +142,15 @@ export async function seedTestData() {
   }
   await db.workoutSessions.bulkAdd(workouts)
 
+  // Recalculate stats after seeding workouts
+  await statsService.recalculateAll()
+
   console.log("Seeding complete!")
 }
 
-// Attach to window for console access
-if (typeof window !== "undefined") {
-  window.antigravity = {
+// Attach to window for console access (DEV only)
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  window.__DEV_SEED__ = {
     seed: async () => {
       await seedTestData()
       window.location.reload()

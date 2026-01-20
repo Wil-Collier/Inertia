@@ -5,6 +5,7 @@ import { queryKeys } from "@/lib/queryKeys"
 import type { Workout, WorkoutTemplate } from "@/lib/types"
 
 import { achievementService } from "@/services/achievementService"
+import { statsService } from "@/services/statsService"
 
 // ============ WORKOUT MUTATIONS ============
 
@@ -26,6 +27,9 @@ export function useCreateWorkout() {
       const newWorkout: Workout = { ...workout, id, exerciseIds, weightUnit }
       await db.workoutSessions.add(newWorkout)
       
+      // Update incremental stats
+      await statsService.addWorkout(newWorkout)
+      
       // Update streaks and check achievements
       await achievementService.updateWorkoutStreak(newWorkout.date)
       await achievementService.checkWorkoutAchievements()
@@ -33,7 +37,8 @@ export function useCreateWorkout() {
       return newWorkout
     },
     onSuccess: (workout) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
       queryClient.setQueryData(queryKeys.workouts.detail(workout.id), workout)
     },
     onError: (error) => {
@@ -48,10 +53,27 @@ export function useUpdateWorkout() {
   
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Workout> }) => {
-      await db.workoutSessions.update(id, updates)
+      // Get the old workout for stats delta calculation
+      const oldWorkout = await db.workoutSessions.get(id)
+      
+      // If exercises are being updated, recompute exerciseIds
+      const finalUpdates = { ...updates }
+      if (updates.exercises) {
+        finalUpdates.exerciseIds = updates.exercises.map(e => e.exerciseId)
+      }
+      
+      await db.workoutSessions.update(id, finalUpdates)
       const workout = await db.workoutSessions.get(id)
       
-      // Check achievements after workout update
+      // Update incremental stats if workout exists and exercises changed
+      if (oldWorkout && workout && updates.exercises) {
+        await statsService.updateWorkout(oldWorkout, workout)
+      }
+      
+      // Recalculate streaks and check achievements after workout update
+      if (workout) {
+        await achievementService.updateWorkoutStreak(workout.date)
+      }
       await achievementService.checkWorkoutAchievements()
       
       return workout
@@ -60,7 +82,8 @@ export function useUpdateWorkout() {
       if (workout) {
         queryClient.setQueryData(queryKeys.workouts.detail(id), workout)
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
     },
     onError: () => {
       toast.error("Failed to update workout")
@@ -73,7 +96,15 @@ export function useDeleteWorkout() {
   
   return useMutation({
     mutationFn: async (id: string) => {
+      // Get workout before deletion for stats update
+      const workout = await db.workoutSessions.get(id)
+      
       await db.workoutSessions.delete(id)
+      
+      // Update incremental stats
+      if (workout) {
+        await statsService.removeWorkout(workout)
+      }
       
       // Check achievements after workout deletion (volume/count may change)
       await achievementService.checkWorkoutAchievements()
@@ -81,7 +112,8 @@ export function useDeleteWorkout() {
       return id
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
       toast.success("Workout deleted")
     },
     onError: () => {
@@ -107,7 +139,8 @@ export function useCreateTemplate() {
       return newTemplate
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
       toast.success("Template created")
     },
     onError: () => {
@@ -128,7 +161,7 @@ export function useUpdateTemplate() {
       if (template) {
         queryClient.setQueryData(queryKeys.templates.detail(id), template)
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
     },
     onError: () => {
       toast.error("Failed to update template")
@@ -149,7 +182,8 @@ export function useDeleteTemplate() {
       return id
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
       toast.success("Template deleted")
     },
     onError: () => {

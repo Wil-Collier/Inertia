@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Info, CheckCircle2 } from "lucide-react"
 import {
   Sheet,
@@ -9,9 +9,48 @@ import {
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { getExerciseInstructions } from "@/data/exerciseInstructions"
 import { muscleGroupLabels } from "@/lib/muscleGroups"
 import type { Exercise } from "@/lib/types"
+
+interface ExerciseInstruction {
+  instructions: string[]
+}
+
+// Dynamically load exercise instructions to keep exercises.json out of main bundle
+async function loadExerciseInstructions(exerciseId: string): Promise<ExerciseInstruction | undefined> {
+  const { getExerciseInstructions } = await import("@/data/exerciseInstructions")
+  return getExerciseInstructions(exerciseId)
+}
+
+// Hook to load instructions asynchronously
+function useExerciseInstructions(exerciseId: string | undefined) {
+  const [instructions, setInstructions] = useState<ExerciseInstruction | undefined>(undefined)
+  const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!exerciseId) {
+      setInstructions(undefined)
+      return
+    }
+
+    let cancelled = false
+    setIsLoading(true)
+
+    void loadExerciseInstructions(exerciseId).then((result) => {
+      if (!cancelled) {
+        setInstructions(result)
+        setIsLoading(false)
+      }
+      return result
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [exerciseId])
+
+  return { instructions, isLoading }
+}
 
 interface ExerciseInfoSheetProps {
   exercise: Exercise | null
@@ -20,9 +59,9 @@ interface ExerciseInfoSheetProps {
 }
 
 export function ExerciseInfoSheet({ exercise, isOpen, onOpenChange }: ExerciseInfoSheetProps) {
-  if (!exercise) return null
+  const { instructions, isLoading } = useExerciseInstructions(exercise?.id)
 
-  const instructions = getExerciseInstructions(exercise.id)
+  if (!exercise) return null
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -34,15 +73,22 @@ export function ExerciseInfoSheet({ exercise, isOpen, onOpenChange }: ExerciseIn
           </SheetTitle>
           <SheetDescription>
             {muscleGroupLabels[exercise.muscleGroup]}
-            {exercise.isTimeBased && " • Time-based"}
-            {!exercise.isWeighted && !exercise.isTimeBased && " • Bodyweight"}
+            {exercise.isTimeBased && " - Time-based"}
+            {!exercise.isWeighted && !exercise.isTimeBased && " - Bodyweight"}
           </SheetDescription>
         </SheetHeader>
 
         <ScrollArea className="flex-1 px-4 pb-4">
           <div className="space-y-6">
+            {/* Loading state */}
+            {isLoading && (
+              <div className="py-8 text-center">
+                <p className="text-sm text-muted-foreground">Loading instructions...</p>
+              </div>
+            )}
+
             {/* Instructions */}
-            {instructions?.instructions && instructions.instructions.length > 0 && (
+            {!isLoading && instructions?.instructions && instructions.instructions.length > 0 && (
               <div className="space-y-3">
                 <h3 className="flex items-center gap-2 text-sm font-medium">
                   <CheckCircle2 className="h-4 w-4 text-success" />
@@ -50,7 +96,7 @@ export function ExerciseInfoSheet({ exercise, isOpen, onOpenChange }: ExerciseIn
                 </h3>
                 <ol className="space-y-2">
                   {instructions.instructions.map((instruction, index) => (
-                    <li key={index} className="flex gap-3 text-sm">
+                    <li key={instruction} className="flex gap-3 text-sm">
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
                         {index + 1}
                       </span>
@@ -62,7 +108,7 @@ export function ExerciseInfoSheet({ exercise, isOpen, onOpenChange }: ExerciseIn
             )}
 
             {/* No instructions available */}
-            {!instructions && (
+            {!isLoading && !instructions && (
               <div className="py-8 text-center">
                 <Info className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
@@ -91,7 +137,7 @@ export function ExerciseInfoButton({
   className?: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
-  const instructions = getExerciseInstructions(exercise.id)
+  const { instructions } = useExerciseInstructions(exercise.id)
 
   // Only show button if there are instructions available
   if (!instructions) return null

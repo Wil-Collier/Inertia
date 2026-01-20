@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint -c oxlintrc.json -D correctness -D suspicious -D perf -A no-floating-promises -A no-unsafe-type-assertion -A react-in-jsx-scope -A no-unassigned-import -A no-named-as-default -A no-array-sort -A no-array-reverse -A no-map-spread -A consistent-function-scoping -A no-array-index-key -A prefer-set-has --react-plugin --promise-plugin --node-plugin --vitest-plugin --import-plugin --type-check --type-aware",
+    "lint": "oxlint -c oxlintrc.json -W no-unsafe-type-assertion --react-plugin --promise-plugin --node-plugin --vitest-plugin --import-plugin --type-check --type-aware",
     "seed": "open http://localhost:5173/?seed=true",
     "preview": "vite preview"
   },

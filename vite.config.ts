@@ -91,7 +91,7 @@ export default defineConfig({
           "vendor-react": ["react", "react-dom"],
           "vendor-tanstack": ["@tanstack/react-router", "@tanstack/react-query"],
           "vendor-recharts": ["recharts"],
-          "vendor-utils": ["zustand", "date-fns", "uuid"],
+          "vendor-utils": ["zustand", "date-fns"],
           "vendor-barcode": ["html5-qrcode"],
         },
       },

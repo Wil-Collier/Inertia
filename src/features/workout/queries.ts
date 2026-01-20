@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import { calculateWorkoutVolume, getCompletedSets, sumSetVolume } from "@/lib/workoutUtils"
+import { getCompletedSets, sumSetVolume } from "@/lib/workoutUtils"
 import { getThirtyDaysAgo } from "@/lib/dateUtils"
+import { statsService } from "@/services/statsService"
 
 import type { PersonalRecord } from "@/lib/types"
 
@@ -161,24 +162,21 @@ export function useProgressStats() {
   return useQuery({
     queryKey: [...queryKeys.workouts.all, "progress-stats"],
     queryFn: async () => {
-      const totalWorkouts = await db.workoutSessions.count()
+      // Use cached stats for total volume (O(1) instead of O(N))
+      const stats = await statsService.getStats()
       const thirtyDaysAgo = getThirtyDaysAgo()
+      
       const last30Days = await db.workoutSessions
         .where("date")
         .aboveOrEqual(thirtyDaysAgo)
         .count()
-      
-      let totalVolume = 0
-      await db.workoutSessions.each(workout => {
-        totalVolume += calculateWorkoutVolume(workout)
-      })
 
       const prsCount = await db.personalRecords.count()
 
       return {
-        totalWorkouts,
+        totalWorkouts: stats.totalWorkouts,
         last30Days,
-        totalVolume,
+        totalVolume: stats.totalVolumeLbs,
         prsCount,
       }
     },

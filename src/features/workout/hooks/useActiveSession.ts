@@ -15,7 +15,7 @@ export function useActiveSessionActions() {
   const queryClient = useQueryClient()
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.activeSession.current })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.activeSession.current })
   }
 
   const startWorkoutMutation = useMutation({
@@ -28,7 +28,7 @@ export function useActiveSessionActions() {
     mutationFn: () => activeSessionService.finishWorkout(),
     onSuccess: () => {
       invalidate()
-      queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
     }
   })
 

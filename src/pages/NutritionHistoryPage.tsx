@@ -17,13 +17,10 @@ import { Header } from "@/components/layout/Header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useNutritionDates } from "@/features/nutrition/queries"
+import { useNutritionDates, useNutritionHistory } from "@/features/nutrition/queries"
 import { useSettings } from "@/features/settings/queries"
 import { CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
-import { calculateNutritionTotals, calculateNutritionAverages, INITIAL_TOTALS } from "@/lib/nutritionUtils"
-import { db } from "@/services/db"
-import { useQuery } from "@tanstack/react-query"
-import { queryKeys } from "@/lib/queryKeys"
+import { INITIAL_TOTALS } from "@/lib/nutritionUtils"
 
 type DateRange = "7d" | "30d" | "90d"
 
@@ -60,28 +57,7 @@ export function NutritionHistoryPage() {
     }
   }, [dateRange])
 
-  const { data: historyData, isLoading } = useQuery({
-    queryKey: queryKeys.nutrition.range(startDate, endDate),
-    queryFn: async () => {
-      const logs = await db.nutritionLogs
-        .where("date")
-        .between(startDate, endDate, true, true)
-        .toArray()
-      
-      const foodIds = [...new Set(logs.flatMap((l) => l.entries.map((e) => e.foodId)))]
-      const foods = await db.foods.where("id").anyOf(foodIds).toArray()
-      const foodsById = new Map(foods.map((f) => [f.id, f]))
-
-      const dailyTotals = logs.map((log) => {
-        const totals = calculateNutritionTotals(log.entries, foodsById)
-        return { date: log.date, ...totals }
-      })
-
-      const averages = calculateNutritionAverages(dailyTotals)
-
-      return { dailyTotals, averages }
-    }
-  })
+  const { data: historyData, isLoading } = useNutritionHistory(startDate, endDate)
 
   const dailyTotals = useMemo(() => historyData?.dailyTotals ?? [], [historyData?.dailyTotals])
   const averages = historyData?.averages ?? INITIAL_TOTALS

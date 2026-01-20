@@ -1,11 +1,6 @@
 import { useSettings } from "@/features/settings/queries"
 import type { WeightUnit, DistanceUnit } from "@/lib/types"
-
-// Conversion constants
-const LBS_TO_KG = 0.453592
-const KG_TO_LBS = 2.20462
-const MI_TO_KM = 1.60934
-const KM_TO_MI = 0.621371
+import { LBS_TO_KG, KG_TO_LBS, MI_TO_KM, KM_TO_MI } from "@/lib/constants"
 
 // ============================================
 // Weight Conversions (stored internally as lbs)

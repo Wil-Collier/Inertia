@@ -36,6 +36,7 @@ export const queryKeys = {
     all: ["foods"] as const,
     list: () => [...queryKeys.foods.all, "list"] as const,
     search: (query: string) => [...queryKeys.foods.all, "search", query] as const,
+    combinedSearch: (query: string) => [...queryKeys.foods.all, "combinedSearch", query] as const,
     favorites: () => [...queryKeys.foods.all, "favorites"] as const,
     detail: (id: string) => [...queryKeys.foods.all, "detail", id] as const,
   },

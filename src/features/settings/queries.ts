@@ -2,12 +2,18 @@ import { useQuery } from "@tanstack/react-query"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import type { UserSettings } from "@/lib/types"
+import { 
+  DEFAULT_THEME, 
+  DEFAULT_UNIT_PREFERENCES, 
+  DEFAULT_REST_TIMER_DURATION, 
+  DEFAULT_NUTRITION_GOALS 
+} from "@/lib/constants"
 
 const DEFAULT_SETTINGS: UserSettings = {
-  theme: "system",
-  unitPreferences: { weight: "kg", distance: "km" },
-  restTimerDuration: 90,
-  nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+  theme: DEFAULT_THEME,
+  unitPreferences: DEFAULT_UNIT_PREFERENCES,
+  restTimerDuration: DEFAULT_REST_TIMER_DURATION,
+  nutritionGoals: DEFAULT_NUTRITION_GOALS,
   areNotificationsEnabled: false,
 }
 

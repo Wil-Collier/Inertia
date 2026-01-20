@@ -2,6 +2,13 @@ import { useState, useEffect, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
+/** Blur input on Enter key press */
+function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key === "Enter") {
+    e.currentTarget.blur()
+  }
+}
+
 interface DurationInputProps {
   /** Value in seconds */
   value: number
@@ -72,12 +79,6 @@ export function DurationInput({
     } else {
       // Reset to previous valid value
       setDisplayValue(formatValue(value))
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.currentTarget.blur()
     }
   }
 

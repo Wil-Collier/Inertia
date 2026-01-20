@@ -12,14 +12,9 @@ import {
 import type { ValueType } from "recharts/types/component/DefaultTooltipContent"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
+import { CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 
 const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }
-const CHART_AXIS_STYLE = { fontSize: 12 }
-const TOOLTIP_CONTENT_STYLE = {
-  backgroundColor: "var(--background)",
-  border: "1px solid var(--border)",
-  borderRadius: "8px",
-}
 const LINE_DOT_CONFIG = { fill: "var(--primary)" }
 
 interface ExerciseProgressTabProps {
@@ -114,7 +109,7 @@ export function ExerciseProgressTab({
                       domain={exerciseDomain}
                     />
                     <Tooltip
-                      contentStyle={TOOLTIP_CONTENT_STYLE}
+                      contentStyle={CHART_TOOLTIP_STYLE.contentStyle}
                       formatter={exerciseTooltipFormatter}
                     />
                     <Line

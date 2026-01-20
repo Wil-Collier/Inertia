@@ -68,7 +68,7 @@ export function SettingsPage() {
   const canEnableNotifications = isNotificationSupported() && notificationPermission !== "denied"
 
   const handleExport = () => {
-    downloadExport()
+    void downloadExport()
     toast.success("Data exported successfully")
   }
 

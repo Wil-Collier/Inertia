@@ -32,7 +32,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
       }
     }
     
-    initialize()
+    void initialize()
   }, [])
 
   const handleExportBackup = async () => {

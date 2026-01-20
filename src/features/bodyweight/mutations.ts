@@ -15,7 +15,7 @@ export function useAddWeightEntry() {
       return newEntry
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.bodyWeight.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bodyWeight.all })
       toast.success("Weight logged")
     },
     onError: () => {
@@ -32,7 +32,7 @@ export function useDeleteWeightEntry() {
       await db.bodyWeight.delete(id)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.bodyWeight.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bodyWeight.all })
       toast.success("Entry deleted")
     },
     onError: () => {

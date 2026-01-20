@@ -19,15 +19,17 @@ import { achievements } from "@/data/achievements"
 import { cn } from "@/lib/utils"
 
 export function Dashboard() {
-  const today = getToday()
-  const todayFormatted = format(new Date(), "EEEE, MMMM d")
+  // Memoize today's date string to avoid creating new Date objects on every render
+  const today = useMemo(() => getToday(), [])
+  const todayFormatted = useMemo(() => format(new Date(), "EEEE, MMMM d"), [])
 
   const { data: activeSession } = useActiveSession()
   const { data: nutritionData } = useDailyNutrition(today)
   const { data: todayWorkouts = [], isLoading: isWorkoutsLoading } = useWorkoutsByDate(today)
   const { data: settings } = useSettings()
   const { data: achievementsData } = useAchievements()
-  const unlockedAchievements = useMemo(() => achievementsData?.unlockedAchievements ?? [], [achievementsData?.unlockedAchievements])
+  // Use the query data directly in the dependency - achievementsData is stable from React Query
+  const unlockedAchievements = achievementsData?.unlockedAchievements
 
   const nutritionGoals = settings?.nutritionGoals
   const totals = nutritionData?.totals
@@ -43,7 +45,8 @@ export function Dashboard() {
 
   // Recent achievements
   const recentAchievements = useMemo(() => {
-    return unlockedAchievements
+    if (!unlockedAchievements) return []
+    return [...unlockedAchievements]
       .sort((a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime())
       .slice(0, 2)
       .map(ua => achievements.find(a => a.id === ua.id))

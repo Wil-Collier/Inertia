@@ -27,6 +27,7 @@ import { getToday } from "@/lib/dateUtils"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
+import type { WeightEntry } from "@/lib/types"
 
 const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }
 const LINE_DOT_CONFIG = { fill: "var(--primary)" }
@@ -34,10 +35,10 @@ const LINE_DOT_CONFIG = { fill: "var(--primary)" }
 interface BodyWeightTabProps {
   newWeight: string
   setNewWeight: (value: string) => void
-  addWeightEntry: (weight: number, date?: string, note?: string) => Promise<any>
-  deleteWeightEntry: (id: string) => Promise<any>
+  addWeightEntry: (weight: number, date?: string, note?: string) => Promise<WeightEntry | void>
+  deleteWeightEntry: (id: string) => Promise<void>
   preferredUnit: "lbs" | "kg"
-  weightEntries: { id: string; date: string; weight: number; note?: string }[]
+  weightEntries: WeightEntry[]
 }
 
 export function BodyWeightTab({
@@ -102,7 +103,7 @@ export function BodyWeightTab({
                 onChange={(e) => setNewWeight(e.target.value)}
                 className="pr-12"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAddWeight()
+                  if (e.key === "Enter") void handleAddWeight()
                 }}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">

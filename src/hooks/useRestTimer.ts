@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from "react"
 import { useRestTimerStore } from "@/features/workout/restTimerStore"
 import { useSettings } from "@/features/settings/queries"
-import { showRestTimerNotification, canShowNotifications, vibrateDevice } from "@/services/notifications"
+import { showRestTimerNotification, canShowNotifications } from "@/services/notifications"
 
 interface UseRestTimerOptions {
   defaultDuration?: number // seconds
@@ -60,9 +60,6 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
           if (areNotificationsEnabledRef.current && canShowNotifications()) {
             showRestTimerNotification()
           }
-          
-          // Vibrate device for haptic feedback
-          vibrateDevice([200, 100, 200])
           
           onCompleteRef.current?.()
         }
@@ -135,5 +132,33 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
     setDuration: handleSetDuration,
     formattedTime,
     progress,
+  }
+}
+
+/**
+ * Lightweight hook for controlling the rest timer without subscribing to tick updates.
+ * Use this in parent components that need to start/control the timer but don't display it.
+ * This avoids the 100ms re-render cycle.
+ */
+export function useRestTimerControls(defaultDuration: number = 90) {
+  const store = useRestTimerStore()
+  const [configuredDuration, setConfiguredDuration] = useState(defaultDuration)
+  
+  const start = useCallback(
+    (customDuration?: number) => {
+      const time = customDuration ?? configuredDuration
+      store.start(time)
+    },
+    [configuredDuration, store]
+  )
+  
+  const reset = useCallback(() => {
+    store.reset()
+  }, [store])
+  
+  return {
+    start,
+    reset,
+    setDuration: setConfiguredDuration,
   }
 }

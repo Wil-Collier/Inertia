@@ -107,10 +107,12 @@ export async function importData(file: File): Promise<{ success: boolean; messag
 
     // Check if backup needs migration
     if (backupNeedsMigration(backup.schemaVersion)) {
-      console.log(
-        `Backup is from schema v${backup.schemaVersion}, ` +
-          `current is v${CURRENT_SCHEMA_VERSION}. Running migrations...`
-      )
+      if (import.meta.env.DEV) {
+        console.log(
+          `Backup is from schema v${backup.schemaVersion}, ` +
+            `current is v${CURRENT_SCHEMA_VERSION}. Running migrations...`
+        )
+      }
       dataToImport = migrateBackupData(backup.data, backup.schemaVersion)
     }
 
