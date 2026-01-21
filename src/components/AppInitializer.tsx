@@ -41,7 +41,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `training-app-corrupted-backup-${new Date().toISOString().split("T")[0]}.json`
+      a.download = `inertia-corrupted-backup-${new Date().toISOString().split("T")[0]}.json`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)

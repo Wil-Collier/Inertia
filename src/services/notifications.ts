@@ -72,7 +72,7 @@ export function showNotification(
     const notification = new Notification(title, {
       icon: "/icon.svg",
       badge: "/icon.svg",
-      tag: "training-app",
+      tag: "inertia-app",
       ...options,
     })
 

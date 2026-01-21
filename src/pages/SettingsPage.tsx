@@ -148,9 +148,9 @@ export function SettingsPage() {
         {/* About */}
         <Card>
           <CardContent className="py-4 text-center text-sm text-muted-foreground">
-            <p>Training App v1.0.0</p>
-            <p className="mt-1">
-              Track your workouts and nutrition
+            <p className="font-bold uppercase tracking-widest text-primary">Inertia v1.0.0</p>
+            <p className="mt-1 font-medium">
+              Mass in motion. Track your workouts and fuel.
             </p>
           </CardContent>
         </Card>

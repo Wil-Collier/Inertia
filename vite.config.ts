@@ -3,21 +3,21 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig, type PluginOption } from "vite"
 import { VitePWA } from "vite-plugin-pwa"
-import { TanStackRouterVite } from "@tanstack/router-plugin/vite"
+import { tanstackRouter } from "@tanstack/router-plugin/vite"
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    TanStackRouterVite(),
+    tanstackRouter(),
     react(),
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg", "apple-touch-icon.png"],
       manifest: {
-        name: "Training App",
-        short_name: "Training",
-        description: "Track your workouts and nutrition",
+        name: "Inertia",
+        short_name: "Inertia",
+        description: "Mass in motion. Track your workouts and fuel.",
         theme_color: "#ea580c",
         background_color: "#0a0a0a",
         display: "standalone",
@@ -30,9 +30,19 @@ export default defineConfig({
             type: "image/svg+xml",
           },
           {
-            src: "icon.svg",
+            src: "icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "icon-512x512.png",
             sizes: "512x512",
-            type: "image/svg+xml",
+            type: "image/png",
+          },
+          {
+            src: "icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
             purpose: "maskable",
           },
         ],

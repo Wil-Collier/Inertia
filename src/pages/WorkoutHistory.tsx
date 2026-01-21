@@ -103,7 +103,7 @@ export function WorkoutHistory() {
           ) : (
             Object.entries(groupedByMonth).map(([month, monthWorkouts]) => (
               <section key={month}>
-                <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+                <h2 className="mb-3 text-sm font-black text-muted-foreground uppercase tracking-tight italic">
                   {month}
                 </h2>
                 <div className="space-y-2">

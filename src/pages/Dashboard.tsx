@@ -43,7 +43,7 @@ export function Dashboard() {
   const { data: workoutDates = [] } = useWorkoutDates()
   const { data: nutritionDates = [] } = useNutritionDates()
 
-  // Recent achievements
+  // Recent achievements (Momentum)
   const recentAchievements = useMemo(() => {
     if (!unlockedAchievements) return []
     return [...unlockedAchievements]
@@ -56,7 +56,7 @@ export function Dashboard() {
   return (
     <div className="flex flex-col pb-20">
       <Header
-        title="Dashboard"
+        title="Inertia"
         rightAction={
           <span className="text-xs text-muted-foreground font-medium">
             {todayFormatted}
@@ -193,12 +193,12 @@ export function Dashboard() {
         {/* Body Weight */}
         <WeightCard />
 
-        {/* Recent Achievements */}
+        {/* Recent Achievements (Momentum) */}
         {recentAchievements.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                Recent Wins
+                Momentum
               </h3>
               <Link to="/progress" className="text-xs text-primary font-bold">
                 View All

@@ -1,0 +1,29 @@
+<svg width="140" height="40" viewBox="0 0 140 40" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="100%" y1="0%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#FF5F1F" />
+      <stop offset="100%" stop-color="#E11D48" />
+    </linearGradient>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@1,800&amp;display=swap');
+    </style>
+  </defs>
+  
+  <!-- Transparent background for logo -->
+  
+  <g transform="translate(5, 8)"> 
+    <!-- Line 1: Top -->
+    <path fill="url(#grad)" 
+          d="M 23.25 4.5 A 0.75 0.75 0 0 1 23.25 6 L 14.75 5.625 A 0.375 0.375 0 0 1 14.75 4.875 Z" />
+    
+    <!-- Line 2: Mid -->
+    <path fill="url(#grad)" 
+          d="M 20.75 9.5 A 1.25 1.25 0 0 1 20.75 12 L 3.25 11.375 A 0.625 0.625 0 0 1 3.25 10.125 Z" />
+    
+    <!-- Line 3: Bot -->
+    <path fill="url(#grad)" 
+          d="M 20 15.5 A 1 1 0 0 1 20 17.5 L 8 17 A 0.5 0.5 0 0 1 8 16 Z" />
+          
+    <text x="24" y="18" font-family="'JetBrains Mono', monospace" font-weight="800" font-style="italic" font-size="20" fill="#FCFCFC">INERTIA</text>
+  </g>
+</svg>

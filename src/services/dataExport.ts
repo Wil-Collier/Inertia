@@ -52,7 +52,7 @@ async function parseAndValidateBackup(file: File): Promise<WrappedExport> {
   if (!result.success) {
     console.error("Backup validation failed:", result.error)
     throw new Error(
-      "Invalid backup file format. This doesn't look like a Training App backup. " +
+      "Invalid backup file format. This doesn't look like an Inertia backup. " +
       "Make sure you're using a backup created with the current version of the app."
     )
   }
@@ -84,7 +84,7 @@ export async function downloadExport(): Promise<void> {
     const url = URL.createObjectURL(wrappedBlob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `training-app-backup-${new Date().toISOString().split("T")[0]}.json`
+    a.download = `inertia-backup-${new Date().toISOString().split("T")[0]}.json`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

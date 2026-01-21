@@ -1,70 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Background Gradient -->
-    <radialGradient id="bg" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-      <stop offset="0%" stop-color="#2a2a2e"/>
-      <stop offset="100%" stop-color="#050505"/>
-    </radialGradient>
-    
-    <!-- Metallic Gradient for weights -->
-    <linearGradient id="metal-orange" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#c2410c"/>
-      <stop offset="50%" stop-color="#f97316"/>
-      <stop offset="100%" stop-color="#c2410c"/>
+    <linearGradient id="grad" x1="100%" y1="0%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#FF5F1F" />
+      <stop offset="100%" stop-color="#E11D48" />
     </linearGradient>
-
-    <!-- Shine for handle -->
-    <linearGradient id="handle-shine" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#666"/>
-      <stop offset="50%" stop-color="#eee"/>
-      <stop offset="100%" stop-color="#666"/>
-    </linearGradient>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@1,800&amp;display=swap');
+    </style>
   </defs>
   
-  <!-- Rounded Background -->
-  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
-  
-  <!-- Main Content Group: Angled -->
-  <g transform="translate(256, 256) rotate(-45) translate(-256, -256)">
+  <g transform="translate(-2, 5)"> 
+    <!-- Line 1: Top (Right aligned to ~22) -->
+    <path fill="url(#grad)" 
+          d="M 21.25 4.5 A 0.75 0.75 0 0 1 21.25 6 L 12.75 5.625 A 0.375 0.375 0 0 1 12.75 4.875 Z" />
     
-    <!-- Bar/Handle -->
-    <rect x="180" y="244" width="152" height="24" rx="12" fill="url(#handle-shine)"/>
+    <!-- Line 2: Mid (Right aligned to ~20) -->
+    <path fill="url(#grad)" 
+          d="M 18.75 9.5 A 1.25 1.25 0 0 1 18.75 12 L 1.25 11.375 A 0.625 0.625 0 0 1 1.25 10.125 Z" />
     
-    <!-- Knurling pattern on handle (small dots) -->
-    <pattern id="knurling" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
-      <circle cx="2" cy="2" r="0.8" fill="#333" opacity="0.5"/>
-    </pattern>
-    <rect x="200" y="244" width="112" height="24" rx="12" fill="url(#knurling)"/>
-
-    <!-- Left Weights Group -->
-    <g transform="translate(180, 256)">
-      <!-- Collar -->
-      <rect x="-10" y="-18" width="12" height="36" rx="4" fill="#888"/>
-      <!-- Large Plate -->
-      <rect x="-42" y="-64" width="28" height="128" rx="8" fill="url(#metal-orange)"/>
-      <!-- Medium Plate -->
-      <rect x="-78" y="-52" width="28" height="104" rx="8" fill="#ea580c"/>
-      <!-- Small Outer Plate -->
-      <rect x="-106" y="-36" width="20" height="72" rx="6" fill="#c2410c"/>
-      <!-- End Cap -->
-      <path d="M-114 -10 L-106 -10 L-106 10 L-114 10" fill="#444"/>
-    </g>
-
-    <!-- Right Weights Group -->
-    <g transform="translate(332, 256)">
-      <!-- Collar -->
-      <rect x="-2" y="-18" width="12" height="36" rx="4" fill="#888"/>
-      <!-- Large Plate -->
-      <rect x="14" y="-64" width="28" height="128" rx="8" fill="url(#metal-orange)"/>
-      <!-- Medium Plate -->
-      <rect x="50" y="-52" width="28" height="104" rx="8" fill="#ea580c"/>
-      <!-- Small Outer Plate -->
-      <rect x="86" y="-36" width="20" height="72" rx="6" fill="#c2410c"/>
-        <!-- End Cap -->
-      <path d="M114 -10 L106 -10 L106 10 L114 10" fill="#444"/>
-    </g>
+    <!-- Line 3: Bot (Right aligned to ~19) -->
+    <path fill="url(#grad)" 
+          d="M 18 15.5 A 1 1 0 0 1 18 17.5 L 6 17 A 0.5 0.5 0 0 1 6 16 Z" />
+          
+    <text x="22" y="22" font-family="'JetBrains Mono', monospace" font-weight="800" font-style="italic" font-size="32" fill="#FCFCFC">I</text>
   </g>
-
-  <!-- Finishing touches: subtle light ray -->
-  <rect x="250" y="0" width="12" height="512" fill="#fff" opacity="0.01" transform="rotate(30, 256, 256)"/>
 </svg>
