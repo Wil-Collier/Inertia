@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from "react"
-import { startOfWeek, eachDayOfInterval, subWeeks, addDays, format } from "date-fns"
+import { startOfWeek, subWeeks, format } from "date-fns"
 import { Trophy, TrendingUp, Dumbbell, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -21,7 +21,7 @@ import { useBodyWeightHistory } from "@/features/bodyweight/queries"
 import { useAddWeightEntry, useDeleteWeightEntry } from "@/features/bodyweight/mutations"
 import { useWorkoutStats, usePersonalRecords, useExerciseHistory, useProgressStats } from "@/features/workout/queries"
 import { calculateOneRepMax, calculateSetVolume } from "@/lib/workoutUtils"
-import { getNinetyDaysAgo, getToday, formatDate } from "@/lib/dateUtils"
+import { getNinetyDaysAgo, getToday } from "@/lib/dateUtils"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 import type { PersonalRecord } from "@/lib/types"
@@ -40,16 +40,16 @@ const LINE_DOT_CONFIG = { fill: "var(--primary)" }
 export function ProgressPage() {
   // 1. Efficient Stats
   const { data: stats = { totalWorkouts: 0, last30Days: 0, totalVolume: 0, prsCount: 0 } } = useProgressStats()
-  
+
   // 2. Fetch data for charts (last 90 days is enough for both weekly chart and max muscle balance range)
   const ninetyDaysAgo = useMemo(() => getNinetyDaysAgo(), [])
   const todayStr = useMemo(() => getToday(), [])
-  
+
   const { data: statsData } = useWorkoutStats(ninetyDaysAgo, todayStr)
   const recentWorkouts = useMemo(() => statsData?.workouts ?? [], [statsData?.workouts])
-  
+
   const { data: personalRecords = {} as Record<string, PersonalRecord> } = usePersonalRecords()
-  
+
   const { data: exercises = [] } = useExercises()
   // Resolve exercise names for PRs
   const prExerciseIds = useMemo(() => Object.keys(personalRecords), [personalRecords])
@@ -57,33 +57,43 @@ export function ProgressPage() {
 
   const addWeightEntryMutation = useAddWeightEntry()
   const deleteWeightEntryMutation = useDeleteWeightEntry()
-  
+
   const { data: weightEntries = [] } = useBodyWeightHistory()
-  
+
   const weightUnit = useWeightUnit()
 
   const [newWeight, setNewWeight] = useState("")
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null)
-  
+
   // Custom hook for exercise history if selected
   const { data: selectedExerciseHistory = [] } = useExerciseHistory(selectedExerciseId || "")
 
 
 
-  // Calculate weekly volume data
+  // Calculate weekly volume data - optimized with O(N) pre-grouping
   const weeklyData = useMemo(() => {
     const today = new Date()
-    const weeks: { week: string; volume: number; workouts: number }[] = []
 
+    // Pre-group workouts by week key in a single pass (O(N))
+    const workoutsByWeek = new Map<string, typeof recentWorkouts>()
+    for (const workout of recentWorkouts) {
+      const workoutDate = new Date(workout.date)
+      const weekStart = startOfWeek(workoutDate)
+      const weekKey = format(weekStart, "yyyy-MM-dd")
+
+      const existing = workoutsByWeek.get(weekKey) ?? []
+      existing.push(workout)
+      workoutsByWeek.set(weekKey, existing)
+    }
+
+    // Build the 8-week array
+    const weeks: { week: string; volume: number; workouts: number }[] = []
     for (let i = 7; i >= 0; i--) {
       const referenceDate = subWeeks(today, i)
       const weekStart = startOfWeek(referenceDate)
-      const weekEnd = addDays(weekStart, 6)
+      const weekKey = format(weekStart, "yyyy-MM-dd")
 
-      const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
-      const weekDates = new Set(weekDays.map((d) => formatDate(d)))
-
-      const weekWorkouts = recentWorkouts.filter((w) => weekDates.has(w.date))
+      const weekWorkouts = workoutsByWeek.get(weekKey) ?? []
 
       const volume = weekWorkouts.reduce((total, workout) => {
         return (
@@ -100,7 +110,7 @@ export function ProgressPage() {
         workouts: weekWorkouts.length,
       })
     }
-    
+
     return weeks
   }, [recentWorkouts])
 
@@ -213,7 +223,7 @@ export function ProgressPage() {
           <TabsContent value="training" className="mt-4 space-y-4">
             {/* Muscle Balance Section */}
             <MuscleBalanceTab workouts={recentWorkouts} exercises={exercises} />
-            
+
             {/* Exercise Progress Section */}
             <div className="pt-2">
               <h3 className="mb-3 text-sm font-medium text-muted-foreground">Exercise Progress</h3>
@@ -259,7 +269,7 @@ export function ProgressPage() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-primary">
-                            {weightUnit.format(Math.round(personalRecord.oneRepMax))} 
+                            {weightUnit.format(Math.round(personalRecord.oneRepMax))}
                           </p>
                           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Est. 1RM</p>
                         </div>

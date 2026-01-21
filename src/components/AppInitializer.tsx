@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { PageLoader } from "@/components/ui/PageLoader"
-import { isDatabaseHealthy, recoverDatabase, exportDatabase } from "@/services/db"
+import { isDatabaseHealthy, recoverDatabase } from "@/services/db"
 
 interface AppInitializerProps {
   children: ReactNode
@@ -31,21 +31,15 @@ export function AppInitializer({ children }: AppInitializerProps) {
         setIsInitializing(false)
       }
     }
-    
+
     void initialize()
   }, [])
 
   const handleExportBackup = async () => {
     try {
-      const blob = await exportDatabase()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `inertia-corrupted-backup-${new Date().toISOString().split("T")[0]}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      // Use downloadExport to create a properly wrapped backup that can be imported
+      const { downloadExport } = await import("@/services/dataExport")
+      await downloadExport()
     } catch (err) {
       console.error("Failed to export backup:", err)
       // Still allow proceeding even if backup fails
@@ -75,22 +69,22 @@ export function AppInitializer({ children }: AppInitializerProps) {
         <div className="max-w-md w-full p-8 bg-card rounded-xl border shadow-lg">
           <h1 className="text-2xl font-bold text-destructive mb-4">Database Issue Detected</h1>
           <p className="text-muted-foreground mb-6">
-            The app's database appears to be corrupted. To continue using the app, 
+            The app's database appears to be corrupted. To continue using the app,
             the database needs to be reset. This will delete all your data.
           </p>
           <p className="text-sm text-muted-foreground mb-6">
-            We recommend downloading a backup first. The backup may be incomplete 
+            We recommend downloading a backup first. The backup may be incomplete
             due to corruption, but it might help recover some data.
           </p>
           <div className="space-y-3">
-            <button 
+            <button
               onClick={handleExportBackup}
               disabled={isRecovering}
               className="w-full py-3 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               Download Backup (Recommended)
             </button>
-            <button 
+            <button
               onClick={handleRecoverDatabase}
               disabled={isRecovering}
               className="w-full py-3 bg-destructive text-destructive-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -114,7 +108,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
           <div className="p-4 bg-muted rounded-md text-left text-xs font-mono mb-6 overflow-auto max-h-32">
             {error.message}
           </div>
-          <button 
+          <button
             onClick={() => window.location.reload()}
             className="w-full py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity"
           >

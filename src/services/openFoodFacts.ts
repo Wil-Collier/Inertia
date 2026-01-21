@@ -41,6 +41,9 @@ function getBackoffDelay(attempt: number): number {
  * Note: This function intentionally uses await inside a loop for sequential
  * retry logic. Each attempt must complete before the next can begin.
  */
+/** Timeout for API requests in milliseconds */
+const REQUEST_TIMEOUT_MS = 10000
+
 async function fetchWithRetry(
   url: string,
   options?: RequestInit
@@ -48,9 +51,18 @@ async function fetchWithRetry(
   let lastError: Error | null = null
 
   for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+    // Create AbortController for timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
     try {
       // oxlint-disable-next-line no-await-in-loop
-      const response = await fetch(url, options)
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
 
       // Handle rate limiting (429) with retry
       if (response.status === 429) {
@@ -68,7 +80,14 @@ async function fetchWithRetry(
 
       return response
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error))
+      clearTimeout(timeoutId)
+
+      // Handle timeout specifically
+      if (error instanceof Error && error.name === "AbortError") {
+        lastError = new Error("Request timed out")
+      } else {
+        lastError = error instanceof Error ? error : new Error(String(error))
+      }
 
       // Don't retry on non-network errors
       if (attempt >= RETRY_CONFIG.maxRetries) {
@@ -160,7 +179,8 @@ function parseProduct(product: OpenFoodFactsProduct): FoodItem | null {
     : nutriments.sugars_100g ?? 0
 
   return {
-    id: crypto.randomUUID(),
+    // Use barcode as ID to prevent duplicate entries for same product
+    id: product.code || crypto.randomUUID(),
     name: product.product_name,
     brand: product.brands,
     calories: Math.round(calories),

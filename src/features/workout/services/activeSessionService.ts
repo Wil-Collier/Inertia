@@ -2,6 +2,7 @@ import { db } from "@/services/db"
 import { toast } from "sonner"
 import type { Workout, WorkoutExercise, WorkoutSet, ActiveWorkoutSession } from "@/lib/types"
 import { achievementService } from "@/services/achievementService"
+import { statsService } from "@/services/statsService"
 import { buildWorkoutExerciseFromTemplate } from "@/lib/workoutUtils"
 import { getToday } from "@/lib/dateUtils"
 
@@ -11,6 +12,60 @@ function deferToBackground(callback: () => void) {
     window.requestIdleCallback(callback, { timeout: 2000 })
   } else {
     setTimeout(callback, 0)
+  }
+}
+
+/**
+ * Calculate estimated 1RM using simplified Brzycki formula.
+ * Used for comparing PRs across different rep ranges.
+ */
+function estimateOneRepMax(weight: number, reps: number): number {
+  if (reps === 0 || weight === 0) return 0
+  if (reps === 1) return weight
+  if (reps >= 13) return weight * (1 + reps / 30)
+  return weight * (36 / (37 - reps))
+}
+
+/**
+ * Updates personal records for a completed workout.
+ * Compares the best set from each exercise against existing PRs.
+ * Note: Sequential await in loop is intentional for transactional consistency.
+ */
+async function updatePersonalRecords(workout: Workout): Promise<void> {
+  for (const exercise of workout.exercises) {
+    const completedSets = exercise.sets.filter(s => s.isCompleted && s.weight > 0 && s.reps > 0)
+    if (completedSets.length === 0) continue
+
+    // Find the best set by estimated 1RM
+    let bestSet = completedSets[0]
+    let bestE1RM = estimateOneRepMax(bestSet.weight, bestSet.reps)
+
+    for (const set of completedSets) {
+      const e1rm = estimateOneRepMax(set.weight, set.reps)
+      if (e1rm > bestE1RM) {
+        bestE1RM = e1rm
+        bestSet = set
+      }
+    }
+
+    // Compare against existing PR
+    // oxlint-disable-next-line no-await-in-loop
+    const existingPR = await db.personalRecords.get(exercise.exerciseId)
+    const existingE1RM = existingPR
+      ? estimateOneRepMax(existingPR.weight, existingPR.reps)
+      : 0
+
+    // Update PR if this is a new record
+    if (bestE1RM > existingE1RM) {
+      // oxlint-disable-next-line no-await-in-loop
+      await db.personalRecords.put({
+        exerciseId: exercise.exerciseId,
+        weight: bestSet.weight,
+        reps: bestSet.reps,
+        date: workout.date,
+        workoutId: workout.id,
+      })
+    }
   }
 }
 
@@ -77,9 +132,15 @@ export const activeSessionService = {
         exerciseIds: session.workout.exercises.map((e) => e.exerciseId),
       }
 
-      await db.transaction("rw", [db.workoutSessions, db.activeSession], async () => {
+      await db.transaction("rw", [db.workoutSessions, db.activeSession, db.personalRecords, db.userStats], async () => {
         await db.workoutSessions.add(completedWorkout)
         await db.activeSession.delete("current")
+
+        // Update incremental stats
+        await statsService.addWorkout(completedWorkout)
+
+        // Check and update personal records
+        await updatePersonalRecords(completedWorkout)
       })
 
       // Defer achievement checks to background so they don't block UI
@@ -163,16 +224,16 @@ export const activeSessionService = {
         if (!session) return
 
         const exercisesById = new Map(session.workout.exercises.map(e => [e.id, e]))
-        
+
         // Build reordered list, filtering out any missing exercises
         const reorderedExercises = exerciseIds
           .map(id => exercisesById.get(id))
           .filter((exercise): exercise is NonNullable<typeof exercise> => exercise !== undefined)
-        
+
         // Preserve any exercises that weren't in the provided list (safety measure)
         const reorderedIds = new Set(exerciseIds)
         const preservedExercises = session.workout.exercises.filter(e => !reorderedIds.has(e.id))
-        
+
         session.workout.exercises = [...reorderedExercises, ...preservedExercises]
 
         await db.activeSession.put(session)

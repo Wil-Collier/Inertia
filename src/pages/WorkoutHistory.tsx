@@ -24,7 +24,7 @@ import type { Workout } from "@/lib/types"
 export function WorkoutHistory() {
   const deleteWorkoutMutation = useDeleteWorkout()
   const { data: workouts = [], isLoading } = useWorkouts()
-  
+
   // Resolve all exercise names in history
   const allExerciseIds = useMemo(() => {
     return [...new Set(workouts.flatMap(w => w.exercises.map(e => e.exerciseId)))]

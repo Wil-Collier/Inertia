@@ -171,6 +171,35 @@ export function ActiveWorkout() {
     [addExercise]
   )
 
+  // Stable callbacks for WorkoutExerciseCard to prevent re-renders
+  const handleRemoveSet = useCallback(
+    (workoutExerciseId: string, setId: string) => {
+      removeSet({ workoutExerciseId, setId })
+    },
+    [removeSet]
+  )
+
+  const handleUpdateSet = useCallback(
+    (workoutExerciseId: string, setId: string, updates: Parameters<typeof updateSet>[0]["updates"]) => {
+      updateSet({ workoutExerciseId, setId, updates })
+    },
+    [updateSet]
+  )
+
+  const handleToggleSetComplete = useCallback(
+    (workoutExerciseId: string, setId: string) => {
+      toggleSetComplete({ workoutExerciseId, setId })
+    },
+    [toggleSetComplete]
+  )
+
+  const handleUpdateNotes = useCallback(
+    (workoutExerciseId: string, notes: string) => {
+      updateExerciseNotes({ workoutExerciseId, notes })
+    },
+    [updateExerciseNotes]
+  )
+
   // Automatically expand newly added exercises
   const [prevExerciseCount, setPrevExerciseCount] = useState(workout?.exercises.length ?? 0)
 
@@ -235,19 +264,11 @@ export function ActiveWorkout() {
             isExpanded={expandedExerciseId === workoutExercise.id}
             onToggleExpanded={handleToggleExpanded}
             onAddSet={addSet}
-            onRemoveSet={(_weId, setId) =>
-              removeSet({ workoutExerciseId: workoutExercise.id, setId })
-            }
-            onUpdateSet={(_weId, setId, updates) =>
-              updateSet({ workoutExerciseId: workoutExercise.id, setId, updates })
-            }
-            onToggleSetComplete={(_weId, setId) =>
-              toggleSetComplete({ workoutExerciseId: workoutExercise.id, setId })
-            }
+            onRemoveSet={handleRemoveSet}
+            onUpdateSet={handleUpdateSet}
+            onToggleSetComplete={handleToggleSetComplete}
             onRemoveExercise={removeExercise}
-            onUpdateNotes={(notes) =>
-              updateExerciseNotes({ workoutExerciseId: workoutExercise.id, notes })
-            }
+            onUpdateNotes={handleUpdateNotes}
             weightUnitLabel={weightUnit.unitLabel}
             activeSetId={countdown.activeSetId ?? undefined}
             countdownFormattedTime={countdown.formattedTime}

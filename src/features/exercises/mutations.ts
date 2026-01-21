@@ -6,7 +6,7 @@ import type { Exercise } from "@/lib/types"
 
 export function useAddExercise() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (exercise: Omit<Exercise, "id">) => {
       const newExercise: Exercise = {
@@ -32,9 +32,19 @@ export function useAddExercise() {
 
 export function useDeleteExercise() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
+      // Check if exercise is used in any templates
+      const templates = await db.workoutTemplates.toArray()
+      const usedInTemplate = templates.find(t =>
+        t.exercises.some(e => e.exerciseId === id)
+      )
+
+      if (usedInTemplate) {
+        throw new Error(`Cannot delete: exercise is used in template "${usedInTemplate.name}"`)
+      }
+
       await db.transaction("rw", [db.exercises, db.personalRecords], async () => {
         await db.exercises.delete(id)
         await db.personalRecords.where("exerciseId").equals(id).delete()
@@ -44,8 +54,8 @@ export function useDeleteExercise() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
       toast.success("Exercise deleted")
     },
-    onError: () => {
-      toast.error("Failed to delete exercise")
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to delete exercise")
     }
   })
 }

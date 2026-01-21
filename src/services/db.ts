@@ -108,11 +108,12 @@ export class TrainingAppDatabase extends Dexie {
       metadata: "key",
       userStats: "id"
     }).upgrade(async (tx) => {
-      // Calculate initial stats from existing workouts
-      const workouts = await tx.table<Workout>("workoutSessions").toArray()
-      
+      // Calculate initial stats from existing workouts using .each() to avoid loading all into memory
       let totalVolumeLbs = 0
-      for (const workout of workouts) {
+      let totalWorkouts = 0
+
+      await tx.table<Workout>("workoutSessions").each((workout) => {
+        totalWorkouts++
         const rawVolume = workout.exercises.reduce((exTotal, ex) => {
           return (
             exTotal +
@@ -123,11 +124,11 @@ export class TrainingAppDatabase extends Dexie {
         }, 0)
         const conversionFactor = workout.weightUnit === "kg" ? KG_TO_LBS : 1
         totalVolumeLbs += rawVolume * conversionFactor
-      }
+      })
 
       await tx.table<UserStats & { id: string }>("userStats").put({
         id: "stats",
-        totalWorkouts: workouts.length,
+        totalWorkouts,
         totalVolumeLbs,
         lastUpdated: new Date().toISOString(),
       })

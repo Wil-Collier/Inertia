@@ -1,25 +1,25 @@
 import type { MealEntry, FoodItem, NutritionTotals } from "@/lib/types"
 
-export const INITIAL_TOTALS: NutritionTotals = { 
-  calories: 0, 
-  protein: 0, 
-  carbs: 0, 
-  fat: 0, 
-  fiber: 0, 
-  sugar: 0 
+export const INITIAL_TOTALS: NutritionTotals = {
+  calories: 0,
+  protein: 0,
+  carbs: 0,
+  fat: 0,
+  fiber: 0,
+  sugar: 0
 }
 
 /**
  * Calculates total nutrition for a list of meal entries.
  */
 export function calculateNutritionTotals(
-  entries: MealEntry[], 
+  entries: MealEntry[],
   foodsById: Map<string, FoodItem>
 ): NutritionTotals {
-  return entries.reduce((acc, entry) => {
+  const raw = entries.reduce((acc, entry) => {
     const food = foodsById.get(entry.foodId)
     if (!food) return acc
-    
+
     return {
       calories: acc.calories + food.calories * entry.quantity,
       protein: acc.protein + food.protein * entry.quantity,
@@ -29,6 +29,16 @@ export function calculateNutritionTotals(
       sugar: acc.sugar + (food.sugar ?? 0) * entry.quantity,
     }
   }, { ...INITIAL_TOTALS })
+
+  // Round results to avoid floating-point precision errors
+  return {
+    calories: Math.round(raw.calories),
+    protein: Math.round(raw.protein * 10) / 10,
+    carbs: Math.round(raw.carbs * 10) / 10,
+    fat: Math.round(raw.fat * 10) / 10,
+    fiber: Math.round(raw.fiber * 10) / 10,
+    sugar: Math.round(raw.sugar * 10) / 10,
+  }
 }
 
 /**
@@ -38,7 +48,7 @@ export function calculateNutritionAverages(
   dailyTotals: (NutritionTotals & { date: string })[]
 ): NutritionTotals {
   const daysWithData = dailyTotals.filter((d) => d.calories > 0)
-  
+
   if (daysWithData.length === 0) {
     return { ...INITIAL_TOTALS }
   }

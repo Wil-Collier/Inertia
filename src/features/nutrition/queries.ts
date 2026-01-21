@@ -96,8 +96,9 @@ export function useNutritionDates() {
   return useQuery({
     queryKey: [...queryKeys.nutrition.all, "dates"],
     queryFn: async () => {
-      const logs = await db.nutritionLogs.toArray()
-      return logs.map((l) => l.date).sort()
+      // Use uniqueKeys() for efficient date retrieval without loading full objects
+      const dates = await db.nutritionLogs.orderBy("date").uniqueKeys()
+      return dates as string[]
     },
   })
 }
@@ -143,7 +144,7 @@ export function useCombinedFoodSearch(query: string) {
       if (query.length < 2) return []
 
       const lowerQuery = query.toLowerCase()
-      
+
       // Search local database first
       const local = await db.foods
         .filter(

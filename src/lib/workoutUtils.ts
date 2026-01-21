@@ -6,7 +6,8 @@ import type { TemplateExercise, Workout, WorkoutExercise, WorkoutSet } from "@/l
 export function calculateOneRepMax(weight: number, reps: number): number {
   if (reps === 1) return weight
   if (reps === 0) return 0
-  if (reps > 12) return weight * (1 + reps / 30) // simplified for high reps
+  // Use simplified formula for high reps to avoid division by zero at reps=37
+  if (reps >= 13) return weight * (1 + reps / 30)
   return weight * (36 / (37 - reps))
 }
 

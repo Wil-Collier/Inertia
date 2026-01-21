@@ -9,7 +9,7 @@ import {
 import { format, parseISO } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DebouncedTextInput } from "./DebouncedTextInput"
 import { ExerciseInfoButton } from "@/components/ExerciseInfoSheet"
 import { cn } from "@/lib/utils"
 import type { WorkoutExercise, WorkoutSet, Exercise } from "@/lib/types"
@@ -182,12 +182,13 @@ export const WorkoutExerciseCard = memo(({
                 <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Notes</span>
               </div>
-              <Input
+              <DebouncedTextInput
                 value={workoutExercise.notes || ""}
-                onChange={(e) => onUpdateNotes(workoutExercise.id, e.target.value)}
+                onChange={(notes) => onUpdateNotes(workoutExercise.id, notes)}
                 placeholder="Add a note for this exercise..."
                 className="h-8 text-sm"
                 tabIndex={isExpanded ? 0 : -1}
+                debounceMs={500}
               />
             </div>
           </CardContent>

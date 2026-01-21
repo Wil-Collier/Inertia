@@ -98,32 +98,30 @@ export const achievementService = {
     const data = await db.achievements.get("achievements")
     const streaks = data?.streaks || defaultStreaks
 
-    // Workout count achievements
-    await this.tryUnlock("first-workout", workoutsCount >= 1)
-    await this.tryUnlock("ten-workouts", workoutsCount >= 10)
-    await this.tryUnlock("fifty-workouts", workoutsCount >= 50)
-    await this.tryUnlock("century-club", workoutsCount >= 100)
-
-    // Streak achievements
-    await this.tryUnlock("week-warrior", streaks.currentWorkoutStreak >= 7)
-    await this.tryUnlock("month-master", streaks.currentWorkoutStreak >= 30)
-
-    // Volume achievements (thresholds in lbs)
-    await this.tryUnlock("10k-club", totalVolumeLbs >= 10000)
-    await this.tryUnlock("100k-crusher", totalVolumeLbs >= 100000)
-    await this.tryUnlock("500k-beast", totalVolumeLbs >= 500000)
-    await this.tryUnlock("million-pounder", totalVolumeLbs >= 1000000)
-
-    // PR achievements
-    await this.tryUnlock("first-pr", personalRecordsCount >= 1)
-    await this.tryUnlock("pr-collector", personalRecordsCount >= 10)
-    await this.tryUnlock("pr-master", personalRecordsCount >= 25)
-
-    // Template achievements
-    await this.tryUnlock("template-creator", customTemplateCount >= 3)
-
-    // Variety achievements
-    await this.tryUnlock("full-body", muscleGroupsThisWeek.size >= 6)
+    // Batch all achievement checks into a single transaction
+    await this.tryUnlockBatch([
+      // Workout count achievements
+      ["first-workout", workoutsCount >= 1],
+      ["ten-workouts", workoutsCount >= 10],
+      ["fifty-workouts", workoutsCount >= 50],
+      ["century-club", workoutsCount >= 100],
+      // Streak achievements
+      ["week-warrior", streaks.currentWorkoutStreak >= 7],
+      ["month-master", streaks.currentWorkoutStreak >= 30],
+      // Volume achievements (thresholds in lbs)
+      ["10k-club", totalVolumeLbs >= 10000],
+      ["100k-crusher", totalVolumeLbs >= 100000],
+      ["500k-beast", totalVolumeLbs >= 500000],
+      ["million-pounder", totalVolumeLbs >= 1000000],
+      // PR achievements
+      ["first-pr", personalRecordsCount >= 1],
+      ["pr-collector", personalRecordsCount >= 10],
+      ["pr-master", personalRecordsCount >= 25],
+      // Template achievements
+      ["template-creator", customTemplateCount >= 3],
+      // Variety achievements
+      ["full-body", muscleGroupsThisWeek.size >= 6],
+    ])
   },
 
   /**
@@ -147,7 +145,7 @@ export const achievementService = {
     const daysLogged = dailyLogs.filter((day) => day.entries.length > 0).length
     const data = await db.achievements.get("achievements")
     const streaks = data?.streaks || defaultStreaks
-    
+
     // Days logged achievements
     await this.tryUnlock("macro-tracker", daysLogged >= 7)
 
@@ -182,16 +180,16 @@ export const achievementService = {
      */
     const calculateStreak = (dates: string[]): number => {
       if (dates.length === 0) return 0
-      
+
       // Sort dates descending (newest first)
       const sortedDates = [...dates].sort().reverse()
       const today = new Date()
       let streak = 0
       let currentDate = today
-      
+
       for (const dateStr of sortedDates) {
         const date = parseISO(dateStr)
-        
+
         // If this date matches current day we're checking, increment streak
         if (isSameDay(date, currentDate)) {
           streak++
@@ -209,13 +207,13 @@ export const achievementService = {
         }
         // If date is in the future or same as today when we've already counted today, skip
       }
-      
+
       return streak
     }
-    
+
     const workoutStreak = calculateStreak(workoutDates)
     const nutritionStreak = calculateStreak(nutritionDates)
-    
+
     const longestWorkoutStreak = Math.max(workoutStreak, currentStreaks.longestWorkoutStreak)
     const longestNutritionStreak = Math.max(nutritionStreak, currentStreaks.longestNutritionStreak)
 
@@ -356,12 +354,12 @@ export const achievementService = {
    */
   async tryUnlock(id: string, condition: boolean) {
     if (!condition) return
-    
+
     // Use transaction to avoid race conditions with other unlocks or streak updates
     await db.transaction("rw", db.achievements, async () => {
       const currentData = await db.achievements.get("achievements")
       const unlocked = currentData?.unlockedAchievements || []
-      
+
       const existing = unlocked.find((a) => a.id === id)
       if (existing) return
 
@@ -374,7 +372,7 @@ export const achievementService = {
       }
 
       const newUnlocked = [...unlocked, newAchievement]
-      
+
       await db.achievements.put({
         id: "achievements",
         unlockedAchievements: newUnlocked,
@@ -386,6 +384,56 @@ export const achievementService = {
         description: achievement.description,
         duration: 5000,
       })
+    })
+  },
+
+  /**
+   * Batch unlock multiple achievements in a single transaction.
+   * More efficient than calling tryUnlock multiple times.
+   * @param checks - Array of [achievementId, condition] pairs
+   */
+  async tryUnlockBatch(checks: [string, boolean][]) {
+    // Filter to only achievements that should be unlocked
+    const toUnlock = checks.filter(([, condition]) => condition).map(([id]) => id)
+    if (toUnlock.length === 0) return
+
+    await db.transaction("rw", db.achievements, async () => {
+      const currentData = await db.achievements.get("achievements")
+      const unlocked = currentData?.unlockedAchievements || []
+      const unlockedIds = new Set(unlocked.map(a => a.id))
+
+      const newlyUnlocked: UnlockedAchievement[] = []
+
+      for (const id of toUnlock) {
+        if (unlockedIds.has(id)) continue
+
+        const achievement = achievements.find((a) => a.id === id)
+        if (!achievement) continue
+
+        newlyUnlocked.push({
+          id,
+          unlockedAt: new Date().toISOString(),
+        })
+      }
+
+      if (newlyUnlocked.length === 0) return
+
+      await db.achievements.put({
+        id: "achievements",
+        unlockedAchievements: [...unlocked, ...newlyUnlocked],
+        streaks: currentData?.streaks || defaultStreaks,
+      })
+
+      // Show toast notifications for each new achievement
+      for (const newAchievement of newlyUnlocked) {
+        const achievement = achievements.find((a) => a.id === newAchievement.id)
+        if (achievement) {
+          toast.success(`Achievement Unlocked: ${achievement.name}`, {
+            description: achievement.description,
+            duration: 5000,
+          })
+        }
+      }
     })
   }
 }
