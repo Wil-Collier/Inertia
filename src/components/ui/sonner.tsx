@@ -28,6 +28,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
+          paddingTop: props.position?.startsWith("top") ? "env(safe-area-inset-top, 0px)" : undefined,
+          paddingBottom: props.position?.startsWith("bottom") ? "env(safe-area-inset-bottom, 0px)" : undefined,
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
