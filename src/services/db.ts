@@ -3,15 +3,9 @@
  *
  * @module db
  *
- * ## Dexie Version Compatibility
+ * ## Dexie Version
  *
- * This app uses Dexie v3.x with dexie-export-import for backup/restore functionality.
- *
- * **Important:** The dexie-export-import library has limited Dexie v4 support.
- * Before upgrading to Dexie v4, verify:
- * 1. dexie-export-import compatibility (check their changelog/issues)
- * 2. The export format hasn't changed (affects backup restoration)
- * 3. Migration path for existing user databases
+ * This app uses Dexie v4.x with dexie-export-import for backup/restore functionality.
  *
  * @see https://dexie.org/docs/Dexie/Dexie
  * @see https://github.com/dexie/Dexie.js/tree/master/addons/dexie-export-import

@@ -2,273 +2,64 @@
 
 Guidelines for AI coding agents working on this codebase.
 
-## Project Overview
-
-A **Progressive Web App (PWA)** for tracking workouts and nutrition.
-- **Stack:** Vite 7, React 19, TypeScript 5.9, Tailwind CSS v4, Zustand, @tanstack/react-router
-- **UI:** shadcn/ui (base-nova), Recharts, Lucide icons
-- **Database:** Dexie (IndexedDB wrapper) for offline-first storage
-- **Hosting:** Cloudflare Pages (`wrangler.toml`)
-
 ## Build & Validation
 
 ```bash
 pnpm install          # Install dependencies
-pnpm dev --host       # Start dev server (accessible on network)
-pnpm build            # Production build (runs tsc + vite build)
-pnpm lint             # Lint with Oxlint (type-aware)
-pnpm preview          # Preview production build
+pnpm dev --host       # Start dev server
+pnpm build            # Production build (tsc + vite build)
+pnpm lint             # Oxlint (type-aware, includes --type-check)
+pnpm vitest run [path]# Run tests (Vitest)
 ```
-
-### Testing
-
-- **No automated tests configured yet** - use Vitest if adding tests
-- Run single test: `pnpm vitest run path/to/file.test.ts`
-- Run tests in watch mode: `pnpm vitest path/to/file.test.ts`
-- **Validation workflow:** Run `pnpm build` (includes type-check) then `pnpm lint`
+- **Validation:** Always run `pnpm build && pnpm lint` before completing a task.
 
 ## Project Structure
 
-```
-src/
-├── App.tsx                 # Router with lazy-loaded routes
-├── main.tsx                # Entry point
-├── index.css               # Tailwind v4 imports & CSS variables
-├── components/
-│   ├── layout/             # Layout, Header, BottomNav
-│   ├── ui/                 # shadcn/ui components (avoid modifying)
-│   └── [feature]/          # Feature-specific components
-├── features/               # React Query mutations & queries by domain
-├── hooks/                  # Custom hooks (useTheme, useRestTimer, etc.)
-├── lib/
-│   ├── queryKeys.ts        # Centralized React Query keys
-│   ├── types.ts            # Shared TypeScript interfaces/types
-│   └── utils.ts            # Helpers (cn, formatDuration)
-├── pages/                  # Route page components
-├── services/               # External APIs, DB, notifications
-└── data/                   # Static data, exercise database
-```
+- `src/routes/`: TanStack Router route definitions (file-based routing).
+- `src/pages/`: Page components associated with routes.
+- `src/features/[domain]/`: React Query `queries.ts` and `mutations.ts`.
+- `src/services/`: Persistence (`db.ts`), stats tracking, and external APIs.
+- `src/components/ui/`: Base shadcn/ui components (avoid modifying).
+- `src/lib/`: Types, query keys, and shared utilities.
 
 ## Code Style
 
-### TypeScript
-
-- **Strict mode enabled** - avoid `any`, use proper typing
-- **Path alias:** Always use `@/` for `src/` imports
-- **Type imports:** Use `import type { Foo }` for type-only imports
-- **Interfaces vs Types:** Interfaces for object shapes, Types for unions/aliases
-- **Unused variables:** Prefix with underscore `_unused` or remove
-
-```typescript
-// Good
-import type { FoodItem, MealType } from "@/lib/types"
-import { useNutritionStore } from "@/stores/nutritionStore"
-
-// Bad
-import { FoodItem } from "@/lib/types"  // Missing 'type' keyword
-import { useNutritionStore } from "../stores/nutritionStore"  // Relative path
-```
-
-### Import Order
-
-1. React/external libraries
-2. Internal components (`@/components/`)
-3. Features/Queries (`@/features/`)
-4. Hooks (`@/hooks/`)
-5. Types (`@/lib/types`)
-6. Utils (`@/lib/utils`)
+### TypeScript & Naming
+- **Strict Mode:** Avoid `any`. Use `import type` for type-only imports.
+- **Paths:** Use `@/` for all internal `src/` imports.
+- **Naming:** PascalCase for components, camelCase for functions/variables.
+- **Booleans:** Prefix with `is`, `has`, or `should` (e.g., `isLoading`).
 
 ### React Components
+- **Named Exports:** `export function Component() { ... }`
+- **Props:** Define inline or as an interface above the component.
+- **Performance:** Use `useMemo` for expensive logic. Isolate high-frequency re-renders (e.g., timers) into small, specialized sub-components.
+- **Icons:** Use `lucide-react`. Icon-only buttons MUST have `aria-label`.
 
-- **Named exports:** `export function ComponentName() { ... }`
-- **File naming:** PascalCase for components (`Dashboard.tsx`)
-- **Props:** Define inline or as separate interface above component
-- **State:** `useState` for local, React Query for server state
+### Data Management
+- **React Query:** Use the factory in `src/lib/queryKeys.ts`. Invalidate queries in mutations.
+- **Dexie (IndexedDB):** Use `db` from `@/services/db`.
+- **Performance:** Avoid full table scans for stats. Use `statsService.ts` for incremental tracking (volume, counts) in the `userStats` table.
+- **Dates:** Store as `yyyy-MM-dd` strings. Use `date-fns` for all manipulations.
 
-```typescript
-// Page component pattern
-export function Dashboard() {
-  const { data } = useWorkouts() // Custom hook from @/features/workout/queries
-  
-  return (
-    <div className="space-y-4 p-4">
-      {/* content */}
-    </div>
-  )
-}
-```
-
-### Styling (Tailwind v4)
-
-- **Utility-first:** Use Tailwind classes exclusively
-- **Conditionals:** Use `cn()` helper from `@/lib/utils`
-- **Theme colors:** Use CSS variables (`bg-background`, `text-muted-foreground`)
-- **Responsive:** Mobile-first approach (`block md:hidden`)
-- **Safe areas:** Use `safe-area-bottom` class or `env(safe-area-inset-*)` for PWA
-
-```typescript
-import { cn } from "@/lib/utils"
-
-<div className={cn(
-  "rounded-lg p-4 bg-card",
-  isActive && "ring-2 ring-primary",
-  className
-)} />
-```
-
-### Data Fetching (React Query)
-
-- **Location:** `src/features/[domain]/` (e.g., `queries.ts`, `mutations.ts`)
-- **Keys:** Define in `src/lib/queryKeys.ts`
-- **Mutations:** Invalidate relevant queries on success
-
-```typescript
-// queries.ts
-export function useWorkouts(limit?: number) {
-  return useQuery({
-    queryKey: queryKeys.workouts.list(limit),
-    queryFn: async () => { /* db call */ }
-  })
-}
-
-// mutations.ts
-export function useCreateWorkout() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (workout) => { /* db call */ },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
-    }
-  })
-}
-```
-
-### Error Handling
-
-- **Async operations:** Always wrap in try/catch
-- **User feedback:** Use `toast` from `sonner` for notifications
-- **Logging:** `console.error` with context for debugging
-- **Re-throw:** After logging/toasting if caller needs to handle
-
-```typescript
-try {
-  await db.items.add(newItem)
-  set((state) => ({ items: [...state.items, newItem] }))
-} catch (error) {
-  console.error("Failed to add item:", error)
-  toast.error("Failed to save item")
-  throw error
-}
-```
+### Error Handling & UI
+- **Safety:** Wrap all DB/API calls in `try/catch`.
+- **Feedback:** Use `sonner` (`toast`) for user notifications.
+- **Logging:** Use `console.error` with context. Gate debug logs behind `import.meta.env.DEV`.
+- **Linting:** Use `void` prefix for intentional floating promises (e.g., `void router.navigate()`).
 
 ## Common Patterns
 
-### Adding a New Page
+### Adding a Feature
+1. Add keys to `src/lib/queryKeys.ts`.
+2. Create `queries.ts` and `mutations.ts` in `src/features/[feature]/`.
+3. Export custom hooks that wrap `useQuery` or `useMutation`.
 
-1. Create `src/pages/NewPage.tsx` with named export
-2. Add lazy import in `src/App.tsx`:
-   ```typescript
-   const NewPage = lazy(() => import("@/pages/NewPage").then((m) => ({ default: m.NewPage })))
-   ```
-3. Add route inside `<Routes>`:
-   ```tsx
-   <Route path="/new" element={<PageErrorBoundary><NewPage /></PageErrorBoundary>} />
-   ```
-4. Update `src/components/layout/BottomNav.tsx` if adding to main navigation
+### DB Migrations
+1. Increment `CURRENT_SCHEMA_VERSION` in `src/services/db.ts`.
+2. Add a `.version().stores().upgrade()` block in `db.ts`.
+3. Add a corresponding migration function to `src/services/backupMigrations.ts` for file imports.
 
-### Adding a Feature (Query/Mutation)
-
-1. Create `src/features/[feature]/` if it doesn't exist
-2. Add keys to `src/lib/queryKeys.ts`
-3. Create `queries.ts` for data fetching hooks
-4. Create `mutations.ts` for data modification hooks (handle invalidation here)
-
-### Database Operations
-
-Use Dexie for all persistent data. Schema defined in `src/services/db.ts`.
-
-```typescript
-import { db } from "@/services/db"
-
-// Read
-const items = await db.tableName.toArray()
-
-// Write
-await db.tableName.add(item)
-await db.tableName.put(item)  // upsert by primary key
-await db.tableName.update(id, { field: value })
-await db.tableName.delete(id)
-```
-
-### Database Schema Migrations
-
-Schema version is tracked in `CURRENT_SCHEMA_VERSION` in `src/services/db.ts`. When making schema changes:
-
-#### 1. Increment Version & Add Live Migration
-
-```typescript
-// src/services/db.ts
-export const CURRENT_SCHEMA_VERSION = 2  // Increment
-
-this.version(2)
-  .stores({
-    workoutSessions: "id, date, templateId, completedAt, *exerciseIds, newField"
-  })
-  .upgrade(async (tx) => {
-    // Transform existing records for live DB upgrade
-    await tx.table("workoutSessions").toCollection().modify((workout) => {
-      workout.newField = "default"
-    })
-  })
-```
-
-#### 2. Add Backup Migration
-
-```typescript
-// src/services/backupMigrations.ts
-const backupMigrations: Record<number, MigrationFn> = {
-  1: (data) => {  // Add migration from v1 -> v2
-    const workouts = findTable(data, "workoutSessions")
-    workouts?.rows.forEach(row => {
-      row.newField = "default"
-    })
-    return data
-  },
-}
-```
-
-#### Migration Types
-
-| Change Type | Live Migration | Backup Migration |
-|-------------|----------------|------------------|
-| Add optional field | Schema only | Not needed |
-| Add required field | `.upgrade()` with default | Add to `backupMigrations` |
-| Rename field | `.upgrade()` copy + delete | Transform in `backupMigrations` |
-| Add new table | Schema only | Not needed |
-| Add index | Schema only | Not needed |
-
-#### Key Files
-
-| File | Purpose |
-|------|---------|
-| `src/services/db.ts` | Schema versions, `CURRENT_SCHEMA_VERSION`, live migrations |
-| `src/services/backupMigrations.ts` | Backup import migrations |
-| `src/services/dataExport.ts` | Export/import with version metadata |
-
-## Linting Rules (Oxlint)
-
-Key rules enabled (see `oxlintrc.json` and `package.json`):
-- Type-aware checking with `--type-check`
-- React, Promise, Node, Vitest, Import plugins
-- Disabled: `react-in-jsx-scope`, floating promises, array sort/reverse warnings
-
-## Key Files Reference
-
-| Purpose | File |
-|---------|------|
-| Types | `src/lib/types/` |
-| Query Keys | `src/lib/queryKeys.ts` |
-| Database | `src/services/db.ts` |
-| Router | `src/App.tsx` |
-| Workout Features | `src/features/workout/` |
-| Nutrition Features | `src/features/nutrition/` |
+### Navigation
+- Use `Link` or `useNavigate` from `@tanstack/react-router`.
+- Follow the route typing conventions in `BottomNav.tsx` to maintain type safety.
