@@ -1,6 +1,4 @@
 import { CURRENT_SCHEMA_VERSION } from "@/services/db"
-import { KG_TO_LBS } from "@/lib/constants"
-import type { Workout } from "@/lib/types"
 
 /**
  * Structure of a Dexie export blob's data section.
@@ -36,49 +34,7 @@ type MigrationFn = (data: DexieExportData) => DexieExportData
  * Key is the source version, function transforms data to the next version.
  */
 const backupMigrations: Record<number, MigrationFn> = {
-  // v1 -> v2: Add userStats table with calculated stats from workouts
-  1: (data) => {
-    const workoutsTable = findTable(data, "workoutSessions")
-    const workouts = (workoutsTable?.rows || []) as unknown as Workout[]
-
-    // Calculate total volume in lbs from all workouts
-    let totalVolumeLbs = 0
-    for (const workout of workouts) {
-      const rawVolume = workout.exercises.reduce((exTotal, ex) => {
-        return (
-          exTotal +
-          ex.sets
-            .filter((s) => s.isCompleted)
-            .reduce((setTotal, set) => setTotal + set.weight * set.reps, 0)
-        )
-      }, 0)
-      const conversionFactor = workout.weightUnit === "kg" ? KG_TO_LBS : 1
-      totalVolumeLbs += rawVolume * conversionFactor
-    }
-
-    // Add userStats table to schema
-    data.data.tables.push({
-      name: "userStats",
-      schema: "id",
-      rowCount: 1,
-    })
-
-    // Add userStats data
-    data.data.data.push({
-      tableName: "userStats",
-      inbound: true,
-      rows: [
-        {
-          id: "stats",
-          totalWorkouts: workouts.length,
-          totalVolumeLbs,
-          lastUpdated: new Date().toISOString(),
-        },
-      ],
-    })
-
-    return data
-  },
+  // Add future migrations here as needed
 }
 
 /**
@@ -116,7 +72,7 @@ export function migrateBackupData(
     if (!migrator) {
       throw new Error(
         `No migration path from schema version ${version} to ${version + 1}. ` +
-          `This backup may be from an incompatible version of the app.`
+        `This backup may be from an incompatible version of the app.`
       )
     }
 

@@ -6,10 +6,12 @@ import type {
   WeightEntry, 
   DailyNutrition, 
   FoodItem,
-  MealType
+  MealType,
+  UnlockedAchievement
 } from "@/lib/types"
 import { exerciseDatabase } from "@/data/exerciseDatabase"
 import { statsService } from "@/services/statsService"
+import { achievementService } from "@/services/achievementService"
 
 // Helper to get a random exercise from a muscle group
 const getExerciseByMuscle = (muscle: string) => {
@@ -27,7 +29,8 @@ export async function seedTestData() {
     db.bodyWeight.clear(),
     db.nutritionLogs.clear(),
     db.foods.clear(),
-    db.personalRecords.clear()
+    db.personalRecords.clear(),
+    db.achievements.clear()
   ])
 
   // 2. Seed Body Weight (15 entries, last 30 days)
@@ -128,6 +131,7 @@ export async function seedTestData() {
       completedAt: date.toISOString(),
       duration: 45 + Math.floor(Math.random() * 30),
       weightUnit: "kg",
+      exerciseIds: template.exercises.map(e => e.exerciseId),
       exercises: template.exercises.map(templateExercise => ({
         id: crypto.randomUUID(),
         exerciseId: templateExercise.exerciseId,
@@ -142,8 +146,30 @@ export async function seedTestData() {
   }
   await db.workoutSessions.bulkAdd(workouts)
 
-  // Recalculate stats after seeding workouts
+  // 7. Seed Achievements & Streaks
+  const unlockedAchievements: UnlockedAchievement[] = [
+    { id: "first-workout", unlockedAt: format(subDays(new Date(), 28), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx") },
+    { id: "ten-workouts", unlockedAt: format(subDays(new Date(), 2), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx") },
+    { id: "10k-club", unlockedAt: format(subDays(new Date(), 15), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx") },
+    { id: "macro-tracker", unlockedAt: format(subDays(new Date(), 5), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx") }
+  ]
+
+  await db.achievements.put({
+    id: "achievements",
+    unlockedAchievements,
+    streaks: {
+      currentWorkoutStreak: 3,
+      longestWorkoutStreak: 12,
+      lastWorkoutDate: format(subDays(new Date(), 1), "yyyy-MM-dd"),
+      currentNutritionStreak: 7,
+      longestNutritionStreak: 14,
+      lastNutritionDate: format(new Date(), "yyyy-MM-dd")
+    }
+  })
+
+  // Recalculate stats and check for any additional achievements met by seed data
   await statsService.recalculateAll()
+  await achievementService.checkAll()
 
   console.log("Seeding complete!")
 }

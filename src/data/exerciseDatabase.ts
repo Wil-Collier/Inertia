@@ -161,3 +161,28 @@ export function getExerciseFromDatabase(
 ): ExerciseWithInstructions | undefined {
   return exerciseDatabaseMap.get(id)
 }
+
+/**
+ * Get all default exercises (without instructions for lighter payload).
+ * Used when merging with custom exercises.
+ */
+export function getDefaultExercises(): Exercise[] {
+  return exerciseDatabase.map(({ instructions: _, ...ex }) => ex)
+}
+
+/**
+ * Get default exercises filtered by muscle group.
+ */
+export function getDefaultExercisesByMuscle(muscleGroup: MuscleGroup): Exercise[] {
+  return exerciseDatabase
+    .filter((ex) => ex.muscleGroup === muscleGroup)
+    .map(({ instructions: _, ...ex }) => ex)
+}
+
+/**
+ * Check if an exercise ID is a default (built-in) exercise.
+ */
+export function isDefaultExercise(id: string): boolean {
+  return exerciseDatabaseMap.has(id)
+}
+

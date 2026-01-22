@@ -17,7 +17,7 @@ export function useAddExercise() {
         isWeighted: exercise.isWeighted,
         isTimeBased: exercise.isTimeBased,
       }
-      await db.exercises.add(newExercise)
+      await db.customExercises.add(newExercise)
       return newExercise
     },
     onSuccess: () => {
@@ -45,8 +45,8 @@ export function useDeleteExercise() {
         throw new Error(`Cannot delete: exercise is used in template "${usedInTemplate.name}"`)
       }
 
-      await db.transaction("rw", [db.exercises, db.personalRecords], async () => {
-        await db.exercises.delete(id)
+      await db.transaction("rw", [db.customExercises, db.personalRecords], async () => {
+        await db.customExercises.delete(id)
         await db.personalRecords.where("exerciseId").equals(id).delete()
       })
     },

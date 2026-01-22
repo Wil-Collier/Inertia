@@ -27,7 +27,6 @@ import type {
   ActiveWorkoutSession,
   UserStats
 } from "@/lib/types"
-import { KG_TO_LBS } from "@/lib/constants"
 
 /**
  * Current database schema version.
@@ -36,7 +35,7 @@ import { KG_TO_LBS } from "@/lib/constants"
  * 1. The version().upgrade() chain below (for live DB upgrades)
  * 2. backupMigrations.ts (for importing old backups)
  */
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 1
 
 /** Metadata record for storing app-level key-value data */
 export interface MetadataRecord {
@@ -46,8 +45,9 @@ export interface MetadataRecord {
 
 // Extend Dexie to handle our DB
 export class TrainingAppDatabase extends Dexie {
-  // Tables
-  exercises!: Table<Exercise>
+  // Tables - customExercises stores ONLY user-created exercises
+  // Default exercises come from the static exerciseDatabase module
+  customExercises!: Table<Exercise>
   workoutSessions!: Table<Workout>
   workoutTemplates!: Table<WorkoutTemplate>
   personalRecords!: Table<PersonalRecord>
@@ -71,27 +71,11 @@ export class TrainingAppDatabase extends Dexie {
     // Note: ++id means auto-incrementing integer key, but our types use string UUIDs.
     // If using UUIDs, we just use 'id'.
     // We add indexes for fields we want to query by.
+    //
+    // Hybrid approach: default exercises come from static JS bundle,
+    // only custom (user-created) exercises are stored in IDB.
     this.version(1).stores({
-      exercises: "id, name, muscleGroup, category",
-      workoutSessions: "id, date, templateId, completedAt, *exerciseIds",
-      workoutTemplates: "id, name",
-      personalRecords: "exerciseId, date",
-
-      foods: "id, name, brand, isFavorite, isCustom",
-      nutritionLogs: "date",
-      mealTemplates: "id, name",
-
-      settings: "id",
-      bodyWeight: "id, date",
-      achievements: "id",
-      restTimer: "id",
-      activeSession: "id",
-      metadata: "key"
-    })
-
-    // Version 2: Add userStats table for incremental stats tracking
-    this.version(2).stores({
-      exercises: "id, name, muscleGroup, category",
+      customExercises: "id, name, muscleGroup",
       workoutSessions: "id, date, templateId, completedAt, *exerciseIds",
       workoutTemplates: "id, name",
       personalRecords: "exerciseId, date",
@@ -107,31 +91,6 @@ export class TrainingAppDatabase extends Dexie {
       activeSession: "id",
       metadata: "key",
       userStats: "id"
-    }).upgrade(async (tx) => {
-      // Calculate initial stats from existing workouts using .each() to avoid loading all into memory
-      let totalVolumeLbs = 0
-      let totalWorkouts = 0
-
-      await tx.table<Workout>("workoutSessions").each((workout) => {
-        totalWorkouts++
-        const rawVolume = workout.exercises.reduce((exTotal, ex) => {
-          return (
-            exTotal +
-            ex.sets
-              .filter((s) => s.isCompleted)
-              .reduce((setTotal, set) => setTotal + set.weight * set.reps, 0)
-          )
-        }, 0)
-        const conversionFactor = workout.weightUnit === "kg" ? KG_TO_LBS : 1
-        totalVolumeLbs += rawVolume * conversionFactor
-      })
-
-      await tx.table<UserStats & { id: string }>("userStats").put({
-        id: "stats",
-        totalWorkouts,
-        totalVolumeLbs,
-        lastUpdated: new Date().toISOString(),
-      })
     })
 
     // Initialize schema version in metadata on database ready
@@ -139,13 +98,6 @@ export class TrainingAppDatabase extends Dexie {
       // We don't need to manually sync this anymore if we use Dexie version chain correctly,
       // but we'll keep it as a convenience for exports, updated automatically.
       await this.metadata.put({ key: "schemaVersion", value: this.verno })
-    })
-
-    // Seed default exercises when database is first created
-    this.on("populate", async () => {
-      const { loadDefaultExercises } = await import("@/data/exerciseLoader")
-      const defaultExercises = await loadDefaultExercises()
-      await this.exercises.bulkAdd(defaultExercises)
     })
   }
 }

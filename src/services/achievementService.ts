@@ -1,6 +1,6 @@
 import { db } from "@/services/db"
 import { format, startOfWeek, eachDayOfInterval, subDays, differenceInCalendarDays, parseISO, isSameDay } from "date-fns"
-import type { MuscleGroup, UnlockedAchievement, StreakData } from "@/lib/types"
+import type { MuscleGroup, UnlockedAchievement, StreakData, Exercise } from "@/lib/types"
 import { achievements } from "@/data/achievements"
 import { toast } from "sonner"
 import { statsService } from "@/services/statsService"
@@ -31,7 +31,7 @@ export const achievementService = {
    * Can be heavy, so use sparingly.
    */
   async checkAll() {
-    await db.transaction("rw", [db.achievements, db.workoutSessions, db.workoutTemplates, db.personalRecords, db.exercises, db.nutritionLogs, db.settings], async () => {
+    await db.transaction("rw", [db.achievements, db.workoutSessions, db.workoutTemplates, db.personalRecords, db.customExercises, db.nutritionLogs, db.settings], async () => {
       await this.ensureInitialized()
 
       await this.checkWorkoutAchievements()
@@ -82,8 +82,13 @@ export const achievementService = {
       .anyOf(weekDateStrings)
       .toArray()
 
-    const exercises = await db.exercises.toArray()
-    const exercisesById = new Map(exercises.map(e => [e.id, e]))
+    // Get all exercises (defaults from static bundle + custom from IDB)
+    // Use dynamic import to keep exercise database code-split
+    const { getDefaultExercises } = await import("@/data/exerciseDatabase")
+    const defaultExercises = getDefaultExercises()
+    const customExercises = await db.customExercises.toArray()
+    const allExercises: Exercise[] = [...defaultExercises, ...customExercises]
+    const exercisesById = new Map(allExercises.map(e => [e.id, e]))
 
     const muscleGroupsThisWeek = new Set<MuscleGroup>()
     thisWeeksWorkouts.forEach((workout) => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useSearch, useNavigate } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import { PageLoader } from "@/components/ui/PageLoader"
 
 // Lazily load the seeding function only in DEV mode
@@ -9,7 +9,6 @@ async function loadAndSeed() {
 }
 
 function DevSeedingHandlerInner() {
-  const search = useSearch({ from: "__root__" })
   const navigate = useNavigate()
   const [isSeeding, setIsSeeding] = useState(false)
 
@@ -17,15 +16,20 @@ function DevSeedingHandlerInner() {
     let isMounted = true
 
     // Only run seeding in DEV mode with ?seed=true query param
-    const searchParams = search as Record<string, unknown>
-    if (import.meta.env.DEV && searchParams.seed === "true") {
+    // We check window.location.search directly to bypass TanStack Router's strict validation
+    const params = new URLSearchParams(window.location.search)
+    const shouldSeed = params.get("seed") === "true"
+
+    if (import.meta.env.DEV && shouldSeed) {
       const runSeed = async () => {
+        console.log("DevSeedingHandler: Seeding triggered via URL param")
         setIsSeeding(true)
         try {
           await loadAndSeed()
           
           if (!isMounted) return
 
+          console.log("DevSeedingHandler: Seeding successful, cleaning up URL...")
           // Remove the seed param and reload to ensure all stores are fresh
           await navigate({ 
             to: "/",
@@ -36,7 +40,7 @@ function DevSeedingHandlerInner() {
           })
           window.location.reload()
         } catch (error) {
-          console.error("Seeding failed:", error)
+          console.error("DevSeedingHandler: Seeding failed:", error)
           if (isMounted) {
             setIsSeeding(false)
           }
@@ -48,7 +52,7 @@ function DevSeedingHandlerInner() {
     return () => {
       isMounted = false
     }
-  }, [search, navigate])
+  }, [navigate])
 
   if (isSeeding) {
     return (
