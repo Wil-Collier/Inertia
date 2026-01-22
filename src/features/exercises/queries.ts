@@ -89,14 +89,13 @@ export function useExercisesByIds(ids: string[]) {
         }
       }
 
-      // Fetch any remaining custom exercises from IndexedDB
+      // Fetch any remaining custom exercises from IndexedDB using bulkGet for O(1) primary key lookups
       if (customIdsToFetch.length > 0) {
-        const customExercises = await db.customExercises
-          .where("id")
-          .anyOf(customIdsToFetch)
-          .toArray()
+        const customExercises = await db.customExercises.bulkGet(customIdsToFetch)
         for (const ex of customExercises) {
-          result.set(ex.id, ex)
+          if (ex) {
+            result.set(ex.id, ex)
+          }
         }
       }
 

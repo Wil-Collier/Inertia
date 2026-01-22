@@ -146,8 +146,12 @@ export const activeSessionService = {
       // Defer achievement checks to background so they don't block UI
       deferToBackground(() => {
         // Run streak update and achievement checks without blocking
+        // The dynamic import is safe here since we're not in a transaction
         achievementService.updateWorkoutStreak(completedWorkout.date)
-          .then(() => achievementService.checkWorkoutAchievements())
+          .then(async () => {
+            const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
+            return achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+          })
           .catch((error) => console.error("Background achievement check failed:", error))
       })
 

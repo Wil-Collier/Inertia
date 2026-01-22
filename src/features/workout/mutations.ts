@@ -11,7 +11,7 @@ import { statsService } from "@/services/statsService"
 
 export function useCreateWorkout() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (workout: Omit<Workout, "id">) => {
       const id = crypto.randomUUID()
@@ -26,14 +26,15 @@ export function useCreateWorkout() {
 
       const newWorkout: Workout = { ...workout, id, exerciseIds, weightUnit }
       await db.workoutSessions.add(newWorkout)
-      
+
       // Update incremental stats
       await statsService.addWorkout(newWorkout)
-      
+
       // Update streaks and check achievements
       await achievementService.updateWorkoutStreak(newWorkout.date)
-      await achievementService.checkWorkoutAchievements()
-      
+      const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
+      await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+
       return newWorkout
     },
     onSuccess: (workout) => {
@@ -50,32 +51,33 @@ export function useCreateWorkout() {
 
 export function useUpdateWorkout() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Workout> }) => {
       // Get the old workout for stats delta calculation
       const oldWorkout = await db.workoutSessions.get(id)
-      
+
       // If exercises are being updated, recompute exerciseIds
       const finalUpdates = { ...updates }
       if (updates.exercises) {
         finalUpdates.exerciseIds = updates.exercises.map(e => e.exerciseId)
       }
-      
+
       await db.workoutSessions.update(id, finalUpdates)
       const workout = await db.workoutSessions.get(id)
-      
+
       // Update incremental stats if workout exists and exercises changed
       if (oldWorkout && workout && updates.exercises) {
         await statsService.updateWorkout(oldWorkout, workout)
       }
-      
+
       // Recalculate streaks and check achievements after workout update
       if (workout) {
         await achievementService.updateWorkoutStreak(workout.date)
       }
-      await achievementService.checkWorkoutAchievements()
-      
+      const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
+      await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+
       return workout
     },
     onSuccess: (workout, { id }) => {
@@ -93,22 +95,23 @@ export function useUpdateWorkout() {
 
 export function useDeleteWorkout() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       // Get workout before deletion for stats update
       const workout = await db.workoutSessions.get(id)
-      
+
       await db.workoutSessions.delete(id)
-      
+
       // Update incremental stats
       if (workout) {
         await statsService.removeWorkout(workout)
       }
-      
+
       // Check achievements after workout deletion (volume/count may change)
-      await achievementService.checkWorkoutAchievements()
-      
+      const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
+      await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+
       return id
     },
     onSuccess: () => {
@@ -126,16 +129,16 @@ export function useDeleteWorkout() {
 
 export function useCreateTemplate() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (template: Omit<WorkoutTemplate, "id">) => {
       const id = crypto.randomUUID()
       const newTemplate = { ...template, id }
       await db.workoutTemplates.add(newTemplate)
-      
+
       // Check template achievements (lightweight, doesn't load all workouts)
       await achievementService.checkTemplateAchievements()
-      
+
       return newTemplate
     },
     onSuccess: () => {
@@ -151,7 +154,7 @@ export function useCreateTemplate() {
 
 export function useUpdateTemplate() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<WorkoutTemplate> }) => {
       await db.workoutTemplates.update(id, updates)
@@ -171,14 +174,14 @@ export function useUpdateTemplate() {
 
 export function useDeleteTemplate() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       await db.workoutTemplates.delete(id)
-      
+
       // Check template achievements (lightweight, doesn't load all workouts)
       await achievementService.checkTemplateAchievements()
-      
+
       return id
     },
     onSuccess: () => {

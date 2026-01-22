@@ -1,6 +1,6 @@
 import { db } from "@/services/db"
 import { format, startOfWeek, eachDayOfInterval, subDays, differenceInCalendarDays, parseISO, isSameDay } from "date-fns"
-import type { MuscleGroup, UnlockedAchievement, StreakData, Exercise } from "@/lib/types"
+import type { MuscleGroup, UnlockedAchievement, StreakData } from "@/lib/types"
 import { achievements } from "@/data/achievements"
 import { toast } from "sonner"
 import { statsService } from "@/services/statsService"
@@ -33,12 +33,12 @@ export const achievementService = {
   async checkAll() {
     // Pre-load exercise database BEFORE entering transaction
     // to avoid holding transaction open during module loading
-    const { getDefaultExercises } = await import("@/data/exerciseDatabase")
+    const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
 
     await db.transaction("rw", [db.achievements, db.workoutSessions, db.workoutTemplates, db.personalRecords, db.customExercises, db.nutritionLogs, db.settings], async () => {
       await this.ensureInitialized()
 
-      await this.checkWorkoutAchievements(getDefaultExercises)
+      await this.checkWorkoutAchievements(exerciseDatabaseMap)
       await this.checkNutritionAchievements()
       await this.updateStreaks()
     })
@@ -62,9 +62,9 @@ export const achievementService = {
   /**
    * Checks all workout-related achievements (count, volume, PRs, templates, muscle variety).
    * Uses cached stats for O(1) volume lookups.
-   * @param getDefaultExercises - Function to get default exercises (passed in to avoid dynamic import in transaction)
+   * @param defaultExerciseMap - Pre-built Map of default exercises (REQUIRED - must be passed to avoid dynamic import in transaction)
    */
-  async checkWorkoutAchievements(getDefaultExercises?: () => readonly Exercise[]) {
+  async checkWorkoutAchievements(defaultExerciseMap: Map<string, { muscleGroup: MuscleGroup }>) {
     await this.ensureInitialized()
     const workoutsCount = await db.workoutSessions.count()
     const personalRecordsCount = await db.personalRecords.count()
@@ -97,25 +97,13 @@ export const achievementService = {
       })
     })
 
-    // Only look up the specific exercises we need (not all 870+)
-    // Load the exerciseDatabaseMap for O(1) lookups on default exercises
-    let exerciseDatabaseMap: Map<string, { muscleGroup: MuscleGroup }> | undefined
-    if (getDefaultExercises) {
-      // If getDefaultExercises is passed, we can derive the map efficiently
-      const defaults = getDefaultExercises()
-      exerciseDatabaseMap = new Map(defaults.map(e => [e.id, e]))
-    } else {
-      const module = await import("@/data/exerciseDatabase")
-      exerciseDatabaseMap = module.exerciseDatabaseMap
-    }
-
     // Build lookup map for only the exercises we need
     const exercisesById = new Map<string, { muscleGroup: MuscleGroup }>()
     const customIdsToFetch: string[] = []
 
     // First pass: check default exercises (O(1) per lookup)
     for (const id of usedExerciseIds) {
-      const defaultEx = exerciseDatabaseMap.get(id)
+      const defaultEx = defaultExerciseMap.get(id)
       if (defaultEx) {
         exercisesById.set(id, defaultEx)
       } else {
@@ -123,14 +111,13 @@ export const achievementService = {
       }
     }
 
-    // Fetch only the custom exercises we need
+    // Fetch only the custom exercises we need using bulkGet for O(1) primary key lookups
     if (customIdsToFetch.length > 0) {
-      const customExercises = await db.customExercises
-        .where("id")
-        .anyOf(customIdsToFetch)
-        .toArray()
+      const customExercises = await db.customExercises.bulkGet(customIdsToFetch)
       for (const ex of customExercises) {
-        exercisesById.set(ex.id, ex)
+        if (ex) {
+          exercisesById.set(ex.id, ex)
+        }
       }
     }
 
