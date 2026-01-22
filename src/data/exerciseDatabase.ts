@@ -155,6 +155,11 @@ export const exerciseDatabaseMap = new Map(
   exerciseDatabase.map((ex) => [ex.id, ex])
 )
 
+// Pre-computed cache of exercises without instructions (avoids re-processing on every call)
+const defaultExercisesCache: Exercise[] = exerciseDatabase.map(
+  ({ instructions: _, ...ex }) => ex
+)
+
 // Get instructions for an exercise by ID
 export function getExerciseFromDatabase(
   id: string
@@ -165,18 +170,17 @@ export function getExerciseFromDatabase(
 /**
  * Get all default exercises (without instructions for lighter payload).
  * Used when merging with custom exercises.
+ * Returns cached array - do not mutate!
  */
-export function getDefaultExercises(): Exercise[] {
-  return exerciseDatabase.map(({ instructions: _, ...ex }) => ex)
+export function getDefaultExercises(): readonly Exercise[] {
+  return defaultExercisesCache
 }
 
 /**
  * Get default exercises filtered by muscle group.
  */
 export function getDefaultExercisesByMuscle(muscleGroup: MuscleGroup): Exercise[] {
-  return exerciseDatabase
-    .filter((ex) => ex.muscleGroup === muscleGroup)
-    .map(({ instructions: _, ...ex }) => ex)
+  return defaultExercisesCache.filter((ex) => ex.muscleGroup === muscleGroup)
 }
 
 /**

@@ -35,6 +35,12 @@ export function useDeleteExercise() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      // Check if this is a default (built-in) exercise - these cannot be deleted
+      const { isDefaultExercise } = await import("@/data/exerciseDatabase")
+      if (isDefaultExercise(id)) {
+        throw new Error("Cannot delete built-in exercises")
+      }
+
       // Check if exercise is used in any templates
       const templates = await db.workoutTemplates.toArray()
       const usedInTemplate = templates.find(t =>
@@ -45,6 +51,7 @@ export function useDeleteExercise() {
         throw new Error(`Cannot delete: exercise is used in template "${usedInTemplate.name}"`)
       }
 
+      // Only delete custom exercises and their associated PRs
       await db.transaction("rw", [db.customExercises, db.personalRecords], async () => {
         await db.customExercises.delete(id)
         await db.personalRecords.where("exerciseId").equals(id).delete()
