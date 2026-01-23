@@ -1,6 +1,12 @@
-# Inertia (PWA)
+<p align="center">
+  <img src="public/logo.svg" alt="Inertia Logo" width="280">
+</p>
 
+<h1 align="center">Inertia</h1>
+
+<p align="center">
 Mass in motion. A powerful, offline-first Progressive Web App (PWA) for tracking workouts, fuel (nutrition), and body progress. Built for precision, speed, and technical performance.
+</p>
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-1.0.0--alpha-orange.svg)
