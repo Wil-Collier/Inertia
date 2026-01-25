@@ -3,18 +3,13 @@ import { ChevronDown, Trash2, Bookmark } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { MealEntryItem } from "./MealEntryItem"
-import type { FoodItem } from "@/lib/types"
+import type { FoodItem, MealEntry } from "@/lib/types"
 
 interface MealTemplateGroupProps {
   instanceId: string
   templateName: string
-  entries: Array<{
-    id: string
-    foodId: string
-    quantity: number
-    mealType: any
-    food?: FoodItem
-  }>
+  entries: Array<MealEntry & { food?: FoodItem }>
+  onEditEntry: (entry: MealEntry, food: FoodItem) => void
   onRemoveEntry: (id: string) => void
   onRemoveGroup: (instanceId: string) => void
 }
@@ -23,6 +18,7 @@ export function MealTemplateGroup({
   instanceId,
   templateName,
   entries,
+  onEditEntry,
   onRemoveEntry,
   onRemoveGroup,
 }: MealTemplateGroupProps) {
@@ -88,6 +84,7 @@ export function MealTemplateGroup({
                   entry={entry}
                   food={entry.food}
                   onRemove={() => onRemoveEntry(entry.id)}
+                  onEdit={() => onEditEntry(entry, entry.food!)}
                   isNested
                   className="bg-transparent border-0 rounded-none hover:bg-muted/30"
                 />

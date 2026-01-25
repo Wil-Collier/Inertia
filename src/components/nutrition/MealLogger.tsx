@@ -98,6 +98,7 @@ export function MealLogger({
                       instanceId={group.instanceId}
                       templateName={group.templateName}
                       entries={group.entries}
+                      onEditEntry={handleEditEntry}
                       onRemoveEntry={(id) => onRemoveEntry(id)}
                       onRemoveGroup={(id) => onRemoveGroup?.(id)}
                     />
