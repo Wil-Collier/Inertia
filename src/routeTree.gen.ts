@@ -17,6 +17,7 @@ import { Route as NutritionIndexRouteImport } from './routes/nutrition/index'
 import { Route as WorkoutTemplatesRouteImport } from './routes/workout/templates'
 import { Route as WorkoutHistoryRouteImport } from './routes/workout/history'
 import { Route as WorkoutActiveRouteImport } from './routes/workout/active'
+import { Route as NutritionTemplateEditorRouteImport } from './routes/nutrition/template-editor'
 import { Route as NutritionHistoryRouteImport } from './routes/nutrition/history'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -59,6 +60,11 @@ const WorkoutActiveRoute = WorkoutActiveRouteImport.update({
   path: '/workout/active',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NutritionTemplateEditorRoute = NutritionTemplateEditorRouteImport.update({
+  id: '/nutrition/template-editor',
+  path: '/nutrition/template-editor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NutritionHistoryRoute = NutritionHistoryRouteImport.update({
   id: '/nutrition/history',
   path: '/nutrition/history',
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/progress': typeof ProgressRoute
   '/settings': typeof SettingsRoute
   '/nutrition/history': typeof NutritionHistoryRoute
+  '/nutrition/template-editor': typeof NutritionTemplateEditorRoute
   '/workout/active': typeof WorkoutActiveRoute
   '/workout/history': typeof WorkoutHistoryRoute
   '/workout/templates': typeof WorkoutTemplatesRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/progress': typeof ProgressRoute
   '/settings': typeof SettingsRoute
   '/nutrition/history': typeof NutritionHistoryRoute
+  '/nutrition/template-editor': typeof NutritionTemplateEditorRoute
   '/workout/active': typeof WorkoutActiveRoute
   '/workout/history': typeof WorkoutHistoryRoute
   '/workout/templates': typeof WorkoutTemplatesRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/progress': typeof ProgressRoute
   '/settings': typeof SettingsRoute
   '/nutrition/history': typeof NutritionHistoryRoute
+  '/nutrition/template-editor': typeof NutritionTemplateEditorRoute
   '/workout/active': typeof WorkoutActiveRoute
   '/workout/history': typeof WorkoutHistoryRoute
   '/workout/templates': typeof WorkoutTemplatesRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/progress'
     | '/settings'
     | '/nutrition/history'
+    | '/nutrition/template-editor'
     | '/workout/active'
     | '/workout/history'
     | '/workout/templates'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/progress'
     | '/settings'
     | '/nutrition/history'
+    | '/nutrition/template-editor'
     | '/workout/active'
     | '/workout/history'
     | '/workout/templates'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/progress'
     | '/settings'
     | '/nutrition/history'
+    | '/nutrition/template-editor'
     | '/workout/active'
     | '/workout/history'
     | '/workout/templates'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   ProgressRoute: typeof ProgressRoute
   SettingsRoute: typeof SettingsRoute
   NutritionHistoryRoute: typeof NutritionHistoryRoute
+  NutritionTemplateEditorRoute: typeof NutritionTemplateEditorRoute
   WorkoutActiveRoute: typeof WorkoutActiveRoute
   WorkoutHistoryRoute: typeof WorkoutHistoryRoute
   WorkoutTemplatesRoute: typeof WorkoutTemplatesRoute
@@ -205,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkoutActiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/nutrition/template-editor': {
+      id: '/nutrition/template-editor'
+      path: '/nutrition/template-editor'
+      fullPath: '/nutrition/template-editor'
+      preLoaderRoute: typeof NutritionTemplateEditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/nutrition/history': {
       id: '/nutrition/history'
       path: '/nutrition/history'
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProgressRoute: ProgressRoute,
   SettingsRoute: SettingsRoute,
   NutritionHistoryRoute: NutritionHistoryRoute,
+  NutritionTemplateEditorRoute: NutritionTemplateEditorRoute,
   WorkoutActiveRoute: WorkoutActiveRoute,
   WorkoutHistoryRoute: WorkoutHistoryRoute,
   WorkoutTemplatesRoute: WorkoutTemplatesRoute,

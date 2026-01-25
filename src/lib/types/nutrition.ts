@@ -22,6 +22,9 @@ export interface MealEntry {
   foodId: string
   quantity: number
   mealType: MealType
+  templateId?: string
+  templateInstanceId?: string
+  templateName?: string
 }
 
 export interface DailyNutrition {

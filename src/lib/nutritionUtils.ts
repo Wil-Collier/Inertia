@@ -13,7 +13,7 @@ export const INITIAL_TOTALS: NutritionTotals = {
  * Calculates total nutrition for a list of meal entries.
  */
 export function calculateNutritionTotals(
-  entries: MealEntry[],
+  entries: { foodId: string; quantity: number }[],
   foodsById: Map<string, FoodItem>
 ): NutritionTotals {
   const raw = entries.reduce((acc, entry) => {

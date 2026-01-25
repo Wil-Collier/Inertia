@@ -7,7 +7,8 @@ import { MacroSummary } from "@/components/nutrition/MacroSummary"
 import { MealLogger } from "@/components/nutrition/MealLogger"
 import { AddFoodSheet } from "@/components/nutrition/AddFoodSheet"
 import { DateNavigator } from "@/components/nutrition/DateNavigator"
-import { SaveTemplateDialog } from "@/components/nutrition/SaveTemplateDialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { TemplateManager } from "@/components/nutrition/TemplateManager"
 import { getToday } from "@/lib/dateUtils"
 import {
   useDailyNutrition,
@@ -23,9 +24,9 @@ import {
   useAddFood,
   useDeleteFood,
   useToggleFavoriteFood,
-  useSaveMealTemplate,
   useDeleteMealTemplate,
   useApplyMealTemplate,
+  useRemoveMealEntryGroup,
 } from "@/features/nutrition/mutations"
 import { useSettings } from "@/features/settings/queries"
 import { getProductByBarcode } from "@/services/openFoodFacts"
@@ -56,10 +57,6 @@ export function NutritionPage() {
   const [isLookingUp, setIsLookingUp] = useState(false)
   const [scannedBarcode, setScannedBarcode] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("search")
-  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false)
-  const [templateMealType, setTemplateMealType] = useState<MealType>("breakfast")
-  const [newTemplateName, setNewTemplateName] = useState("")
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false)
   // Barcode scan results (shown separately from search)
   const [barcodeResults, setBarcodeResults] = useState<FoodItem[]>([])
 
@@ -87,9 +84,9 @@ export function NutritionPage() {
   const removeMealEntryMutation = useRemoveMealEntry()
   const toggleFavoriteMutation = useToggleFavoriteFood()
   const deleteFoodMutation = useDeleteFood()
-  const saveMealTemplateMutation = useSaveMealTemplate()
   const deleteMealTemplateMutation = useDeleteMealTemplate()
   const applyMealTemplateMutation = useApplyMealTemplate()
+  const removeMealEntryGroupMutation = useRemoveMealEntryGroup()
 
   const { data: nutritionData } = useDailyNutrition(selectedDate)
   const { data: favorites = [] } = useFavoriteFoods()
@@ -183,36 +180,13 @@ export function NutritionPage() {
     }
   }, [])
 
-  const handleSaveTemplate = useCallback(async () => {
-    setIsSavingTemplate(true)
-    try {
-      const entries = getEntriesByMealType(templateMealType)
-      if (entries.length > 0) {
-        await saveMealTemplateMutation.mutateAsync({
-          name: newTemplateName.trim(),
-          entries: entries.map((e) => ({
-            foodId: e.foodId,
-            quantity: e.quantity,
-            mealType: e.mealType,
-          })),
-        })
-        setShowSaveTemplateDialog(false)
-        setNewTemplateName("")
-      }
-    } catch {
-      // Mutation already toasts
-    } finally {
-      setIsSavingTemplate(false)
-    }
-  }, [getEntriesByMealType, templateMealType, newTemplateName, saveMealTemplateMutation])
-
   const selectedMealLabel = useMemo(
     () => mealTypes.find((m) => m.type === selectedMealType)?.label,
     [selectedMealType]
   )
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]">
       <Header
         title="Nutrition"
         rightAction={
@@ -225,39 +199,52 @@ export function NutritionPage() {
         }
       />
 
-      <div className="space-y-4 p-4">
-        <DateNavigator
-          selectedDate={selectedDate}
-          onDateChange={setSelectedDate}
-          calendarOpen={calendarOpen}
-          onCalendarOpenChange={setCalendarOpen}
-        />
+      <Tabs defaultValue="journal" className="flex-1 flex flex-col">
+        <div className="px-4 pt-2">
+          <TabsList className="w-full">
+            <TabsTrigger value="journal" className="flex-1">Journal</TabsTrigger>
+            <TabsTrigger value="templates" className="flex-1">Templates</TabsTrigger>
+          </TabsList>
+        </div>
 
-        {/* Macro Summary */}
-        <MacroSummary totals={totals} goals={nutritionGoals} />
+        <TabsContent value="journal" className="flex-1 overflow-auto mt-0">
+          <div className="space-y-4 p-4 pb-24">
+            <DateNavigator
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+              calendarOpen={calendarOpen}
+              onCalendarOpenChange={setCalendarOpen}
+            />
 
-        {/* Meals */}
-        <MealLogger
-          mealTypes={mealTypes}
-          getEntriesByMealType={getEntriesByMealType}
-          openAddSheet={handleOpenAddSheet}
-          onUpdateQuantity={async (id, quantity) => {
-            await updateMealEntryMutation.mutateAsync({
-              date: selectedDate,
-              entryId: id,
-              updates: { quantity },
-            })
-          }}
-          onRemoveEntry={async (id) => {
-            await removeMealEntryMutation.mutateAsync({ date: selectedDate, entryId: id })
-          }}
-          onSaveTemplate={(type, label) => {
-            setTemplateMealType(type)
-            setNewTemplateName(`${label} Template`)
-            setShowSaveTemplateDialog(true)
-          }}
-        />
-      </div>
+            {/* Macro Summary */}
+            <MacroSummary totals={totals} goals={nutritionGoals} />
+
+            {/* Meals */}
+            <MealLogger
+              mealTypes={mealTypes}
+              getEntriesByMealType={getEntriesByMealType}
+              openAddSheet={handleOpenAddSheet}
+              onUpdateQuantity={async (id, quantity) => {
+                await updateMealEntryMutation.mutateAsync({
+                  date: selectedDate,
+                  entryId: id,
+                  updates: { quantity },
+                })
+              }}
+              onRemoveEntry={async (id) => {
+                await removeMealEntryMutation.mutateAsync({ date: selectedDate, entryId: id })
+              }}
+              onRemoveGroup={async (id) => {
+                await removeMealEntryGroupMutation.mutateAsync({ date: selectedDate, templateInstanceId: id })
+              }}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="templates" className="flex-1 overflow-auto mt-0 p-4">
+           <TemplateManager />
+        </TabsContent>
+      </Tabs>
 
       <AddFoodSheet
         isOpen={showAddSheet}
@@ -318,15 +305,6 @@ export function NutritionPage() {
           />
         </Suspense>
       )}
-
-      <SaveTemplateDialog
-        open={showSaveTemplateDialog}
-        onOpenChange={setShowSaveTemplateDialog}
-        templateName={newTemplateName}
-        onTemplateNameChange={setNewTemplateName}
-        isSaving={isSavingTemplate}
-        onSave={handleSaveTemplate}
-      />
     </div>
   )
 }

@@ -1,23 +1,20 @@
 import { useState } from "react"
-import { Plus, BookmarkPlus, type LucideIcon } from "lucide-react"
+import { Plus, type LucideIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MealEntryItem } from "./MealEntryItem"
-import type { MealType, FoodItem } from "@/lib/types"
+import { MealTemplateGroup } from "./MealTemplateGroup"
+import type { MealType, FoodItem, MealEntry } from "@/lib/types"
 
 interface MealLoggerProps {
   mealTypes: { type: MealType; label: string; icon: LucideIcon }[]
-  getEntriesByMealType: (type: MealType) => Array<{
-    id: string
-    foodId: string
-    quantity: number
-    mealType: MealType
+  getEntriesByMealType: (type: MealType) => Array<MealEntry & {
     food?: FoodItem
   }>
   openAddSheet: (mealType: MealType) => void
   onUpdateQuantity: (id: string, quantity: number) => Promise<void>
   onRemoveEntry: (id: string) => Promise<void>
-  onSaveTemplate: (type: MealType, label: string) => void
+  onRemoveGroup?: (instanceId: string) => Promise<void>
 }
 
 export function MealLogger({
@@ -26,7 +23,7 @@ export function MealLogger({
   openAddSheet,
   onUpdateQuantity,
   onRemoveEntry,
-  onSaveTemplate,
+  onRemoveGroup,
 }: MealLoggerProps) {
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null)
 
@@ -41,6 +38,25 @@ export function MealLogger({
         const mealCalories = entries.reduce((sum, e) => {
           return sum + (e.food ? e.food.calories * e.quantity : 0)
         }, 0)
+
+        // Group entries
+        const groups = new Map<string, { instanceId: string; templateName: string; entries: typeof entries }>()
+        const looseEntries: typeof entries = []
+
+        entries.forEach((entry) => {
+          if (entry.templateInstanceId) {
+            if (!groups.has(entry.templateInstanceId)) {
+              groups.set(entry.templateInstanceId, {
+                instanceId: entry.templateInstanceId,
+                templateName: entry.templateName || "Template Meal",
+                entries: [],
+              })
+            }
+            groups.get(entry.templateInstanceId)!.entries.push(entry)
+          } else {
+            looseEntries.push(entry)
+          }
+        })
 
         return (
           <Card key={type} className="overflow-hidden">
@@ -64,9 +80,23 @@ export function MealLogger({
               </div>
             </CardHeader>
             {entries.length > 0 && (
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 space-y-2">
+                {/* Render Groups */}
+                {[...groups.values()].map((group) => (
+                  <MealTemplateGroup
+                    key={group.instanceId}
+                    instanceId={group.instanceId}
+                    templateName={group.templateName}
+                    entries={group.entries}
+                    onUpdateQuantity={(id, q) => onUpdateQuantity(id, q)}
+                    onRemoveEntry={(id) => onRemoveEntry(id)}
+                    onRemoveGroup={(id) => onRemoveGroup?.(id)}
+                  />
+                ))}
+
+                {/* Render Loose Entries */}
                 <div className="space-y-2">
-                  {entries.map((entry) => {
+                  {looseEntries.map((entry) => {
                     if (!entry.food) return null
 
                     return (
@@ -82,15 +112,6 @@ export function MealLogger({
                     )
                   })}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-2 w-full text-xs text-muted-foreground"
-                  onClick={() => onSaveTemplate(type, label)}
-                >
-                  <BookmarkPlus className="mr-1 h-3 w-3" />
-                  Save as Template
-                </Button>
               </CardContent>
             )}
           </Card>

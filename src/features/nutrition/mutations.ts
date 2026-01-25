@@ -225,6 +225,7 @@ export function useSaveMealTemplate() {
     mutationFn: async ({ name, entries }: { name: string; entries: Omit<MealEntry, "id">[] }) => {
       const id = crypto.randomUUID()
       await db.mealTemplates.add({ id, name, entries })
+      return id
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })
@@ -232,6 +233,23 @@ export function useSaveMealTemplate() {
     },
     onError: () => {
       toast.error("Failed to save template")
+    }
+  })
+}
+
+export function useUpdateMealTemplate() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async ({ id, name, entries }: { id: string; name: string; entries: Omit<MealEntry, "id">[] }) => {
+      await db.mealTemplates.update(id, { name, entries })
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })
+      toast.success("Template updated")
+    },
+    onError: () => {
+      toast.error("Failed to update template")
     }
   })
 }
@@ -269,10 +287,15 @@ export function useApplyMealTemplate() {
       const template = await db.mealTemplates.get(templateId)
       if (!template) throw new Error("Template not found")
       
+      const instanceId = crypto.randomUUID()
+
       const newEntries: MealEntry[] = template.entries.map(e => ({
         ...e,
         id: crypto.randomUUID(),
-        mealType // Override with current meal type
+        mealType, // Override with current meal type
+        templateId: template.id,
+        templateInstanceId: instanceId,
+        templateName: template.name
       }))
       
       await db.transaction("rw", db.nutritionLogs, async () => {
@@ -297,6 +320,31 @@ export function useApplyMealTemplate() {
     },
     onError: () => {
       toast.error("Failed to apply template")
+    }
+  })
+}
+
+export function useRemoveMealEntryGroup() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ date, templateInstanceId }: { date: string; templateInstanceId: string }) => {
+      await db.transaction("rw", db.nutritionLogs, async () => {
+        const existing = await db.nutritionLogs.get(date)
+        if (!existing) return
+
+        await db.nutritionLogs.update(date, {
+          entries: existing.entries.filter((e) => e.templateInstanceId !== templateInstanceId),
+        })
+      })
+      
+      await achievementService.checkNutritionAchievements()
+    },
+    onSuccess: (_, { date }) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
+    },
+    onError: () => {
+      toast.error("Failed to remove template group")
     }
   })
 }
