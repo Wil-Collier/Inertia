@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { ChevronDown, ChevronRight, Trash2, LayoutTemplate } from "lucide-react"
+import { ChevronDown, Trash2, Bookmark } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { MealEntryItem } from "./MealEntryItem"
 import type { FoodItem } from "@/lib/types"
@@ -39,25 +40,25 @@ export function MealTemplateGroup({
   }, 0)
 
   return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+    <div className="rounded-lg bg-muted/50 shadow-sm overflow-hidden">
       <div 
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/70 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-2 overflow-hidden">
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          )}
-          <LayoutTemplate className="h-4 w-4 text-primary shrink-0" />
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <Bookmark className="h-4 w-4 text-primary shrink-0" />
           <div className="flex flex-col min-w-0">
-            <span className="font-medium truncate">{templateName}</span>
-            <span className="text-xs text-muted-foreground">
-              {entries.length} items • {Math.round(totalCalories)} Cal
+            <span className="text-sm font-bold truncate">{templateName}</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-tight">
+              {entries.length} items • <span className="text-primary font-bold">{Math.round(totalCalories)} Cal</span>
             </span>
           </div>
         </div>
+        <ChevronDown
+          className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${
+            isExpanded ? "rotate-180" : ""
+          }`}
+        />
         <Button
           variant="ghost"
           size="icon-sm"
@@ -67,28 +68,38 @@ export function MealTemplateGroup({
             onRemoveGroup(instanceId)
           }}
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-3 w-3" />
         </Button>
       </div>
 
-      {isExpanded && (
-        <div className="border-t bg-muted/20 p-2 space-y-2 animate-in slide-in-from-top-1 duration-200">
-          {entries.map((entry) => {
-            if (!entry.food) return null
-            return (
-              <MealEntryItem
-                key={entry.id}
-                entry={entry}
-                food={entry.food}
-                onUpdateQuantity={(q) => onUpdateQuantity(entry.id, q)}
-                onRemove={() => onRemoveEntry(entry.id)}
-                isExpanded={expandedEntryId === entry.id}
-                onToggleExpand={() => handleToggleEntryExpand(entry.id)}
-              />
-            )
-          })}
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
+          isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className={cn(
+            "border-t border-border/50 bg-muted/30 p-2 space-y-2 transition-transform duration-300 ease-in-out",
+            isExpanded ? "translate-y-0" : "-translate-y-2"
+          )}>
+            {entries.map((entry) => {
+              if (!entry.food) return null
+              return (
+                <MealEntryItem
+                  key={entry.id}
+                  entry={entry}
+                  food={entry.food}
+                  onUpdateQuantity={(q) => onUpdateQuantity(entry.id, q)}
+                  onRemove={() => onRemoveEntry(entry.id)}
+                  isExpanded={expandedEntryId === entry.id}
+                  onToggleExpand={() => handleToggleEntryExpand(entry.id)}
+                />
+              )
+            })}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
