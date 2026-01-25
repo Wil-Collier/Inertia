@@ -1,4 +1,5 @@
-import { Bookmark, Trash2, Check } from "lucide-react"
+import { Bookmark, Trash2, Check, Plus } from "lucide-react"
+import { Link } from "@tanstack/react-router"
 import {
   Sheet,
   SheetContent,
@@ -102,7 +103,14 @@ export function AddFoodSheet({
           extraTabContents={
             <TabsContent value="templates" className="mt-4">
               <ScrollArea className="h-[calc(100vh-220px)] min-h-[300px]">
-                <div className="pb-[env(safe-area-inset-bottom,1rem)]">
+                <div className="pb-[env(safe-area-inset-bottom,1rem)] space-y-4">
+                  <Link to="/nutrition/template-editor" className="block">
+                    <Button className="w-full" variant="outline" onClick={() => onOpenChange(false)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create New Template
+                    </Button>
+                  </Link>
+
                   {mealTemplates.length > 0 ? (
                     <div className="space-y-3">
                       {mealTemplates.map((template) => {
@@ -116,13 +124,15 @@ export function AddFoodSheet({
                                 <Bookmark className="h-4 w-4 text-primary" />
                                 <span className="font-medium">{template.name}</span>
                               </div>
-                              <Button
-                                size="icon-sm"
-                                variant="ghost"
-                                onClick={() => onDeleteTemplate(template.id)}
-                              >
-                                <Trash2 className="h-3 w-3 text-destructive" />
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  onClick={() => onDeleteTemplate(template.id)}
+                                >
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
+                              </div>
                             </div>
                             <p className="text-sm text-muted-foreground">
                               {template.entries.length} items
@@ -146,7 +156,7 @@ export function AddFoodSheet({
                         No templates yet
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Add foods to a meal, then tap "Save as Template"
+                        Create one to quickly log common meals.
                       </p>
                     </div>
                   )}

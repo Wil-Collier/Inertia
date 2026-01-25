@@ -7,8 +7,6 @@ import { MacroSummary } from "@/components/nutrition/MacroSummary"
 import { MealLogger } from "@/components/nutrition/MealLogger"
 import { AddFoodSheet } from "@/components/nutrition/AddFoodSheet"
 import { DateNavigator } from "@/components/nutrition/DateNavigator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { TemplateManager } from "@/components/nutrition/TemplateManager"
 import { getToday } from "@/lib/dateUtils"
 import {
   useDailyNutrition,
@@ -199,52 +197,37 @@ export function NutritionPage() {
         }
       />
 
-      <Tabs defaultValue="journal" className="flex-1 flex flex-col">
-        <div className="px-4 pt-2">
-          <TabsList className="w-full">
-            <TabsTrigger value="journal" className="flex-1">Journal</TabsTrigger>
-            <TabsTrigger value="templates" className="flex-1">Templates</TabsTrigger>
-          </TabsList>
-        </div>
+      <div className="space-y-4 p-4">
+        <DateNavigator
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+          calendarOpen={calendarOpen}
+          onCalendarOpenChange={setCalendarOpen}
+        />
 
-        <TabsContent value="journal" className="flex-1 overflow-auto mt-0">
-          <div className="space-y-4 p-4 pb-24">
-            <DateNavigator
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
-              calendarOpen={calendarOpen}
-              onCalendarOpenChange={setCalendarOpen}
-            />
+        {/* Macro Summary */}
+        <MacroSummary totals={totals} goals={nutritionGoals} />
 
-            {/* Macro Summary */}
-            <MacroSummary totals={totals} goals={nutritionGoals} />
-
-            {/* Meals */}
-            <MealLogger
-              mealTypes={mealTypes}
-              getEntriesByMealType={getEntriesByMealType}
-              openAddSheet={handleOpenAddSheet}
-              onUpdateQuantity={async (id, quantity) => {
-                await updateMealEntryMutation.mutateAsync({
-                  date: selectedDate,
-                  entryId: id,
-                  updates: { quantity },
-                })
-              }}
-              onRemoveEntry={async (id) => {
-                await removeMealEntryMutation.mutateAsync({ date: selectedDate, entryId: id })
-              }}
-              onRemoveGroup={async (id) => {
-                await removeMealEntryGroupMutation.mutateAsync({ date: selectedDate, templateInstanceId: id })
-              }}
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="templates" className="flex-1 overflow-auto mt-0 p-4">
-           <TemplateManager />
-        </TabsContent>
-      </Tabs>
+        {/* Meals */}
+        <MealLogger
+          mealTypes={mealTypes}
+          getEntriesByMealType={getEntriesByMealType}
+          openAddSheet={handleOpenAddSheet}
+          onUpdateQuantity={async (id, quantity) => {
+            await updateMealEntryMutation.mutateAsync({
+              date: selectedDate,
+              entryId: id,
+              updates: { quantity },
+            })
+          }}
+          onRemoveEntry={async (id) => {
+            await removeMealEntryMutation.mutateAsync({ date: selectedDate, entryId: id })
+          }}
+          onRemoveGroup={async (id) => {
+            await removeMealEntryGroupMutation.mutateAsync({ date: selectedDate, templateInstanceId: id })
+          }}
+        />
+      </div>
 
       <AddFoodSheet
         isOpen={showAddSheet}

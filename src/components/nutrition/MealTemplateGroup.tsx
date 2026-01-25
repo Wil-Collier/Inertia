@@ -28,6 +28,11 @@ export function MealTemplateGroup({
   onRemoveGroup,
 }: MealTemplateGroupProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null)
+
+  const handleToggleEntryExpand = (id: string) => {
+    setExpandedEntryId((current) => (current === id ? null : id))
+  }
 
   const totalCalories = entries.reduce((sum, e) => {
     return sum + (e.food ? e.food.calories * e.quantity : 0)
@@ -77,8 +82,8 @@ export function MealTemplateGroup({
                 food={entry.food}
                 onUpdateQuantity={(q) => onUpdateQuantity(entry.id, q)}
                 onRemove={() => onRemoveEntry(entry.id)}
-                isExpanded={false} // Simplification: don't support expanding inner items for now, or handle state locally
-                onToggleExpand={() => {}} // Optional: Implement if needed
+                isExpanded={expandedEntryId === entry.id}
+                onToggleExpand={() => handleToggleEntryExpand(entry.id)}
               />
             )
           })}
