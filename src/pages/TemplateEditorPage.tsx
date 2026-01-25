@@ -94,13 +94,26 @@ export function TemplateEditorPage() {
           entries,
         })
       }
-      navigate({ to: "/nutrition" })
-    } catch (error) {
+      await navigate({ to: "/nutrition" })
+    } catch {
       // Mutation handles error toast
     }
   }
 
-  const handleAddFoodToTemplate = (food: FoodItem, quantity: number) => {
+  const handleAddFoodToTemplate = async (food: FoodItem, quantity: number) => {
+    // Ensure the food exists in our local DB if it's from an external search
+    if (!food.isCustom) {
+      try {
+        const { db } = await import("@/services/db")
+        const exists = await db.foods.get(food.id)
+        if (!exists) {
+          await addFoodMutation.mutateAsync({ ...food, isCustom: false })
+        }
+      } catch (error) {
+        console.error("Failed to ensure food exists in DB:", error)
+      }
+    }
+
     setEntries((prev) => [
       ...prev,
       {
@@ -152,19 +165,25 @@ export function TemplateEditorPage() {
   
   const [resolvedFoods, setResolvedFoods] = useState<Map<string, FoodItem>>(new Map())
   
+  const foodIds = useMemo(() => {
+    return Array.from(new Set(entries.map(e => e.foodId))).sort().join(",")
+  }, [entries])
+
   useEffect(() => {
     const fetchFoods = async () => {
-      const ids = entries.map(e => e.foodId)
-      if (ids.length === 0) return
+      const ids = foodIds.split(",").filter(Boolean)
+      if (ids.length === 0) {
+        setResolvedFoods(new Map())
+        return
+      }
       
-      // Dynamic import to avoid circular dep if needed, or just import db
       const { db } = await import("@/services/db")
       const foods = await db.foods.where("id").anyOf(ids).toArray()
       const map = new Map(foods.map(f => [f.id, f]))
       setResolvedFoods(map)
     }
-    fetchFoods()
-  }, [entries])
+    void fetchFoods()
+  }, [foodIds])
 
   const totalCalories = useMemo(() => {
     return entries.reduce((sum, entry) => {
@@ -297,7 +316,7 @@ export function TemplateEditorPage() {
             }}
             onSaveAndAddCustomFood={async (food) => {
               const newFood = await addFoodMutation.mutateAsync({ ...food, isCustom: true })
-              handleAddFoodToTemplate(newFood, 1)
+              await handleAddFoodToTemplate(newFood, 1)
             }}
           />
         </SheetContent>
