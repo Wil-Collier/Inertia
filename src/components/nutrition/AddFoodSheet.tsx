@@ -1,4 +1,4 @@
-import { Bookmark, Trash2, Check, Plus } from "lucide-react"
+import { Bookmark, Trash2, Check, Plus, Pencil } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import {
   Sheet,
@@ -125,6 +125,18 @@ export function AddFoodSheet({
                                 <span className="font-medium">{template.name}</span>
                               </div>
                               <div className="flex gap-1">
+                                <Link
+                                  to="/nutrition/template-editor"
+                                  search={{ templateId: template.id }}
+                                >
+                                  <Button
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    onClick={() => onOpenChange(false)}
+                                  >
+                                    <Pencil className="h-3 w-3 text-muted-foreground" />
+                                  </Button>
+                                </Link>
                                 <Button
                                   size="icon-sm"
                                   variant="ghost"
