@@ -17,7 +17,7 @@ export default defineConfig({
       manifest: {
         name: "Inertia",
         short_name: "Inertia",
-        description: "Mass in motion. Track your workouts and fuel.",
+        description: "Mass in motion. Track your workouts and nutrition.",
         theme_color: "#ea580c",
         background_color: "#0a0a0a",
         display: "standalone",

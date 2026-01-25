@@ -12,6 +12,7 @@ interface MealTemplateGroupProps {
   onEditEntry: (entry: MealEntry, food: FoodItem) => void
   onRemoveEntry: (id: string) => void
   onRemoveGroup: (instanceId: string) => void
+  onUpdateQuantity: (id: string, quantity: number) => void
 }
 
 export function MealTemplateGroup({
@@ -21,6 +22,7 @@ export function MealTemplateGroup({
   onEditEntry,
   onRemoveEntry,
   onRemoveGroup,
+  onUpdateQuantity,
 }: MealTemplateGroupProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -79,12 +81,13 @@ export function MealTemplateGroup({
             {entries.map((entry) => {
               if (!entry.food) return null
               return (
-                <MealEntryItem
+                 <MealEntryItem
                   key={entry.id}
                   entry={entry}
                   food={entry.food}
                   onRemove={() => onRemoveEntry(entry.id)}
                   onEdit={() => onEditEntry(entry, entry.food!)}
+                  onUpdateQuantity={(qty) => onUpdateQuantity(entry.id, qty)}
                   isNested
                   className="bg-transparent border-0 rounded-none hover:bg-muted/30"
                 />

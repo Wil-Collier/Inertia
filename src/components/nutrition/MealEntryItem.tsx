@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, memo } from "react"
-import { Trash2, Pencil } from "lucide-react"
+import { Trash2, Plus, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import type { FoodItem } from "@/lib/types"
@@ -9,6 +9,7 @@ interface MealEntryItemProps {
   food: FoodItem
   onRemove: () => void
   onEdit?: () => void
+  onUpdateQuantity?: (quantity: number) => void
   className?: string
   isNested?: boolean
 }
@@ -18,6 +19,7 @@ export const MealEntryItem = memo(({
   food,
   onRemove,
   onEdit,
+  onUpdateQuantity,
   className,
   isNested,
 }: MealEntryItemProps) => {
@@ -25,7 +27,7 @@ export const MealEntryItem = memo(({
 
   // Sync local state when entry changes
   useEffect(() => {
-    setQuantity(entry.quantity)
+    setQuantity(Math.round(entry.quantity * 100) / 100)
   }, [entry.quantity])
 
   const adjustedCalories = Math.round(food.calories * quantity)
@@ -40,6 +42,22 @@ export const MealEntryItem = memo(({
     onEdit?.()
   }, [onEdit])
 
+  const handleIncrement = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    const newQty = Math.round((Math.floor(quantity * 10 + 0.01) / 10 + 0.1) * 10) / 10
+    setQuantity(newQty)
+    onUpdateQuantity?.(newQty)
+  }, [quantity, onUpdateQuantity])
+
+  const handleDecrement = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    const newQty = Math.max(0.1, Math.round((Math.ceil(quantity * 10 - 0.01) / 10 - 0.1) * 10) / 10)
+    setQuantity(newQty)
+    onUpdateQuantity?.(newQty)
+  }, [quantity, onUpdateQuantity])
+
+  const displayQuantity = Math.round(quantity * 100) / 100
+
   return (
     <div className={cn(
       "overflow-hidden transition-colors",
@@ -51,27 +69,42 @@ export const MealEntryItem = memo(({
           "flex items-center gap-2 px-3 py-2",
           onEdit ? "cursor-pointer hover:bg-muted/70" : ""
         )}
-        onClick={onEdit}
+        onClick={handleEdit}
       >
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate">{food.name}</p>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-tight">
-            {quantity !== 1 ? `${quantity}x ` : ""}
             {food.servingSize} • <span className="text-primary font-bold">{adjustedCalories} Cal</span>
           </p>
         </div>
-        
-        {onEdit ? (
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            onClick={handleEdit}
+
+        {onUpdateQuantity && (
+          <div 
+            className="flex items-center bg-background/50 rounded-full border border-border/10 p-0.5 mx-1"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Pencil className="h-3 w-3 text-muted-foreground" />
-          </Button>
-        ) : (
-          <div className="w-7 shrink-0" />
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              className="h-6 w-6 rounded-full"
+              onClick={handleDecrement}
+              disabled={quantity <= 0.1}
+            >
+              <Minus className="h-3 w-3" />
+            </Button>
+            <span className="w-8 text-center text-[10px] font-black">{displayQuantity}</span>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              className="h-6 w-6 rounded-full"
+              onClick={handleIncrement}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
         )}
+        
+        {!onEdit && <div className="w-7 shrink-0" />}
 
         <Button
           size="icon-sm"

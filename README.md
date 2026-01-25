@@ -5,7 +5,7 @@
 <h1 align="center">Inertia</h1>
 
 <p align="center">
-Mass in motion. A powerful, offline-first Progressive Web App (PWA) for tracking workouts, fuel (nutrition), and body progress. Built for precision, speed, and technical performance.
+Mass in motion. A powerful, offline-first Progressive Web App (PWA) for tracking workouts, nutrition, and body progress. Built for precision, speed, and technical performance.
 </p>
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -13,13 +13,13 @@ Mass in motion. A powerful, offline-first Progressive Web App (PWA) for tracking
 
 ## Core Identity
 
-Inertia is designed for those who view fitness as an engineering challenge. Using a high-performance "Industrial Mono" aesthetic, it treats your body as a system that requires precise inputs (fuel) and consistent output (training).
+Inertia is designed for those who view fitness as an engineering challenge. Using a high-performance "Industrial Mono" aesthetic, it treats your body as a system that requires precise inputs (nutrition) and consistent output (training).
 
 ### Key Features
 
 - **Momentum Tracking:** Gamified achievements and consistency metrics.
-- **Engine Output:** Comprehensive workout logging with RPE and volume tracking.
-- **Fuel Management:** Macro and calorie tracking with integrated barcode scanning.
+- **Workout Logging:** Comprehensive workout logging with RPE and volume tracking.
+- **Nutrition Management:** Macro and calorie tracking with integrated barcode scanning.
 - **Offline First:** Local storage via IndexedDB for instant performance.
 
 ## Tech Stack
@@ -35,7 +35,7 @@ Inertia is designed for those who view fitness as an engineering challenge. Usin
 ## Getting Started
 
 1. Clone and install: `pnpm install`
-2. Start engine: `pnpm dev`
+2. Start development server: `pnpm dev`
 3. Build for production: `pnpm build`
 
 ## License

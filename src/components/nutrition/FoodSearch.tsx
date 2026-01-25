@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { Search, X, ScanBarcode, Loader2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -53,12 +52,6 @@ export function FoodSearch({
   extraTabTriggers,
   extraTabContents,
 }: FoodSearchProps) {
-  const [expandedFoodId, setExpandedFoodId] = useState<string | null>(null)
-
-  const handleToggleExpand = (id: string) => {
-    setExpandedFoodId((current) => (current === id ? null : id))
-  }
-
   return (
     <div className={className}>
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
@@ -126,8 +119,6 @@ export function FoodSearch({
                       onAdd={(qty) => onAddFood(food, qty)}
                       onToggleFavorite={() => onToggleFavorite(food.id)}
                       isFavorite={food.isFavorite}
-                      isExpanded={expandedFoodId === food.id}
-                      onToggleExpand={() => handleToggleExpand(food.id)}
                     />
                   ))}
                 </div>
@@ -168,8 +159,6 @@ export function FoodSearch({
                       isFavorite={food.isFavorite}
                       onDelete={() => onDeleteFood(food.id)}
                       showDelete
-                      isExpanded={expandedFoodId === food.id}
-                      onToggleExpand={() => handleToggleExpand(food.id)}
                     />
                   ))}
                 </div>
@@ -190,8 +179,6 @@ export function FoodSearch({
                       onAdd={(qty) => onAddFood(food, qty)}
                       onToggleFavorite={() => onToggleFavorite(food.id)}
                       isFavorite={true}
-                      isExpanded={expandedFoodId === food.id}
-                      onToggleExpand={() => handleToggleExpand(food.id)}
                     />
                   ))}
                 </div>

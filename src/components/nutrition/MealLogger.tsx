@@ -93,7 +93,7 @@ export function MealLogger({
                 <CardContent className="pt-0 space-y-2 pb-4">
                   {/* Render Groups */}
                   {[...groups.values()].map((group) => (
-                    <MealTemplateGroup
+                     <MealTemplateGroup
                       key={group.instanceId}
                       instanceId={group.instanceId}
                       templateName={group.templateName}
@@ -101,6 +101,7 @@ export function MealLogger({
                       onEditEntry={handleEditEntry}
                       onRemoveEntry={(id) => onRemoveEntry(id)}
                       onRemoveGroup={(id) => onRemoveGroup?.(id)}
+                      onUpdateQuantity={onUpdateQuantity}
                     />
                   ))}
 
@@ -116,6 +117,7 @@ export function MealLogger({
                           food={entry.food}
                           onRemove={() => onRemoveEntry(entry.id)}
                           onEdit={() => handleEditEntry(entry, entry.food!)}
+                          onUpdateQuantity={(qty) => onUpdateQuantity(entry.id, qty)}
                           className="bg-muted/50"
                         />
                       )

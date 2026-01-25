@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Inertia is an offline-first Progressive Web App (PWA) for tracking workouts, nutrition ("fuel"), and body progress. Built with React 19, Vite 7, TypeScript, and TanStack Router, it uses IndexedDB (via Dexie.js) for local-first data persistence.
+Inertia is an offline-first Progressive Web App (PWA) for tracking workouts, nutrition, and body progress. Built with React 19, Vite 7, TypeScript, and TanStack Router, it uses IndexedDB (via Dexie.js) for local-first data persistence.
 
 ## Commands
 
@@ -135,8 +135,8 @@ Configured in `vite.config.ts` using `vite-plugin-pwa`:
 - Typography: JetBrains Mono (via `@fontsource-variable/jetbrains-mono`)
 
 **Terminology:**
-- Use "Fuel" for nutrition/food
-- Use "Engine Output" or "Protocol" for workouts
+- Use standard terms like "Nutrition" and "Workout" in the UI
+- Avoid terms like "Fuel", "Engine", or "Protocol" in the UI
 - Use "Momentum" for streaks/achievements
 - Maintain technical, industrial tone
 

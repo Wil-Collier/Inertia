@@ -7,7 +7,7 @@ Guidelines for AI coding agents working on the Inertia codebase.
 - **Name:** Inertia (Never "Training App")
 - **Palette:** Molten Orange (Primary), Kinetic Red (Accent), Oil Black (Background).
 - **Typography:** JetBrains Mono. All headers MUST be `uppercase tracking-tight`.
-- **Tone:** Technical, industrial, and precise. Use terms like "Fuel" for nutrition and "Engine" or "Protocol" for workouts.
+- **Tone:** Technical, industrial, and precise. Avoid terms like "Fuel", "Engine" or "Protocol" in the UI. Use standard terms like "Nutrition" and "Workout".
 
 ## Build & Validation
 

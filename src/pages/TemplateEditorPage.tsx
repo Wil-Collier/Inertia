@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { Plus, Save, Trash2, Pencil } from "lucide-react"
+import { Plus, Save, Pencil } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { FoodSearch } from "@/components/nutrition/FoodSearch"
-import { FoodListItem } from "@/components/nutrition/FoodListItem"
+import { MealEntryItem } from "@/components/nutrition/MealEntryItem"
 import {
   useMealTemplates,
   useCombinedFoodSearch,
@@ -133,6 +133,14 @@ export function TemplateEditorPage() {
     setEntries((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const handleUpdateQuantity = (index: number, quantity: number) => {
+    setEntries((prev) => {
+      const next = [...prev]
+      next[index] = { ...next[index], quantity }
+      return next
+    })
+  }
+
   const handleScanBarcode = async () => {
     // Mock scanner for now or reuse scanner component logic if available
     // For now simple alert or reuse the logic from NutritionPage
@@ -243,30 +251,14 @@ export function TemplateEditorPage() {
                 if (!food) return null
                 
                 return (
-                  <div key={`${entry.foodId}-${index}`} className="relative group">
-                    <FoodListItem
-                      food={food}
-                      onAdd={() => {}} // No-op in list view
-                      onToggleFavorite={() => {}}
-                      isExpanded={false}
-                      onToggleExpand={() => {}}
-                    />
-                    {/* Overlay Quantity Override? Or just remove button */}
-                    <div className="absolute right-2 top-2">
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        className="h-8 w-8 text-destructive bg-background/80 hover:bg-destructive/10"
-                        onClick={() => handleRemoveEntry(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {/* Show Quantity */}
-                     <div className="absolute right-12 top-3 text-sm font-medium bg-background/80 px-2 rounded">
-                        {entry.quantity}x
-                     </div>
-                  </div>
+                  <MealEntryItem
+                    key={`${entry.foodId}-${index}`}
+                    entry={{ id: index.toString(), quantity: entry.quantity }}
+                    food={food}
+                    onRemove={() => handleRemoveEntry(index)}
+                    onUpdateQuantity={(qty) => handleUpdateQuantity(index, qty)}
+                    className="bg-muted/30"
+                  />
                 )
               })}
             </div>
