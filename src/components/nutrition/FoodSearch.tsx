@@ -113,7 +113,7 @@ export function FoodSearch({
 
           <ScrollArea className="mt-4 h-[calc(100vh-280px)] min-h-[300px]">
             <div className="pb-[env(safe-area-inset-bottom,1rem)]">
-              {isSearching || isLookingUp ? (
+              {(isSearching || isLookingUp) && searchResults.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   {isLookingUp ? "Looking up product..." : "Searching..."}
                 </p>

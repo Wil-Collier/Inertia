@@ -158,11 +158,24 @@ export function useCombinedFoodSearch(query: string) {
       // Then search OpenFoodFacts API
       const { foods: remote } = await searchFoods(query, 1, 20)
 
-      // Combine and dedupe (local foods take precedence)
-      const localBarcodes = new Set(local.filter(f => f.barcode).map(f => f.barcode))
-      const uniqueRemote = remote.filter(r => !localBarcodes.has(r.barcode))
+      // Fetch any local versions of the remote results (by ID)
+      const remoteIds = remote.map(f => f.id)
+      const existingLocal = await db.foods.where("id").anyOf(remoteIds).toArray()
+      const existingLocalMap = new Map(existingLocal.map(f => [f.id, f]))
 
-      return [...local, ...uniqueRemote]
+      // To prevent jumping when favoriting, we want to maintain a stable order.
+      // We'll prioritize the order from the remote API for items that exist there,
+      // and put local-only items (like custom foods) at the top.
+
+      const remoteIdSet = new Set(remoteIds)
+      const localOnly = local.filter(l => !remoteIdSet.has(l.id))
+
+      const mappedRemote = remote.map(remoteFood => {
+        // Use the local version if it exists (to get isFavorite, etc.)
+        return existingLocalMap.get(remoteFood.id) || remoteFood
+      })
+
+      return [...localOnly, ...mappedRemote]
     },
     enabled: query.length >= 2,
     staleTime: 30_000, // Cache results for 30 seconds

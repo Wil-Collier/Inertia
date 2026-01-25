@@ -284,7 +284,7 @@ export function TemplateEditorPage() {
             onToggleFavorite={async (id) => {
                const food = [...favorites, ...customFoods, ...displayedResults].find(f => f.id === id)
                if (food) {
-                 await toggleFavoriteMutation.mutateAsync({ id, isFavorite: !food.isFavorite })
+                 await toggleFavoriteMutation.mutateAsync({ id, isFavorite: !food.isFavorite, food })
                }
             }}
             onDeleteFood={(id) => deleteFoodMutation.mutateAsync(id)}

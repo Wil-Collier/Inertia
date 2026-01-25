@@ -183,6 +183,15 @@ export function NutritionPage() {
     [selectedMealType]
   )
 
+  const handleToggleFavorite = useCallback(async (id: string) => {
+    const food = [...favorites, ...customFoods, ...displayedResults].find(
+      (f) => f.id === id
+    )
+    if (food) {
+      await toggleFavoriteMutation.mutateAsync({ id, isFavorite: !food.isFavorite, food })
+    }
+  }, [favorites, customFoods, displayedResults, toggleFavoriteMutation])
+
   return (
     <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]">
       <Header
@@ -242,14 +251,7 @@ export function NutritionPage() {
         searchResults={displayedResults}
         onScanBarcode={() => setShowScanner(true)}
         onAddFood={handleAddFood}
-        onToggleFavorite={async (id: string) => {
-          const food = [...favorites, ...customFoods, ...displayedResults].find(
-            (f) => f.id === id
-          )
-          if (food) {
-            await toggleFavoriteMutation.mutateAsync({ id, isFavorite: !food.isFavorite })
-          }
-        }}
+        onToggleFavorite={handleToggleFavorite}
         onDeleteFood={(id: string) => deleteFoodMutation.mutateAsync(id)}
         favorites={favorites}
         customFoods={customFoods}

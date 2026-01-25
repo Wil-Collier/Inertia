@@ -174,28 +174,28 @@ export function ActiveWorkout() {
   // Stable callbacks for WorkoutExerciseCard to prevent re-renders
   const handleRemoveSet = useCallback(
     (workoutExerciseId: string, setId: string) => {
-      removeSet({ workoutExerciseId, setId })
+      void removeSet({ workoutExerciseId, setId })
     },
     [removeSet]
   )
 
   const handleUpdateSet = useCallback(
     (workoutExerciseId: string, setId: string, updates: Parameters<typeof updateSet>[0]["updates"]) => {
-      updateSet({ workoutExerciseId, setId, updates })
+      void updateSet({ workoutExerciseId, setId, updates })
     },
     [updateSet]
   )
 
   const handleToggleSetComplete = useCallback(
     (workoutExerciseId: string, setId: string) => {
-      toggleSetComplete({ workoutExerciseId, setId })
+      void toggleSetComplete({ workoutExerciseId, setId })
     },
     [toggleSetComplete]
   )
 
   const handleUpdateNotes = useCallback(
     (workoutExerciseId: string, notes: string) => {
-      updateExerciseNotes({ workoutExerciseId, notes })
+      void updateExerciseNotes({ workoutExerciseId, notes })
     },
     [updateExerciseNotes]
   )

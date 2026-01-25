@@ -209,10 +209,49 @@ export function useToggleFavoriteFood() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async ({ id, isFavorite }: { id: string; isFavorite: boolean }) => {
-      await db.foods.update(id, { isFavorite })
+    mutationFn: async ({ id, isFavorite, food }: { id: string; isFavorite: boolean; food?: FoodItem }) => {
+      const existing = await db.foods.get(id)
+      
+      if (existing) {
+        await db.foods.update(id, { isFavorite })
+      } else if (food) {
+        // If food doesn't exist locally (e.g. from search), add it to DB
+        await db.foods.add({ ...food, isFavorite })
+      }
     },
-    onSuccess: () => {
+    onMutate: async ({ id, isFavorite }) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: queryKeys.foods.all })
+
+      // Snapshot the current search/favorites data
+      const previousData = queryClient.getQueriesData({ queryKey: queryKeys.foods.all })
+
+      // Optimistically update any queries that might contain this food
+      queryClient.setQueriesData({ queryKey: queryKeys.foods.all }, (old: any) => {
+        if (Array.isArray(old)) {
+          return old.map(item => {
+            if (item && typeof item === "object" && item.id === id) {
+              return { ...item, isFavorite }
+            }
+            return item
+          })
+        }
+        return old
+      })
+
+      return { previousData }
+    },
+    onError: (_err, _variables, context) => {
+      // Rollback to the previous state if mutation fails
+      if (context?.previousData) {
+        for (const [queryKey, data] of context.previousData) {
+          queryClient.setQueryData(queryKey, data)
+        }
+      }
+      toast.error("Failed to update favorite")
+    },
+    onSettled: () => {
+      // Invalidate to ensure consistency with DB
       void queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
     },
   })
