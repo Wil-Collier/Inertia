@@ -1,4 +1,4 @@
-import type { MealEntry, FoodItem, NutritionTotals } from "@/lib/types"
+import type { FoodItem, NutritionTotals } from "@/lib/types"
 
 export const INITIAL_TOTALS: NutritionTotals = {
   calories: 0,

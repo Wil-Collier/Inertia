@@ -15,7 +15,6 @@ interface MealTemplateGroupProps {
     mealType: any
     food?: FoodItem
   }>
-  onUpdateQuantity: (id: string, quantity: number) => void
   onRemoveEntry: (id: string) => void
   onRemoveGroup: (instanceId: string) => void
 }
@@ -24,23 +23,17 @@ export function MealTemplateGroup({
   instanceId,
   templateName,
   entries,
-  onUpdateQuantity,
   onRemoveEntry,
   onRemoveGroup,
 }: MealTemplateGroupProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null)
-
-  const handleToggleEntryExpand = (id: string) => {
-    setExpandedEntryId((current) => (current === id ? null : id))
-  }
 
   const totalCalories = entries.reduce((sum, e) => {
     return sum + (e.food ? e.food.calories * e.quantity : 0)
   }, 0)
 
   return (
-    <div className="rounded-lg bg-muted/50 shadow-sm overflow-hidden">
+    <div className="rounded-lg bg-muted/50 shadow-sm overflow-hidden border border-border/20">
       <div 
         className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/70 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -54,15 +47,19 @@ export function MealTemplateGroup({
             </span>
           </div>
         </div>
-        <ChevronDown
-          className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${
-            isExpanded ? "rotate-180" : ""
-          }`}
-        />
+        
+        <div className="w-7 shrink-0 flex items-center justify-center">
+          <ChevronDown
+            className={`h-4 w-4 text-muted-foreground transition-transform ${
+              isExpanded ? "rotate-180" : ""
+            }`}
+          />
+        </div>
+
         <Button
           variant="ghost"
           size="icon-sm"
-          className="shrink-0 text-destructive hover:bg-destructive/10"
+          className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation()
             onRemoveGroup(instanceId)
@@ -80,7 +77,7 @@ export function MealTemplateGroup({
       >
         <div className="overflow-hidden">
           <div className={cn(
-            "border-t border-border/50 bg-muted/30 p-2 space-y-2 transition-transform duration-300 ease-in-out",
+            "border-t border-border/50 bg-muted/20 py-1 space-y-1 transition-transform duration-300 ease-in-out",
             isExpanded ? "translate-y-0" : "-translate-y-2"
           )}>
             {entries.map((entry) => {
@@ -90,10 +87,9 @@ export function MealTemplateGroup({
                   key={entry.id}
                   entry={entry}
                   food={entry.food}
-                  onUpdateQuantity={(q) => onUpdateQuantity(entry.id, q)}
                   onRemove={() => onRemoveEntry(entry.id)}
-                  isExpanded={expandedEntryId === entry.id}
-                  onToggleExpand={() => handleToggleEntryExpand(entry.id)}
+                  isNested
+                  className="bg-transparent border-0 rounded-none hover:bg-muted/30"
                 />
               )
             })}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, memo } from "react"
-import { ChevronDown, Plus, Minus, Trash2 } from "lucide-react"
+import { Trash2, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import type { FoodItem } from "@/lib/types"
@@ -7,19 +7,19 @@ import type { FoodItem } from "@/lib/types"
 interface MealEntryItemProps {
   entry: { id: string; quantity: number }
   food: FoodItem
-  onUpdateQuantity: (quantity: number) => void
   onRemove: () => void
-  isExpanded: boolean
-  onToggleExpand: () => void
+  onEdit?: () => void
+  className?: string
+  isNested?: boolean
 }
 
 export const MealEntryItem = memo(({
   entry,
   food,
-  onUpdateQuantity,
   onRemove,
-  isExpanded,
-  onToggleExpand,
+  onEdit,
+  className,
+  isNested,
 }: MealEntryItemProps) => {
   const [quantity, setQuantity] = useState(entry.quantity)
 
@@ -29,40 +29,29 @@ export const MealEntryItem = memo(({
   }, [entry.quantity])
 
   const adjustedCalories = Math.round(food.calories * quantity)
-  const adjustedProtein = Math.round(food.protein * quantity * 10) / 10
-  const adjustedCarbs = Math.round(food.carbs * quantity * 10) / 10
-  const adjustedFat = Math.round(food.fat * quantity * 10) / 10
-  const adjustedFiber = Math.round((food.fiber ?? 0) * quantity * 10) / 10
-  const adjustedSugar = Math.round((food.sugar ?? 0) * quantity * 10) / 10
-
-  const handleIncrementQuantity = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newQty = Math.round((quantity + 0.5) * 10) / 10
-    setQuantity(newQty)
-    onUpdateQuantity(newQty)
-  }, [quantity, onUpdateQuantity])
-
-  const handleDecrementQuantity = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newQty = Math.max(0.5, Math.round((quantity - 0.5) * 10) / 10)
-    setQuantity(newQty)
-    onUpdateQuantity(newQty)
-  }, [quantity, onUpdateQuantity])
 
   const handleRemove = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     onRemove()
   }, [onRemove])
 
-  const handleToggleExpand = useCallback(() => {
-    onToggleExpand()
-  }, [onToggleExpand])
+  const handleEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onEdit?.()
+  }, [onEdit])
 
   return (
-    <div className="rounded-lg bg-muted/50 overflow-hidden">
+    <div className={cn(
+      "overflow-hidden transition-colors",
+      !isNested && "rounded-lg border border-border/20",
+      className
+    )}>
       <div
-        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/70 transition-colors"
-        onClick={handleToggleExpand}
+        className={cn(
+          "flex items-center gap-2 px-3 py-2",
+          onEdit ? "cursor-pointer hover:bg-muted/70" : ""
+        )}
+        onClick={onEdit}
       >
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate">{food.name}</p>
@@ -71,91 +60,30 @@ export const MealEntryItem = memo(({
             {food.servingSize} • <span className="text-primary font-bold">{adjustedCalories} Cal</span>
           </p>
         </div>
-        <ChevronDown
-          className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${
-            isExpanded ? "rotate-180" : ""
-          }`}
-        />
+        
+        {onEdit ? (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={handleEdit}
+          >
+            <Pencil className="h-3 w-3 text-muted-foreground" />
+          </Button>
+        ) : (
+          <div className="w-7 shrink-0" />
+        )}
+
         <Button
           size="icon-sm"
           variant="ghost"
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={handleRemove}
         >
           <Trash2 className="h-3 w-3" />
         </Button>
-      </div>
-
-      <div
-        className={cn(
-          "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
-          isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-        )}
-      >
-        <div className="overflow-hidden">
-          <div className={cn(
-            "border-t border-border/50 bg-muted/30 px-3 py-3 space-y-3 transition-transform duration-300 ease-in-out",
-            isExpanded ? "translate-y-0" : "-translate-y-2"
-          )}>
-            {/* Quantity Selector */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Servings</span>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="icon-sm"
-                  variant="outline"
-                  onClick={handleDecrementQuantity}
-                  disabled={quantity <= 0.5}
-                  tabIndex={isExpanded ? 0 : -1}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span className="w-12 text-center font-medium">{quantity}</span>
-                <Button
-                  size="icon-sm"
-                  variant="outline"
-                  onClick={handleIncrementQuantity}
-                  tabIndex={isExpanded ? 0 : -1}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Macro Details */}
-            <div className="rounded-md bg-background/50 p-3">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Calories</span>
-                  <span className="font-medium">{adjustedCalories} Cal</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Protein</span>
-                  <span className="font-medium">{adjustedProtein}g</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Carbs</span>
-                  <span className="font-medium">{adjustedCarbs}g</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fat</span>
-                  <span className="font-medium">{adjustedFat}g</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fiber</span>
-                  <span className="font-medium">{adjustedFiber}g</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Sugar</span>
-                  <span className="font-medium">{adjustedSugar}g</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )
 })
 
 MealEntryItem.displayName = "MealEntryItem"
-
