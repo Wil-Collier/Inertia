@@ -107,9 +107,12 @@ export function FoodSearch({
           <ScrollArea className="mt-4 h-[calc(100vh-280px)] min-h-[300px]">
             <div className="pb-[env(safe-area-inset-bottom,1rem)]">
               {(isSearching || isLookingUp) && searchResults.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  {isLookingUp ? "Looking up product..." : "Searching..."}
-                </p>
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm">
+                    {isLookingUp ? "Looking up product" : "Searching"}
+                  </p>
+                </div>
               ) : searchResults.length > 0 ? (
                 <div className="space-y-2">
                   {searchResults.map((food) => (
