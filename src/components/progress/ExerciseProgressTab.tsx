@@ -11,7 +11,7 @@ import {
 } from "recharts"
 import type { ValueType } from "recharts/types/component/DefaultTooltipContent"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useWeightUnit } from "@/hooks/useWeightUnit"
+import type { useWeightUnit } from "@/hooks/useWeightUnit"
 import { CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 
 const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }
@@ -137,8 +137,7 @@ export function ExerciseProgressTab({
             <CardContent>
               <div className="space-y-2">
                 {history
-                  .slice()
-                  .reverse()
+                  .toReversed()
                   .slice(0, 5)
                   .map((session) => (
                     <div

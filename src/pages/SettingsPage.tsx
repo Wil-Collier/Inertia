@@ -12,7 +12,6 @@ import {
 import { useSettings } from "@/features/settings/queries"
 import { useUpdateSettings } from "@/features/settings/mutations"
 import { useTheme } from "@/hooks/useTheme"
-import { downloadExport, importData, clearAllData } from "@/services/dataExport"
 import {
   requestNotificationPermission,
   getNotificationPermission,
@@ -68,14 +67,22 @@ export function SettingsPage() {
   const canEnableNotifications = isNotificationSupported() && notificationPermission !== "denied"
 
   const handleExport = () => {
-    void downloadExport()
-    toast.success("Data exported successfully")
+    void (async () => {
+      try {
+        const { downloadExport } = await import("@/services/dataExport")
+        await downloadExport()
+        toast.success("Data exported successfully")
+      } catch {
+        toast.error("Failed to export data")
+      }
+    })()
   }
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
+    const { importData } = await import("@/services/dataExport")
     const result = await importData(file)
     if (result.success) {
       toast.success(result.message)
@@ -94,6 +101,7 @@ export function SettingsPage() {
   const handleClearData = async () => {
     setIsClearing(true)
     try {
+      const { clearAllData } = await import("@/services/dataExport")
       await clearAllData()
       setShowClearDialog(false)
       toast.success("All data cleared")
@@ -117,7 +125,7 @@ export function SettingsPage() {
           restTimerDuration={settings.restTimerDuration}
           onRestTimerChange={(duration) => updateSettingsMutation.mutate({ restTimerDuration: duration })}
           notificationsEnabled={settings.areNotificationsEnabled}
-          onToggleNotifications={handleToggleNotifications}
+          onToggleNotifications={() => void handleToggleNotifications()}
           canEnableNotifications={canEnableNotifications}
           notificationPermission={notificationPermission as NotificationPermission}
         />
@@ -141,7 +149,7 @@ export function SettingsPage() {
         {/* Data Management */}
         <DataManagement
           onExport={handleExport}
-          onImport={handleImport}
+          onImport={(e) => void handleImport(e)}
           onClearAll={() => setShowClearDialog(true)}
         />
 
@@ -179,7 +187,7 @@ export function SettingsPage() {
               <Button
                 variant="destructive"
                 className="flex-1"
-                onClick={handleClearData}
+                onClick={() => void handleClearData()}
                 disabled={isClearing}
               >
                 {isClearing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

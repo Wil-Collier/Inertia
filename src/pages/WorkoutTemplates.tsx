@@ -240,7 +240,7 @@ export function WorkoutTemplates() {
                 key={template.id}
                 template={template}
                 exercisesById={exercisesById}
-                onStart={handleStartFromTemplate}
+                onStart={(template) => void handleStartFromTemplate(template)}
                 onEdit={handleEditOpen}
                 onDelete={setTemplateToDelete}
               />
@@ -255,7 +255,7 @@ export function WorkoutTemplates() {
         onOpenChange={setIsCreating}
         templateName={newTemplateName}
         onTemplateNameChange={setNewTemplateName}
-        onCreate={handleCreate}
+        onCreate={() => void handleCreate()}
         isCreating={isCreatingNew}
       />
 
@@ -263,7 +263,7 @@ export function WorkoutTemplates() {
       <DeleteTemplateDialog
         template={templateToDelete}
         onOpenChange={() => setTemplateToDelete(null)}
-        onDelete={handleDelete}
+        onDelete={() => void handleDelete()}
         isDeleting={isDeleting}
       />
 

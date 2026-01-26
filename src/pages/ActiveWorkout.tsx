@@ -239,11 +239,13 @@ export function ActiveWorkout() {
       className="flex flex-col"
       onTouchStart={handleUserInteraction}
       onClick={handleUserInteraction}
+      onKeyDown={handleUserInteraction}
+      role="presentation"
     >
       <Header
         title={workout.name}
         showBack
-        onBack={handleBack}
+        onBack={() => void handleBack()}
         bottomContent={<RestTimerBanner defaultDuration={restTimerDuration} />}
       />
 
@@ -263,11 +265,11 @@ export function ActiveWorkout() {
             exercise={exercisesById.get(workoutExercise.exerciseId)}
             isExpanded={expandedExerciseId === workoutExercise.id}
             onToggleExpanded={handleToggleExpanded}
-            onAddSet={addSet}
+            onAddSet={(workoutExerciseId) => void addSet(workoutExerciseId)}
             onRemoveSet={handleRemoveSet}
             onUpdateSet={handleUpdateSet}
             onToggleSetComplete={handleToggleSetComplete}
-            onRemoveExercise={removeExercise}
+            onRemoveExercise={(id) => void removeExercise(id)}
             onUpdateNotes={handleUpdateNotes}
             weightUnitLabel={weightUnit.unitLabel}
             activeSetId={countdown.activeSetId ?? undefined}
@@ -306,7 +308,7 @@ export function ActiveWorkout() {
       <ExercisePickerSheet
         isOpen={showExerciseSheet}
         onOpenChange={setShowExerciseSheet}
-        onSelect={handleAddExercise}
+        onSelect={(exerciseId) => void handleAddExercise(exerciseId)}
         addedExerciseIds={workout.exercises.map((e) => e.exerciseId)}
       />
 
@@ -321,13 +323,13 @@ export function ActiveWorkout() {
         templateName={templateName}
         onTemplateNameChange={setTemplateName}
         isFinishing={isFinishing}
-        onFinish={handleFinish}
+        onFinish={() => void handleFinish()}
       />
 
       <CancelWorkoutDialog
         open={showCancelDialog}
         onOpenChange={setShowCancelDialog}
-        onConfirmCancel={handleCancel}
+        onConfirmCancel={() => void handleCancel()}
       />
     </div>
   )

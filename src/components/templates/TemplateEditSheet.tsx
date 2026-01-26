@@ -94,9 +94,7 @@ export function TemplateEditSheet({
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                onClick={() =>
-                                  onRemoveExercise(templateExercise.exerciseId)
-                                }
+                                onClick={() => void onRemoveExercise(templateExercise.exerciseId)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -107,13 +105,11 @@ export function TemplateEditSheet({
                                 <Input
                                   type="number"
                                   value={templateExercise.targetSets}
-                                  onChange={(e) =>
-                                    onUpdateTargets(
+                                  onChange={(e) => void onUpdateTargets(
                                       templateExercise.exerciseId,
                                       "targetSets",
                                       parseInt(e.target.value) || 1
-                                    )
-                                  }
+                                    )}
                                   min={1}
                                   className="mt-1 h-8"
                                 />
@@ -123,13 +119,11 @@ export function TemplateEditSheet({
                                 <Input
                                   type="number"
                                   value={templateExercise.targetReps ?? ""}
-                                  onChange={(e) =>
-                                    onUpdateTargets(
+                                  onChange={(e) => void onUpdateTargets(
                                       templateExercise.exerciseId,
                                       "targetReps",
                                       parseInt(e.target.value) || 0
-                                    )
-                                  }
+                                    )}
                                   min={0}
                                   className="mt-1 h-8"
                                   placeholder="-"
@@ -140,13 +134,11 @@ export function TemplateEditSheet({
                                 <Input
                                   type="number"
                                   value={templateExercise.targetWeight ?? ""}
-                                  onChange={(e) =>
-                                    onUpdateTargets(
+                                  onChange={(e) => void onUpdateTargets(
                                       templateExercise.exerciseId,
                                       "targetWeight",
                                       parseInt(e.target.value) || 0
-                                    )
-                                  }
+                                    )}
                                   min={0}
                                   className="mt-1 h-8"
                                   placeholder="-"
@@ -173,12 +165,14 @@ export function TemplateEditSheet({
                 <Button
                   className="w-full"
                   disabled={!editName.trim() || isSaving}
-                  onClick={async () => {
-                    if (editName.trim() !== template.name) {
-                      const success = await onSave()
-                      if (!success) return
-                    }
-                    onClose()
+                  onClick={() => {
+                    void (async () => {
+                      if (editName.trim() !== template.name) {
+                        const success = await onSave()
+                        if (!success) return
+                      }
+                      onClose()
+                    })()
                   }}
                 >
                   {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -194,7 +188,7 @@ export function TemplateEditSheet({
       <ExercisePickerSheet
         isOpen={isAddExerciseOpen}
         onOpenChange={setIsAddExerciseOpen}
-        onSelect={handleAddExercise}
+        onSelect={(exerciseId) => void handleAddExercise(exerciseId)}
         addedExerciseIds={template?.exercises.map((e) => e.exerciseId) ?? []}
       />
     </>

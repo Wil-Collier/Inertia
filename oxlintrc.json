@@ -1,4 +1,18 @@
 {
+  "plugins": [
+    "react",
+    "unicorn",
+    "typescript",
+    "oxc",
+    "import",
+    "jest",
+    "vitest",
+    "jsx-a11y",
+    "promise",
+    "node",
+    "eslint",
+    "react-perf"
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -6,16 +20,28 @@
   },
   "rules": {
     "react/react-in-jsx-scope": "off",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
     "import/no-unassigned-import": "off",
     "import/no-named-as-default": "off",
-    "unicorn/no-array-sort": "off",
-    "unicorn/no-array-reverse": "off",
+    "import/no-duplicates": "error",
+    "unicorn/no-array-sort": "error",
+    "unicorn/no-array-reverse": "error",
     "oxc/no-map-spread": "off",
     "react-perf/jsx-no-new-object-as-prop": "off",
     "react-perf/jsx-no-new-function-as-prop": "off",
     "react-perf/jsx-no-jsx-as-prop": "off",
     "react-perf/jsx-no-new-array-as-prop": "off",
-    "typescript-eslint/no-floating-promises": "error",
-    "typescript-eslint/no-unsafe-type-assertion": "warn"
-  }
+    "typescript/no-floating-promises": "error",
+    "typescript/no-unsafe-type-assertion": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/consistent-type-imports": "error",
+    "jsx-a11y/prefer-tag-over-role": "off"
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "node_modules/**",
+    "src/routeTree.gen.ts"
+  ]
 }

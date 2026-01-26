@@ -93,15 +93,15 @@ export function MealLogger({
                 <CardContent className="pt-0 space-y-2 pb-4">
                   {/* Render Groups */}
                   {[...groups.values()].map((group) => (
-                     <MealTemplateGroup
-                      key={group.instanceId}
-                      instanceId={group.instanceId}
-                      templateName={group.templateName}
-                      entries={group.entries}
-                      onEditEntry={handleEditEntry}
-                      onRemoveEntry={(id) => onRemoveEntry(id)}
-                      onRemoveGroup={(id) => onRemoveGroup?.(id)}
-                      onUpdateQuantity={onUpdateQuantity}
+                      <MealTemplateGroup
+                        key={group.instanceId}
+                        instanceId={group.instanceId}
+                        templateName={group.templateName}
+                        entries={group.entries}
+                        onEditEntry={handleEditEntry}
+                      onRemoveEntry={(id) => void onRemoveEntry(id)}
+                      onRemoveGroup={(id) => void onRemoveGroup?.(id)}
+                      onUpdateQuantity={(id, quantity) => void onUpdateQuantity(id, quantity)}
                     />
                   ))}
 
@@ -115,9 +115,9 @@ export function MealLogger({
                           key={entry.id}
                           entry={entry}
                           food={entry.food}
-                          onRemove={() => onRemoveEntry(entry.id)}
+                          onRemove={() => void onRemoveEntry(entry.id)}
                           onEdit={() => handleEditEntry(entry, entry.food!)}
-                          onUpdateQuantity={(qty) => onUpdateQuantity(entry.id, qty)}
+                          onUpdateQuantity={(qty) => void onUpdateQuantity(entry.id, qty)}
                           className="bg-muted/50"
                         />
                       )

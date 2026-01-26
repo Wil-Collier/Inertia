@@ -6,7 +6,20 @@ import { AchievementBadge } from "@/components/AchievementBadge"
 import { StreakDisplay } from "@/components/StreakDisplay"
 import { AchievementCard } from "@/components/AchievementCard"
 import { useAchievements } from "@/features/achievements/queries"
-import { achievements, categoryLabels } from "@/data/achievements"
+import {
+  achievements,
+  categoryLabels,
+  type AchievementCategory,
+  type AchievementDefinition,
+} from "@/data/achievements"
+
+const achievementCategories: AchievementCategory[] = [
+  "consistency",
+  "volume",
+  "strength",
+  "nutrition",
+  "variety",
+]
 
 interface AchievementsTabProps {
   totalWorkouts: number
@@ -27,13 +40,18 @@ export function AchievementsTab({
 
   // Group achievements by category
   const groupedAchievements = useMemo(() => {
-    const groups: Record<string, typeof achievements> = {}
+    const groups: Record<AchievementCategory, AchievementDefinition[]> = {
+      consistency: [],
+      volume: [],
+      strength: [],
+      nutrition: [],
+      variety: [],
+    }
+
     for (const achievement of achievements) {
-      if (!groups[achievement.category]) {
-        groups[achievement.category] = []
-      }
       groups[achievement.category].push(achievement)
     }
+
     return groups
   }, [])
 
@@ -94,7 +112,8 @@ export function AchievementsTab({
       </Card>
 
       {/* Achievements by Category */}
-      {Object.entries(groupedAchievements).map(([category, categoryAchievements]) => {
+      {achievementCategories.map((category) => {
+        const categoryAchievements = groupedAchievements[category]
         const visibleAchievements = showLocked
           ? categoryAchievements
           : categoryAchievements.filter((a) => getUnlockedAchievement(a.id))
@@ -104,7 +123,7 @@ export function AchievementsTab({
         return (
           <div key={category} className="space-y-2">
             <h3 className="text-sm font-medium text-muted-foreground">
-              {categoryLabels[category as keyof typeof categoryLabels]}
+              {categoryLabels[category]}
             </h3>
             <div className="space-y-2">
               {visibleAchievements.map((achievement) => (

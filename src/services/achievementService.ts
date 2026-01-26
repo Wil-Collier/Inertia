@@ -193,7 +193,8 @@ export const achievementService = {
    * Updates both workout and nutrition streaks.
    */
   async updateStreaks() {
-    const workoutDates = await db.workoutSessions.orderBy("date").uniqueKeys() as string[]
+    const workoutKeys = await db.workoutSessions.orderBy("date").uniqueKeys()
+    const workoutDates = workoutKeys.filter((k): k is string => typeof k === "string")
     const logs = await db.nutritionLogs.toArray()
     const nutritionDates = logs.filter((day) => day.entries.length > 0).map((day) => day.date)
 
@@ -218,7 +219,7 @@ export const achievementService = {
       if (dates.length === 0) return 0
 
       // Sort dates descending (newest first)
-      const sortedDates = [...dates].sort().reverse()
+      const sortedDates = dates.toSorted().toReversed()
       const today = new Date()
       let streak = 0
       let currentDate = today
@@ -253,8 +254,8 @@ export const achievementService = {
     const longestWorkoutStreak = Math.max(workoutStreak, currentStreaks.longestWorkoutStreak)
     const longestNutritionStreak = Math.max(nutritionStreak, currentStreaks.longestNutritionStreak)
 
-    const sortedWorkoutDates = [...workoutDates].sort().reverse()
-    const sortedNutritionDates = [...nutritionDates].sort().reverse()
+    const sortedWorkoutDates = workoutDates.toSorted().toReversed()
+    const sortedNutritionDates = nutritionDates.toSorted().toReversed()
 
     const newStreaks = {
       currentWorkoutStreak: workoutStreak,

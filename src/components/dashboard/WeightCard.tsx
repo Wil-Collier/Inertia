@@ -115,7 +115,6 @@ export function WeightCard() {
                       value={weight}
                       onChange={(e) => setWeight(e.target.value)}
                       className="text-lg py-6 pr-12"
-                      autoFocus
                       disabled={isLoading}
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
@@ -125,7 +124,7 @@ export function WeightCard() {
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>Cancel</Button>
-                  <Button onClick={handleSave} disabled={isLoading}>
+                  <Button onClick={() => void handleSave()} disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Weight
                   </Button>

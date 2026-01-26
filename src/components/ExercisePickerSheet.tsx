@@ -100,16 +100,21 @@ export function ExercisePickerSheet({
 
   // Group exercises by muscle group for display
   const exercisesByGroup = useMemo(() => {
-    return filteredExercises.reduce(
-      (acc, ex) => {
-        if (!acc[ex.muscleGroup]) {
-          acc[ex.muscleGroup] = []
-        }
-        acc[ex.muscleGroup].push(ex)
-        return acc
-      },
-      {} as Record<MuscleGroup, Exercise[]>
-    )
+    const grouped: Record<MuscleGroup, Exercise[]> = {
+      chest: [],
+      back: [],
+      shoulders: [],
+      arms: [],
+      legs: [],
+      core: [],
+      cardio: [],
+    }
+
+    for (const ex of filteredExercises) {
+      grouped[ex.muscleGroup].push(ex)
+    }
+
+    return grouped
   }, [filteredExercises])
 
   const handleSelect = useCallback((exerciseId: string) => {
@@ -202,23 +207,25 @@ export function ExercisePickerSheet({
                       )}
                     </div>
                   ) : (
-                    (Object.keys(exercisesByGroup) as Array<keyof typeof exercisesByGroup>).map((group) => (
-                    <div key={group}>
-                      <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-                        {muscleGroupLabels[group]}
-                      </h3>
-                      <div className="space-y-1">
-                        {exercisesByGroup[group].map((exercise) => (
-                          <ExerciseListItem
-                            key={exercise.id}
-                            exercise={exercise}
-                            isAdded={addedExerciseIds.includes(exercise.id)}
-                            onSelect={handleSelect}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))
+                    muscleGroups
+                      .filter((group) => exercisesByGroup[group].length > 0)
+                      .map((group) => (
+                        <div key={group}>
+                          <h3 className="mb-2 text-sm font-medium text-muted-foreground">
+                            {muscleGroupLabels[group]}
+                          </h3>
+                          <div className="space-y-1">
+                            {exercisesByGroup[group].map((exercise) => (
+                              <ExerciseListItem
+                                key={exercise.id}
+                                exercise={exercise}
+                                isAdded={addedExerciseIds.includes(exercise.id)}
+                                onSelect={handleSelect}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))
                   )}
                 </div>
               </ScrollArea>

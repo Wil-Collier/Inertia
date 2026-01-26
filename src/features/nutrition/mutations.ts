@@ -227,10 +227,10 @@ export function useToggleFavoriteFood() {
       const previousData = queryClient.getQueriesData({ queryKey: queryKeys.foods.all })
 
       // Optimistically update any queries that might contain this food
-      queryClient.setQueriesData({ queryKey: queryKeys.foods.all }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: queryKeys.foods.all }, (old: unknown) => {
         if (Array.isArray(old)) {
-          return old.map(item => {
-            if (item && typeof item === "object" && item.id === id) {
+          return old.map((item: unknown) => {
+            if (item && typeof item === "object" && "id" in item && item.id === id) {
               return { ...item, isFavorite }
             }
             return item

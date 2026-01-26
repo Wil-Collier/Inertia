@@ -32,25 +32,25 @@ export const MealEntryItem = memo(({
 
   const adjustedCalories = Math.round(food.calories * quantity)
 
-  const handleRemove = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleRemove = useCallback((e?: React.MouseEvent | React.KeyboardEvent) => {
+    e?.stopPropagation()
     onRemove()
   }, [onRemove])
 
-  const handleEdit = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleEdit = useCallback((e?: React.MouseEvent | React.KeyboardEvent) => {
+    e?.stopPropagation()
     onEdit?.()
   }, [onEdit])
 
-  const handleIncrement = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleIncrement = useCallback((e?: React.MouseEvent | React.KeyboardEvent) => {
+    e?.stopPropagation()
     const newQty = Math.round((Math.floor(quantity * 10 + 0.01) / 10 + 0.1) * 10) / 10
     setQuantity(newQty)
     onUpdateQuantity?.(newQty)
   }, [quantity, onUpdateQuantity])
 
-  const handleDecrement = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleDecrement = useCallback((e?: React.MouseEvent | React.KeyboardEvent) => {
+    e?.stopPropagation()
     const newQty = Math.max(0.1, Math.round((Math.ceil(quantity * 10 - 0.01) / 10 - 0.1) * 10) / 10)
     setQuantity(newQty)
     onUpdateQuantity?.(newQty)
@@ -66,10 +66,18 @@ export const MealEntryItem = memo(({
     )}>
       <div
         className={cn(
-          "flex items-center gap-2 px-3 py-2",
+          "flex items-center gap-2 px-3 py-2 outline-none focus-visible:bg-muted/70",
           onEdit ? "cursor-pointer hover:bg-muted/70" : ""
         )}
         onClick={handleEdit}
+        onKeyDown={(e) => {
+          if (onEdit && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault()
+            handleEdit()
+          }
+        }}
+        role={onEdit ? "button" : undefined}
+        tabIndex={onEdit ? 0 : undefined}
       >
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate">{food.name}</p>
@@ -82,6 +90,8 @@ export const MealEntryItem = memo(({
           <div 
             className="flex items-center bg-background/50 rounded-full border border-border/10 p-0.5 mx-1"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="presentation"
           >
             <Button
               size="icon-xs"

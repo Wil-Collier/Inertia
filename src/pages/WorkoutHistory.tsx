@@ -38,7 +38,7 @@ export function WorkoutHistory() {
 
   // Sort workouts by date (newest first)
   const sortedWorkouts = useMemo(() => {
-    return [...workouts].sort((a, b) => {
+    return workouts.toSorted((a, b) => {
       if (a.date === b.date) {
         // If same date, sort by completedAt if available
         if (a.completedAt && b.completedAt) {
@@ -142,7 +142,7 @@ export function WorkoutHistory() {
             <Button variant="outline" onClick={() => setWorkoutToDelete(null)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+            <Button variant="destructive" onClick={() => void handleDelete()} disabled={isDeleting}>
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isDeleting ? "Deleting..." : "Delete"}
             </Button>

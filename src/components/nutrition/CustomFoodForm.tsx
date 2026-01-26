@@ -114,8 +114,9 @@ export function CustomFoodForm({
       )}
 
       <div className="space-y-2">
-        <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Name</label>
+        <label htmlFor="food-name" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Name</label>
         <Input
+          id="food-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Food name"
@@ -125,8 +126,9 @@ export function CustomFoodForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Calories</label>
+          <label htmlFor="food-calories" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Calories</label>
           <Input
+            id="food-calories"
             type="number"
             value={calories}
             onChange={(e) => setCalories(e.target.value)}
@@ -135,8 +137,9 @@ export function CustomFoodForm({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Serving Size</label>
+          <label htmlFor="food-serving-size" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Serving Size</label>
           <Input
+            id="food-serving-size"
             value={servingSize}
             onChange={(e) => setServingSize(e.target.value)}
             placeholder="1 serving"
@@ -146,8 +149,9 @@ export function CustomFoodForm({
 
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-2">
-          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Protein (g)</label>
+          <label htmlFor="food-protein" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Protein (g)</label>
           <Input
+            id="food-protein"
             type="number"
             value={protein}
             onChange={(e) => setProtein(e.target.value)}
@@ -155,8 +159,9 @@ export function CustomFoodForm({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Carbs (g)</label>
+          <label htmlFor="food-carbs" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Carbs (g)</label>
           <Input
+            id="food-carbs"
             type="number"
             value={carbs}
             onChange={(e) => setCarbs(e.target.value)}
@@ -164,8 +169,9 @@ export function CustomFoodForm({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Fat (g)</label>
+          <label htmlFor="food-fat" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Fat (g)</label>
           <Input
+            id="food-fat"
             type="number"
             value={fat}
             onChange={(e) => setFat(e.target.value)}
@@ -176,8 +182,9 @@ export function CustomFoodForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Fiber (g)</label>
+          <label htmlFor="food-fiber" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Fiber (g)</label>
           <Input
+            id="food-fiber"
             type="number"
             value={fiber}
             onChange={(e) => setFiber(e.target.value)}
@@ -185,8 +192,9 @@ export function CustomFoodForm({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Sugar (g)</label>
+          <label htmlFor="food-sugar" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Sugar (g)</label>
           <Input
+            id="food-sugar"
             type="number"
             value={sugar}
             onChange={(e) => setSugar(e.target.value)}

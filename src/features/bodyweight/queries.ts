@@ -8,6 +8,7 @@ export function useBodyWeightHistory(limit = 30) {
     queryFn: async () => {
       return db.bodyWeight
         .orderBy("date")
+        // oxlint-disable-next-line unicorn/no-array-reverse
         .reverse()
         .limit(limit)
         .toArray()
@@ -19,7 +20,11 @@ export function useLatestBodyWeight() {
   return useQuery({
     queryKey: queryKeys.bodyWeight.latest(),
     queryFn: async () => {
-      return db.bodyWeight.orderBy("date").reverse().first()
+      return db.bodyWeight
+        .orderBy("date")
+        // oxlint-disable-next-line unicorn/no-array-reverse
+        .reverse()
+        .first()
     },
   })
 }

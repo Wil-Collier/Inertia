@@ -67,7 +67,7 @@ async function parseAndValidateBackup(file: File): Promise<WrappedExport> {
 export async function downloadExport(): Promise<void> {
   try {
     const blob = await exportDatabase()
-    const dexieData = JSON.parse(await blob.text()) as DexieExportData
+    const dexieData: DexieExportData = DexieExportSchema.parse(JSON.parse(await blob.text()))
 
     const wrappedExport: WrappedExport = {
       exportVersion: 1,

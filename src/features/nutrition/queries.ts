@@ -97,8 +97,8 @@ export function useNutritionDates() {
     queryKey: [...queryKeys.nutrition.all, "dates"],
     queryFn: async () => {
       // Use uniqueKeys() for efficient date retrieval without loading full objects
-      const dates = await db.nutritionLogs.orderBy("date").uniqueKeys()
-      return dates as string[]
+      const keys = await db.nutritionLogs.orderBy("date").uniqueKeys()
+      return keys.filter((k): k is string => typeof k === "string")
     },
   })
 }
@@ -181,4 +181,3 @@ export function useCombinedFoodSearch(query: string) {
     staleTime: 30_000, // Cache results for 30 seconds
   })
 }
-

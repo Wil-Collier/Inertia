@@ -23,6 +23,7 @@ import {
 } from "@/features/nutrition/mutations"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
 import type { FoodItem, MealEntry } from "@/lib/types"
+import { db } from "@/services/db"
 import { toast } from "sonner"
 import { Route } from "@/routes/nutrition/template-editor"
 
@@ -104,7 +105,6 @@ export function TemplateEditorPage() {
     // Ensure the food exists in our local DB if it's from an external search
     if (!food.isCustom) {
       try {
-        const { db } = await import("@/services/db")
         const exists = await db.foods.get(food.id)
         if (!exists) {
           await addFoodMutation.mutateAsync({ ...food, isCustom: false })
@@ -174,7 +174,7 @@ export function TemplateEditorPage() {
   const [resolvedFoods, setResolvedFoods] = useState<Map<string, FoodItem>>(new Map())
   
   const foodIds = useMemo(() => {
-    return Array.from(new Set(entries.map(e => e.foodId))).sort().join(",")
+    return Array.from(new Set(entries.map(e => e.foodId))).toSorted().join(",")
   }, [entries])
 
   useEffect(() => {
@@ -185,7 +185,6 @@ export function TemplateEditorPage() {
         return
       }
       
-      const { db } = await import("@/services/db")
       const foods = await db.foods.where("id").anyOf(ids).toArray()
       const map = new Map(foods.map(f => [f.id, f]))
       setResolvedFoods(map)
@@ -206,7 +205,7 @@ export function TemplateEditorPage() {
         title={templateId ? "Edit Template" : "New Template"}
         showBack
         rightAction={
-          <Button size="sm" onClick={handleSave} disabled={!name.trim() || entries.length === 0}>
+          <Button size="sm" onClick={() => void handleSave()} disabled={!name.trim() || entries.length === 0}>
             <Save className="mr-1 h-4 w-4" />
             Save
           </Button>
@@ -216,9 +215,10 @@ export function TemplateEditorPage() {
       <div className="flex-1 overflow-auto p-4 space-y-6">
         {/* Template Name */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-muted-foreground">Template Name</label>
+          <label htmlFor="template-name" className="text-sm font-medium text-muted-foreground">Template Name</label>
           <div className="relative">
             <Input
+              id="template-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Breakfast Burrito"
@@ -290,25 +290,29 @@ export function TemplateEditorPage() {
             isSearching={isSearching}
             isLookingUp={false}
             searchResults={displayedResults}
-            onScanBarcode={handleScanBarcode}
-            onAddFood={handleAddFoodToTemplate}
-            onToggleFavorite={async (id) => {
-               const food = [...favorites, ...customFoods, ...displayedResults].find(f => f.id === id)
-               if (food) {
-                 await toggleFavoriteMutation.mutateAsync({ id, isFavorite: !food.isFavorite, food })
-               }
+            onScanBarcode={() => void handleScanBarcode()}
+            onAddFood={(food, qty) => void handleAddFoodToTemplate(food, qty)}
+            onToggleFavorite={(id) => {
+              void (async () => {
+                const food = [...favorites, ...customFoods, ...displayedResults].find((f) => f.id === id)
+                if (food) {
+                  await toggleFavoriteMutation.mutateAsync({ id, isFavorite: !food.isFavorite, food })
+                }
+              })()
             }}
-            onDeleteFood={(id) => deleteFoodMutation.mutateAsync(id)}
+            onDeleteFood={(id) => void deleteFoodMutation.mutateAsync(id)}
             favorites={favorites}
             customFoods={customFoods}
             scannedBarcode={scannedBarcode}
             onClearBarcode={() => setScannedBarcode(null)}
-            onSaveCustomFood={async (food) => {
-              await addFoodMutation.mutateAsync({ ...food, isCustom: true })
+            onSaveCustomFood={(food) => {
+              void addFoodMutation.mutateAsync({ ...food, isCustom: true })
             }}
-            onSaveAndAddCustomFood={async (food) => {
-              const newFood = await addFoodMutation.mutateAsync({ ...food, isCustom: true })
-              await handleAddFoodToTemplate(newFood, 1)
+            onSaveAndAddCustomFood={(food) => {
+              void (async () => {
+                const newFood = await addFoodMutation.mutateAsync({ ...food, isCustom: true })
+                await handleAddFoodToTemplate(newFood, 1)
+              })()
             }}
           />
         </SheetContent>

@@ -3,6 +3,20 @@ import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import type { Exercise, MuscleGroup } from "@/lib/types"
 
+const muscleGroups = [
+  "chest",
+  "back",
+  "shoulders",
+  "arms",
+  "legs",
+  "core",
+  "cardio",
+] as const satisfies ReadonlyArray<MuscleGroup>
+
+function isMuscleGroup(value: string): value is MuscleGroup {
+  return (muscleGroups as readonly string[]).includes(value)
+}
+
 /**
  * Dynamically import the exercise database to keep it code-split.
  * The module is cached after first import.
@@ -113,11 +127,13 @@ export function useExercisesByMuscle(muscleGroup: string) {
   return useQuery({
     queryKey: queryKeys.exercises.byMuscle(muscleGroup),
     queryFn: async (): Promise<Exercise[]> => {
+      if (!isMuscleGroup(muscleGroup)) return []
+
       // Lazy-load exercise database (code-split)
       const { getDefaultExercisesByMuscle } = await getExerciseModule()
 
       // Get filtered defaults from static data
-      const defaultByMuscle = getDefaultExercisesByMuscle(muscleGroup as MuscleGroup)
+      const defaultByMuscle = getDefaultExercisesByMuscle(muscleGroup)
 
       // Get filtered custom exercises from IndexedDB
       const customByMuscle = await db.customExercises
@@ -127,6 +143,6 @@ export function useExercisesByMuscle(muscleGroup: string) {
 
       return [...defaultByMuscle, ...customByMuscle]
     },
-    enabled: !!muscleGroup,
+    enabled: isMuscleGroup(muscleGroup),
   })
 }

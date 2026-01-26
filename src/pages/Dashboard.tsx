@@ -46,8 +46,8 @@ export function Dashboard() {
   // Recent achievements (Momentum)
   const recentAchievements = useMemo(() => {
     if (!unlockedAchievements) return []
-    return [...unlockedAchievements]
-      .sort((a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime())
+    return unlockedAchievements
+      .toSorted((a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime())
       .slice(0, 2)
       .map(ua => achievements.find(a => a.id === ua.id))
       .filter((a): a is typeof achievements[0] => !!a)

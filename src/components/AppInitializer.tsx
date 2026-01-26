@@ -78,14 +78,14 @@ export function AppInitializer({ children }: AppInitializerProps) {
           </p>
           <div className="space-y-3">
             <button
-              onClick={exportBackup}
+              onClick={() => void exportBackup()}
               disabled={isRecovering}
               className="w-full py-3 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               Download Backup (Recommended)
             </button>
             <button
-              onClick={handleRecoverDatabase}
+              onClick={() => void handleRecoverDatabase()}
               disabled={isRecovering}
               className="w-full py-3 bg-destructive text-destructive-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             >

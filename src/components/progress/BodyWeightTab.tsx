@@ -65,7 +65,7 @@ export function BodyWeightTab({
     const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd")
     return weightEntries
       .filter((e) => e.date >= thirtyDaysAgo && e.date <= today)
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .toSorted((a, b) => a.date.localeCompare(b.date))
       .map((e) => ({
         date: format(parseISO(e.date), "MMM d"),
         weight: e.weight,
@@ -110,7 +110,7 @@ export function BodyWeightTab({
                 {preferredUnit}
               </span>
             </div>
-            <Button onClick={handleAddWeight}>Log</Button>
+            <Button onClick={() => void handleAddWeight()}>Log</Button>
           </div>
           {latestEntry && (
             <p className="mt-2 text-sm text-muted-foreground">
@@ -239,12 +239,17 @@ export function BodyWeightTab({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={async () => {
-                if (entryToDelete) {
-                  await deleteWeightEntry(entryToDelete)
-                  toast.success("Entry deleted")
-                  setEntryToDelete(null)
-                }
+              onClick={() => {
+                void (async () => {
+                  if (entryToDelete) {
+                    await deleteWeightEntry(entryToDelete)
+                    toast.success("Entry deleted")
+                    setEntryToDelete(null)
+                  }
+                })().catch((err) => {
+                  console.error("Failed to delete weight entry:", err)
+                  toast.error("Failed to delete entry")
+                })
               }}
             >
               Delete

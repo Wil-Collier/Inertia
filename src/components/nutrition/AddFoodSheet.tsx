@@ -86,9 +86,9 @@ export function AddFoodSheet({
           isLookingUp={isLookingUp}
           searchResults={searchResults}
           onScanBarcode={onScanBarcode}
-          onAddFood={onAddFood}
-          onToggleFavorite={onToggleFavorite}
-          onDeleteFood={onDeleteFood}
+          onAddFood={(food, qty) => void onAddFood(food, qty)}
+          onToggleFavorite={(foodId) => void onToggleFavorite(foodId)}
+          onDeleteFood={(foodId) => void onDeleteFood(foodId)}
           favorites={favorites}
           customFoods={customFoods}
           scannedBarcode={scannedBarcode}
@@ -152,7 +152,7 @@ export function AddFoodSheet({
                             <Button
                               size="sm"
                               className="w-full"
-                              onClick={() => onApplyTemplate(template.id)}
+                              onClick={() => void onApplyTemplate(template.id)}
                             >
                               <Check className="mr-1 h-3 w-3" />
                               Apply to {selectedMealLabel}
@@ -181,4 +181,3 @@ export function AddFoodSheet({
     </Sheet>
   )
 }
-

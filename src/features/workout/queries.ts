@@ -15,6 +15,7 @@ export function useWorkouts(limit = 20) {
     queryFn: async () => {
       return db.workoutSessions
         .orderBy("date")
+        // oxlint-disable-next-line unicorn/no-array-reverse
         .reverse()
         .limit(limit)
         .toArray()
@@ -52,7 +53,7 @@ export function useWorkoutsByExercise(exerciseId: string) {
         .where("exerciseIds")
         .equals(exerciseId)
         .sortBy("date")
-      return results.reverse()
+      return results.toReversed()
     },
     enabled: !!exerciseId,
   })
@@ -85,8 +86,8 @@ export function useWorkoutDates() {
   return useQuery({
     queryKey: [...queryKeys.workouts.all, "dates"],
     queryFn: async () => {
-      const dates = await db.workoutSessions.orderBy("date").uniqueKeys()
-      return dates as string[]
+      const keys = await db.workoutSessions.orderBy("date").uniqueKeys()
+      return keys.filter((k): k is string => typeof k === "string")
     },
   })
 }

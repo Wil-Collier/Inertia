@@ -104,7 +104,7 @@ export function WorkoutPage() {
         return date >= weekStart && date <= weekEnd
       }).length
       return { offset: weekOffset, count }
-    }).reverse()
+    }).toReversed()
 
     return { workoutsThisMonth, weeks }
   }, [monthWorkouts, recentWorkouts, now])
@@ -113,7 +113,7 @@ export function WorkoutPage() {
     return <Navigate to="/workout/active" replace />
   }
 
-  const recentDates = workoutDates.slice().reverse().slice(0, 3)
+  const recentDates = workoutDates.toReversed().slice(0, 3)
 
   return (
     <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]">
@@ -196,7 +196,6 @@ export function WorkoutPage() {
                     placeholder={getDefaultWorkoutName()}
                     value={newWorkoutName}
                     onChange={(e) => setNewWorkoutName(e.target.value)}
-                    autoFocus
                     className="text-lg py-6"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") void handleStartBlankWorkout()
@@ -204,7 +203,7 @@ export function WorkoutPage() {
                   />
                 </div>
                 <Button 
-                  onClick={handleStartBlankWorkout} 
+                  onClick={() => void handleStartBlankWorkout()} 
                   size="xl" 
                   className="w-full"
                   disabled={isStarting}
@@ -253,19 +252,19 @@ export function WorkoutPage() {
           ) : (
             <div className="grid grid-cols-1 gap-3">
               {templates.map((template) => {
-                const muscleGroups = Array.from(new Set(
-                  template.exercises
-                    .map(templateExercise => exercisesById.get(templateExercise.exerciseId)?.muscleGroup)
-                    .filter(Boolean)
-                )) as MuscleGroup[]
+                const muscleGroups = Array.from(
+                  new Set(
+                    template.exercises
+                      .map((templateExercise) => exercisesById.get(templateExercise.exerciseId)?.muscleGroup)
+                      .filter((mg): mg is MuscleGroup => mg != null)
+                  )
+                )
 
                 return (
                   <Card
                     key={template.id}
                     className="cursor-pointer interactive-card"
-                    onClick={() =>
-                      handleStartFromTemplate(template.id, template.name)
-                    }
+                    onClick={() => void handleStartFromTemplate(template.id, template.name)}
                   >
                     <CardContent className="flex items-center gap-4 py-4">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">

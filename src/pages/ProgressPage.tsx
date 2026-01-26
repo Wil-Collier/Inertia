@@ -123,7 +123,7 @@ export function ProgressPage() {
         oneRepMax: calculateOneRepMax(pr.weight, pr.reps),
       }))
       .filter((pr) => pr.exercise)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .toSorted((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }, [personalRecords, prExerciseMap])
 
   // Chart formatters
@@ -302,4 +302,3 @@ export function ProgressPage() {
     </div>
   )
 }
-

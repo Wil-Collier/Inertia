@@ -79,18 +79,22 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
         await scanner.start(
           { facingMode: "environment" },
           config,
-          async (decodedText) => {
-            if (mounted && scannerRef.current) {
-              // Stop scanner before calling onScan to prevent multiple scans
-              try {
-                await scanner.stop()
-              } catch {
-                // Ignore
+          (decodedText) => {
+            void (async () => {
+              if (mounted && scannerRef.current) {
+                // Stop scanner before calling onScan to prevent multiple scans
+                try {
+                  await scanner.stop()
+                } catch {
+                  // Ignore
+                }
+                scannerRef.current = null
+                // Use ref to avoid stale closure
+                onScanRef.current(decodedText)
               }
-              scannerRef.current = null
-              // Use ref to avoid stale closure
-              onScanRef.current(decodedText)
-            }
+            })().catch(() => {
+              // Ignore
+            })
           },
           () => {
             // Ignore scan failures (no barcode detected yet)
@@ -145,7 +149,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
         <Button
           variant="ghost"
           size="icon"
-          onClick={handleClose}
+          onClick={() => void handleClose()}
           className="text-white hover:bg-white/20"
         >
           <X className="h-5 w-5" />
@@ -158,7 +162,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
           <div className="flex flex-col items-center gap-4 text-center px-8">
             <AlertCircle className="h-12 w-12 text-destructive" />
             <p className="text-white">{error}</p>
-            <Button variant="secondary" onClick={handleClose}>
+            <Button variant="secondary" onClick={() => void handleClose()}>
               Close
             </Button>
           </div>
@@ -187,7 +191,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
         <Button
           variant="secondary"
           className="w-full"
-          onClick={handleClose}
+          onClick={() => void handleClose()}
         >
           Cancel
         </Button>

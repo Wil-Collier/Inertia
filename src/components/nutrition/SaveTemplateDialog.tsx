@@ -33,8 +33,9 @@ export function SaveTemplateDialog({
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Template Name</label>
+            <label htmlFor="save-template-name" className="text-sm font-medium">Template Name</label>
             <Input
+              id="save-template-name"
               value={templateName}
               onChange={(e) => onTemplateNameChange(e.target.value)}
               placeholder="Enter template name..."

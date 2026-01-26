@@ -33,8 +33,16 @@ export function MealTemplateGroup({
   return (
     <div className="rounded-lg bg-muted/50 shadow-sm overflow-hidden border border-border/20">
       <div 
-        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/70 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/70 transition-colors outline-none focus-visible:bg-muted/70"
         onClick={() => setIsExpanded(!isExpanded)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            setIsExpanded(!isExpanded)
+          }
+        }}
+        role="button"
+        tabIndex={0}
       >
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <Bookmark className="h-4 w-4 text-primary shrink-0" />

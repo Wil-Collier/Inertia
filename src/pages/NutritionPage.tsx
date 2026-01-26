@@ -238,7 +238,7 @@ export function NutritionPage() {
         />
       </div>
 
-      <AddFoodSheet
+        <AddFoodSheet
         isOpen={showAddSheet}
         onOpenChange={setShowAddSheet}
         selectedMealLabel={selectedMealLabel}
@@ -246,39 +246,43 @@ export function NutritionPage() {
         setActiveTab={setActiveTab}
         searchQuery={searchQuery}
         setSearchQuery={handleSearchQueryChange}
-        isSearching={isSearching}
-        isLookingUp={isLookingUp}
-        searchResults={displayedResults}
-        onScanBarcode={() => setShowScanner(true)}
-        onAddFood={handleAddFood}
-        onToggleFavorite={handleToggleFavorite}
-        onDeleteFood={(id: string) => deleteFoodMutation.mutateAsync(id)}
-        favorites={favorites}
-        customFoods={customFoods}
-        mealTemplates={mealTemplates}
-        scannedBarcode={scannedBarcode}
-        onClearBarcode={() => setScannedBarcode(null)}
-        onSaveCustomFood={async (food) => {
-          await addFoodMutation.mutateAsync({ ...food, isCustom: true })
-          setScannedBarcode(null)
-        }}
-        onSaveAndAddCustomFood={async (food) => {
-          const newFood = await addFoodMutation.mutateAsync({ ...food, isCustom: true })
-          await handleAddFood(newFood, 1)
-          setScannedBarcode(null)
-        }}
-        onDeleteTemplate={(id: string) => {
-          deleteMealTemplateMutation.mutate(id)
-        }}
-        onApplyTemplate={async (templateId: string) => {
-          applyMealTemplateMutation.mutate(
-            { templateId, date: selectedDate, mealType: selectedMealType },
-            {
-              onSuccess: () => setShowAddSheet(false),
-            }
-          )
-        }}
-      />
+          isSearching={isSearching}
+          isLookingUp={isLookingUp}
+          searchResults={displayedResults}
+          onScanBarcode={() => setShowScanner(true)}
+          onAddFood={handleAddFood}
+          onToggleFavorite={handleToggleFavorite}
+          onDeleteFood={(id: string) => deleteFoodMutation.mutateAsync(id)}
+          favorites={favorites}
+          customFoods={customFoods}
+          mealTemplates={mealTemplates}
+          scannedBarcode={scannedBarcode}
+          onClearBarcode={() => setScannedBarcode(null)}
+          onSaveCustomFood={(food) => {
+            void (async () => {
+              await addFoodMutation.mutateAsync({ ...food, isCustom: true })
+              setScannedBarcode(null)
+            })()
+          }}
+          onSaveAndAddCustomFood={(food) => {
+            void (async () => {
+              const newFood = await addFoodMutation.mutateAsync({ ...food, isCustom: true })
+              await handleAddFood(newFood, 1)
+              setScannedBarcode(null)
+            })()
+          }}
+          onDeleteTemplate={(id: string) => {
+            deleteMealTemplateMutation.mutate(id)
+          }}
+          onApplyTemplate={async (templateId: string) => {
+            applyMealTemplateMutation.mutate(
+              { templateId, date: selectedDate, mealType: selectedMealType },
+              {
+                onSuccess: () => setShowAddSheet(false),
+              }
+            )
+          }}
+        />
 
       {/* Barcode Scanner - Lazy loaded */}
       {showScanner && (
@@ -286,7 +290,7 @@ export function NutritionPage() {
           <BarcodeScanner
             isOpen={showScanner}
             onClose={() => setShowScanner(false)}
-            onScan={handleBarcodeScan}
+            onScan={(code) => void handleBarcodeScan(code)}
           />
         </Suspense>
       )}

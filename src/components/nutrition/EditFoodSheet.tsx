@@ -148,7 +148,7 @@ export function EditFoodSheet({
         </div>
 
         <SheetFooter className="px-4 pb-[max(2rem,env(safe-area-inset-bottom))]">
-          <Button className="w-full h-12 text-sm font-bold uppercase tracking-widest" size="lg" onClick={handleSave}>
+          <Button className="w-full h-12 text-sm font-bold uppercase tracking-widest" size="lg" onClick={() => void handleSave()}>
             <Save className="mr-2 h-4 w-4" />
             Save Changes
           </Button>
