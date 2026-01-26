@@ -70,7 +70,10 @@ export function TemplateEditorPage() {
 
   // Food Search Data
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 500)
-  const { data: searchResults = [], isFetching: isSearching } = useCombinedFoodSearch(debouncedSearchQuery)
+  const { data: combinedSearch, isFetching: isSearching } = useCombinedFoodSearch(debouncedSearchQuery)
+  const searchResults = combinedSearch?.items ?? []
+  const remoteStatus = combinedSearch?.remoteStatus
+  const remoteError = combinedSearch?.remoteError
   const { data: favorites = [] } = useFavoriteFoods()
   const { data: customFoods = [] } = useCustomFoods()
   
@@ -301,6 +304,8 @@ export function TemplateEditorPage() {
             isSearching={isSearching}
             isLookingUp={false}
             searchResults={displayedResults}
+            remoteStatus={remoteStatus}
+            remoteError={remoteError}
             onScanBarcode={() => void handleScanBarcode()}
             onAddFood={(food, qty) => void handleAddFoodToTemplate(food, qty)}
             onToggleFavorite={(id) => {

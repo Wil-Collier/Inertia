@@ -16,7 +16,7 @@ export async function performOptimisticUpdate<T>(
   calculatorFn: (current: T) => T,
   errorMessage: string = "Failed to save changes"
 ) {
-  if (!currentValue) return
+  if (currentValue === undefined || currentValue === null) return
 
   const newValue = calculatorFn(currentValue)
 

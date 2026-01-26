@@ -25,6 +25,8 @@ interface FoodSearchProps {
   onClearBarcode: () => void
   onSaveCustomFood: (food: Omit<FoodItem, "id" | "isCustom">) => void
   onSaveAndAddCustomFood: (food: Omit<FoodItem, "id" | "isCustom">) => void
+  remoteStatus?: "idle" | "ok" | "error"
+  remoteError?: string
   className?: string
   extraTabTriggers?: React.ReactNode
   extraTabContents?: React.ReactNode
@@ -48,6 +50,8 @@ export function FoodSearch({
   onClearBarcode,
   onSaveCustomFood,
   onSaveAndAddCustomFood,
+  remoteStatus,
+  remoteError,
   className,
   extraTabTriggers,
   extraTabContents,
@@ -103,6 +107,12 @@ export function FoodSearch({
               )}
             </Button>
           </div>
+
+          {remoteStatus === "error" && searchQuery.trim().length >= 2 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Remote search unavailable. Showing local results{remoteError ? ": " + remoteError : ""}
+            </p>
+          )}
 
           <ScrollArea className="mt-4 h-[calc(100vh-280px)] min-h-[300px]" hideScrollBar>
             <div className="pb-[env(safe-area-inset-bottom,1rem)]">

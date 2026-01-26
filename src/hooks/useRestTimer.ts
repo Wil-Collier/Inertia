@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from "react"
+import { useEffect, useCallback, useMemo, useRef, useState } from "react"
 import { useRestTimerStore } from "@/features/workout/restTimerStore"
 import { useSettings } from "@/features/settings/queries"
 import { showRestTimerNotification, canShowNotifications } from "@/services/notifications"
@@ -143,6 +143,10 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
 export function useRestTimerControls(defaultDuration: number = 90) {
   const store = useRestTimerStore()
   const [configuredDuration, setConfiguredDuration] = useState(defaultDuration)
+
+  useEffect(() => {
+    setConfiguredDuration(defaultDuration)
+  }, [defaultDuration])
   
   const start = useCallback(
     (customDuration?: number) => {
@@ -156,9 +160,12 @@ export function useRestTimerControls(defaultDuration: number = 90) {
     store.reset()
   }, [store])
   
-  return {
-    start,
-    reset,
-    setDuration: setConfiguredDuration,
-  }
+  return useMemo(
+    () => ({
+      start,
+      reset,
+      setDuration: setConfiguredDuration,
+    }),
+    [reset, start]
+  )
 }

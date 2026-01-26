@@ -1,12 +1,18 @@
 import { useQuery } from "@tanstack/react-query"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import { searchFoods } from "@/services/openFoodFacts"
+import { searchFoods, OpenFoodFactsError } from "@/services/openFoodFacts"
 import type { FoodItem, MealEntry } from "@/lib/types"
 import { calculateNutritionTotals, calculateNutritionAverages, INITIAL_TOTALS } from "@/lib/nutritionUtils"
 
 export interface MealEntryWithFood extends MealEntry {
   food: FoodItem | undefined
+}
+
+export interface CombinedFoodSearchResult {
+  items: FoodItem[]
+  remoteStatus: "idle" | "ok" | "error"
+  remoteError?: string
 }
 
 export function useDailyNutrition(date: string) {
@@ -141,7 +147,10 @@ export function useCombinedFoodSearch(query: string) {
   return useQuery({
     queryKey: queryKeys.foods.combinedSearch(query),
     queryFn: async () => {
-      if (query.length < 2) return []
+      if (query.length < 2) {
+        const empty: CombinedFoodSearchResult = { items: [], remoteStatus: "idle" }
+        return empty
+      }
 
       const lowerQuery = query.toLowerCase()
 
@@ -155,8 +164,22 @@ export function useCombinedFoodSearch(query: string) {
         .limit(50)
         .toArray()
 
-      // Then search OpenFoodFacts API
-      const { foods: remote } = await searchFoods(query, 1, 20)
+      // Then search OpenFoodFacts API (but keep local results even if remote fails)
+      let remote: FoodItem[] = []
+      let remoteStatus: CombinedFoodSearchResult["remoteStatus"] = "ok"
+      let remoteError: string | undefined
+
+      try {
+        const res = await searchFoods(query, 1, 20)
+        remote = res.foods
+      } catch (error) {
+        remoteStatus = "error"
+        if (error instanceof OpenFoodFactsError) {
+          remoteError = error.message
+        } else {
+          remoteError = error instanceof Error ? error.message : String(error)
+        }
+      }
 
       // Fetch any local versions of the remote results (by ID)
       const remoteIds = remote.map(f => f.id)
@@ -175,7 +198,11 @@ export function useCombinedFoodSearch(query: string) {
         return existingLocalMap.get(remoteFood.id) || remoteFood
       })
 
-      return [...localOnly, ...mappedRemote]
+      return {
+        items: [...localOnly, ...mappedRemote],
+        remoteStatus,
+        remoteError,
+      } satisfies CombinedFoodSearchResult
     },
     enabled: query.length >= 2,
     staleTime: 30_000, // Cache results for 30 seconds

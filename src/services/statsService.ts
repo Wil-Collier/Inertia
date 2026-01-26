@@ -1,4 +1,5 @@
 import { db } from "@/services/db"
+import Dexie from "dexie"
 import type { Workout, UserStats } from "@/lib/types"
 import { defaultUserStats } from "@/lib/types"
 import { KG_TO_LBS } from "@/lib/constants"
@@ -52,7 +53,7 @@ export const statsService = {
   async addWorkout(workout: Workout): Promise<UserStats> {
     const volumeLbs = this.calculateWorkoutVolumeLbs(workout)
 
-    return await db.transaction("rw", db.userStats, async () => {
+    const run = async () => {
       const current = await this.getStats()
       const updated: UserStats & { id: string } = {
         id: "stats",
@@ -62,7 +63,13 @@ export const statsService = {
       }
       await db.userStats.put(updated)
       return updated
-    })
+    }
+
+    if (Dexie.currentTransaction) {
+      return await run()
+    }
+
+    return await db.transaction("rw", [db.userStats, db.workoutSessions], run)
   },
 
   /**
@@ -71,7 +78,7 @@ export const statsService = {
   async removeWorkout(workout: Workout): Promise<UserStats> {
     const volumeLbs = this.calculateWorkoutVolumeLbs(workout)
 
-    return await db.transaction("rw", db.userStats, async () => {
+    const run = async () => {
       const current = await this.getStats()
       const updated: UserStats & { id: string } = {
         id: "stats",
@@ -81,7 +88,13 @@ export const statsService = {
       }
       await db.userStats.put(updated)
       return updated
-    })
+    }
+
+    if (Dexie.currentTransaction) {
+      return await run()
+    }
+
+    return await db.transaction("rw", [db.userStats, db.workoutSessions], run)
   },
 
   /**
@@ -93,7 +106,7 @@ export const statsService = {
     const newVolumeLbs = this.calculateWorkoutVolumeLbs(newWorkout)
     const volumeDelta = newVolumeLbs - oldVolumeLbs
 
-    return await db.transaction("rw", db.userStats, async () => {
+    const run = async () => {
       const current = await this.getStats()
       const updated: UserStats & { id: string } = {
         id: "stats",
@@ -103,7 +116,13 @@ export const statsService = {
       }
       await db.userStats.put(updated)
       return updated
-    })
+    }
+
+    if (Dexie.currentTransaction) {
+      return await run()
+    }
+
+    return await db.transaction("rw", [db.userStats, db.workoutSessions], run)
   },
 
   /**
@@ -111,21 +130,29 @@ export const statsService = {
    * Use sparingly - only for data recovery or import.
    */
   async recalculateAll(): Promise<UserStats> {
-    const workouts = await db.workoutSessions.toArray()
+    const run = async () => {
+      const workouts = await db.workoutSessions.toArray()
 
-    let totalVolumeLbs = 0
-    for (const workout of workouts) {
-      totalVolumeLbs += this.calculateWorkoutVolumeLbs(workout)
+      let totalVolumeLbs = 0
+      for (const workout of workouts) {
+        totalVolumeLbs += this.calculateWorkoutVolumeLbs(workout)
+      }
+
+      const updated: UserStats & { id: string } = {
+        id: "stats",
+        totalWorkouts: workouts.length,
+        totalVolumeLbs,
+        lastUpdated: new Date().toISOString(),
+      }
+
+      await db.userStats.put(updated)
+      return updated
     }
 
-    const updated: UserStats & { id: string } = {
-      id: "stats",
-      totalWorkouts: workouts.length,
-      totalVolumeLbs,
-      lastUpdated: new Date().toISOString(),
+    if (Dexie.currentTransaction) {
+      return await run()
     }
 
-    await db.userStats.put(updated)
-    return updated
+    return await db.transaction("rw", [db.userStats, db.workoutSessions], run)
   },
 }

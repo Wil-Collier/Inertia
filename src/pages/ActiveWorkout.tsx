@@ -187,6 +187,20 @@ export function ActiveWorkout() {
     [toggleSetComplete]
   )
 
+  const handleAddSet = useCallback(
+    (workoutExerciseId: string) => {
+      void addSet(workoutExerciseId)
+    },
+    [addSet]
+  )
+
+  const handleRemoveExercise = useCallback(
+    (workoutExerciseId: string) => {
+      void removeExercise(workoutExerciseId)
+    },
+    [removeExercise]
+  )
+
   const handleUpdateNotes = useCallback(
     (workoutExerciseId: string, notes: string) => {
       void updateExerciseNotes({ workoutExerciseId, notes })
@@ -252,29 +266,35 @@ export function ActiveWorkout() {
         />
 
         {/* Exercises */}
-        {workout.exercises.map((workoutExercise) => (
-          <WorkoutExerciseCard
-            key={workoutExercise.id}
-            workoutExercise={workoutExercise}
-            exercise={exercisesById.get(workoutExercise.exerciseId)}
-            isExpanded={expandedExerciseId === workoutExercise.id}
-            onToggleExpanded={handleToggleExpanded}
-            onAddSet={(workoutExerciseId) => void addSet(workoutExerciseId)}
-            onRemoveSet={handleRemoveSet}
-            onUpdateSet={handleUpdateSet}
-            onToggleSetComplete={handleToggleSetComplete}
-            onRemoveExercise={(id) => void removeExercise(id)}
-            onUpdateNotes={handleUpdateNotes}
-            weightUnitLabel={weightUnit.unitLabel}
-            activeSetId={countdown.activeSetId ?? undefined}
-            countdownFormattedTime={countdown.formattedTime}
-            countdownIsRunning={countdown.isRunning}
-            onStartCountdown={countdown.start}
-            onPauseCountdown={countdown.pause}
-            onResumeCountdown={countdown.resume}
-            onStartRestTimer={timerControls.start}
-          />
-        ))}
+        {workout.exercises.map((workoutExercise) => {
+          const isCountdownForExercise =
+            countdown.activeSetId !== null &&
+            workoutExercise.sets.some((s) => s.id === countdown.activeSetId)
+
+          return (
+            <WorkoutExerciseCard
+              key={workoutExercise.id}
+              workoutExercise={workoutExercise}
+              exercise={exercisesById.get(workoutExercise.exerciseId)}
+              isExpanded={expandedExerciseId === workoutExercise.id}
+              onToggleExpanded={handleToggleExpanded}
+              onAddSet={handleAddSet}
+              onRemoveSet={handleRemoveSet}
+              onUpdateSet={handleUpdateSet}
+              onToggleSetComplete={handleToggleSetComplete}
+              onRemoveExercise={handleRemoveExercise}
+              onUpdateNotes={handleUpdateNotes}
+              weightUnitLabel={weightUnit.unitLabel}
+              activeSetId={countdown.activeSetId ?? undefined}
+              countdownFormattedTime={isCountdownForExercise ? countdown.formattedTime : undefined}
+              countdownIsRunning={isCountdownForExercise ? countdown.isRunning : false}
+              onStartCountdown={countdown.start}
+              onPauseCountdown={countdown.pause}
+              onResumeCountdown={countdown.resume}
+              onStartRestTimer={timerControls.start}
+            />
+          )
+        })}
 
         {/* Add Exercise Button */}
         <Button

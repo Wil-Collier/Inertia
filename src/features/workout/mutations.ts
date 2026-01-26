@@ -17,6 +17,9 @@ export function useCreateWorkout() {
       const id = crypto.randomUUID()
       const exerciseIds = workout.exercises.map(e => e.exerciseId)
 
+      // Pre-load necessary data for achievements (avoid dynamic import in a transaction)
+      const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
+
       // Ensure weightUnit is set (should always be provided, but fallback for safety)
       let weightUnit = workout.weightUnit
       if (!weightUnit) {
@@ -26,60 +29,10 @@ export function useCreateWorkout() {
 
       const newWorkout: Workout = { ...workout, id, exerciseIds, weightUnit }
 
-      await db.transaction("rw", [
-        db.workoutSessions,
-        db.userStats,
-        db.achievements,
-        db.workoutTemplates,
-        db.personalRecords,
-        db.customExercises,
-        db.nutritionLogs,
-        db.settings
-      ], async () => {
-        await db.workoutSessions.add(newWorkout)
-
-        // Update incremental stats
-        await statsService.addWorkout(newWorkout)
-
-        // Update streaks and check achievements
-        await achievementService.updateStreaks()
-        // We can't use dynamic import inside a transaction easily without pre-loading
-        // but we can assume the service handles its own transactions or logic if needed,
-        // HOWEVER, since we are inside a transaction, we should be careful about async non-db calls.
-        // The dynamic import was previously outside. Let's move it out or pre-load it.
-        // Actually, achievementService.checkWorkoutAchievements does an import.
-        // Ideally we should pass the map in.
-      })
-      
-      // We need to run achievement checks. The service method checkWorkoutAchievements
-      // loads the exercise database. We should probably do that before the transaction
-      // or pass it in.
-      // Re-reading the original code:
-      // It did:
-      // await statsService.addWorkout(newWorkout)
-      // await achievementService.updateStreaks()
-      // const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-      // await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
-      
-      // If I wrap everything in a transaction, the import might block or fail if not handled well.
-      // Let's pre-load the import before the transaction.
-      const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-
-      await db.transaction("rw", [
-        db.workoutSessions,
-        db.userStats,
-        db.achievements,
-        db.workoutTemplates,
-        db.personalRecords,
-        db.customExercises,
-        db.nutritionLogs,
-        db.settings
-      ], async () => {
-         await db.workoutSessions.add(newWorkout)
-         await statsService.addWorkout(newWorkout)
-         await achievementService.updateStreaks()
-         await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
-      })
+      await db.workoutSessions.add(newWorkout)
+      await statsService.addWorkout(newWorkout)
+      await achievementService.updateStreaks()
+      await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
 
       return newWorkout
     },

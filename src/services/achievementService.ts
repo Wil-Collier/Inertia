@@ -1,4 +1,5 @@
 import { db } from "@/services/db"
+import Dexie from "dexie"
 import { format, startOfWeek, eachDayOfInterval, subDays, parseISO, isSameDay } from "date-fns"
 import type { MuscleGroup, UnlockedAchievement, StreakData } from "@/lib/types"
 import { achievements } from "@/data/achievements"
@@ -193,13 +194,24 @@ export const achievementService = {
    * Updates both workout and nutrition streaks.
    */
   async updateStreaks() {
-    await this.ensureInitialized()
-    const workoutKeys = await db.workoutSessions.orderBy("date").uniqueKeys()
-    const workoutDates = workoutKeys.filter((k): k is string => typeof k === "string")
-    const logs = await db.nutritionLogs.toArray()
-    const nutritionDates = logs.filter((day) => day.entries.length > 0).map((day) => day.date)
+    const run = async () => {
+      await this.ensureInitialized()
 
-    await this.recalculateStreaks(workoutDates, nutritionDates)
+      const workoutKeys = await db.workoutSessions.orderBy("date").uniqueKeys()
+      const workoutDates = workoutKeys.filter((k): k is string => typeof k === "string")
+      const logs = await db.nutritionLogs.toArray()
+      const nutritionDates = logs.filter((day) => day.entries.length > 0).map((day) => day.date)
+
+      await this.recalculateStreaks(workoutDates, nutritionDates)
+    }
+
+    // Avoid starting a nested transaction if one is already active.
+    if (Dexie.currentTransaction) {
+      await run()
+      return
+    }
+
+    await db.transaction("rw", [db.achievements, db.workoutSessions, db.nutritionLogs], run)
   },
 
   /**
@@ -208,7 +220,7 @@ export const achievementService = {
    * @param nutritionDates - Array of nutrition log date strings (yyyy-MM-dd)
    */
   async recalculateStreaks(workoutDates: string[], nutritionDates: string[]) {
-    await db.transaction("rw", db.achievements, async () => {
+    const run = async () => {
       const data = await db.achievements.get("achievements")
       const currentStreaks = data?.streaks || defaultStreaks
       const unlockedAchievements = data?.unlockedAchievements || []
@@ -277,7 +289,14 @@ export const achievementService = {
       } catch (error) {
         console.error("Failed to save recalculated streaks:", error)
       }
-    })
+    }
+
+    if (Dexie.currentTransaction) {
+      await run()
+      return
+    }
+
+    await db.transaction("rw", db.achievements, run)
   },
 
   /**

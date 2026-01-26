@@ -41,18 +41,18 @@ export function useDeleteExercise() {
         throw new Error("Cannot delete built-in exercises")
       }
 
-      // Check if exercise is used in any templates
-      const templates = await db.workoutTemplates.toArray()
-      const usedInTemplate = templates.find(t =>
-        t.exercises.some(e => e.exerciseId === id)
-      )
+      await db.transaction("rw", [db.workoutTemplates, db.customExercises, db.personalRecords], async () => {
+        // Check if exercise is used in any templates (inside the same transaction as delete)
+        const templates = await db.workoutTemplates.toArray()
+        const usedInTemplate = templates.find((t) =>
+          t.exercises.some((e) => e.exerciseId === id)
+        )
 
-      if (usedInTemplate) {
-        throw new Error(`Cannot delete: exercise is used in template "${usedInTemplate.name}"`)
-      }
+        if (usedInTemplate) {
+          throw new Error(`Cannot delete: exercise is used in template "${usedInTemplate.name}"`)
+        }
 
-      // Only delete custom exercises and their associated PRs
-      await db.transaction("rw", [db.customExercises, db.personalRecords], async () => {
+        // Only delete custom exercises and their associated PRs
         await db.customExercises.delete(id)
         await db.personalRecords.where("exerciseId").equals(id).delete()
       })

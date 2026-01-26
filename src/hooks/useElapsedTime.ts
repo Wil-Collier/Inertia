@@ -22,7 +22,7 @@ export function useElapsedTime({ startedAt }: UseElapsedTimeOptions): UseElapsed
     const updateElapsed = () => {
       const now = Date.now()
       const elapsed = Math.floor((now - startTime) / 1000)
-      setElapsedSeconds(elapsed)
+      setElapsedSeconds(Math.max(0, elapsed))
     }
 
     // Update immediately

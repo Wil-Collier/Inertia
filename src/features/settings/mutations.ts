@@ -14,25 +14,27 @@ export function useUpdateSettings() {
   
   return useMutation({
     mutationFn: async (updates: Partial<UserSettings>) => {
-      const existing = await db.settings.get("settings")
+      return await db.transaction("rw", db.settings, async () => {
+        const existing = await db.settings.get("settings")
 
-      const newSettings: UserSettings & { id: string } = { 
-        theme: existing?.theme ?? (DEFAULT_THEME as ThemeMode),
-        restTimerDuration: existing?.restTimerDuration ?? DEFAULT_REST_TIMER_DURATION,
-        areNotificationsEnabled: existing?.areNotificationsEnabled ?? false,
-        ...updates,
-        unitPreferences: {
-          ...(existing?.unitPreferences || DEFAULT_UNIT_PREFERENCES),
-          ...updates.unitPreferences
-        },
-        nutritionGoals: {
-          ...(existing?.nutritionGoals || DEFAULT_NUTRITION_GOALS),
-          ...updates.nutritionGoals
-        },
-        id: "settings" 
-      }
-      await db.settings.put(newSettings)
-      return newSettings
+        const newSettings: UserSettings & { id: string } = { 
+          theme: existing?.theme ?? (DEFAULT_THEME as ThemeMode),
+          restTimerDuration: existing?.restTimerDuration ?? DEFAULT_REST_TIMER_DURATION,
+          areNotificationsEnabled: existing?.areNotificationsEnabled ?? false,
+          ...updates,
+          unitPreferences: {
+            ...(existing?.unitPreferences || DEFAULT_UNIT_PREFERENCES),
+            ...updates.unitPreferences
+          },
+          nutritionGoals: {
+            ...(existing?.nutritionGoals || DEFAULT_NUTRITION_GOALS),
+            ...updates.nutritionGoals
+          },
+          id: "settings" 
+        }
+        await db.settings.put(newSettings)
+        return newSettings
+      })
     },
     onMutate: async (updates) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.settings.all })

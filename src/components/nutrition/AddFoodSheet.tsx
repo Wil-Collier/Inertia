@@ -23,6 +23,8 @@ interface AddFoodSheetProps {
   isSearching: boolean
   isLookingUp: boolean
   searchResults: FoodItem[]
+  remoteStatus?: "idle" | "ok" | "error"
+  remoteError?: string
   onScanBarcode: () => void
   onAddFood: (food: FoodItem, qty: number) => Promise<void>
   onToggleFavorite: (foodId: string) => Promise<void>
@@ -53,6 +55,8 @@ export function AddFoodSheet({
   isSearching,
   isLookingUp,
   searchResults,
+  remoteStatus,
+  remoteError,
   onScanBarcode,
   onAddFood,
   onToggleFavorite,
@@ -85,6 +89,8 @@ export function AddFoodSheet({
           isSearching={isSearching}
           isLookingUp={isLookingUp}
           searchResults={searchResults}
+          remoteStatus={remoteStatus}
+          remoteError={remoteError}
           onScanBarcode={onScanBarcode}
           onAddFood={(food, qty) => void onAddFood(food, qty)}
           onToggleFavorite={(foodId) => void onToggleFavorite(foodId)}

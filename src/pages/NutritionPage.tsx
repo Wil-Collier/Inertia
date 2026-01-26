@@ -70,8 +70,12 @@ export function NutritionPage() {
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 500)
 
   // Use React Query for combined food search (local + OpenFoodFacts)
-  const { data: searchResults = [], isFetching: isSearching } =
+  const { data: combinedSearch, isFetching: isSearching } =
     useCombinedFoodSearch(debouncedSearchQuery)
+
+  const searchResults = combinedSearch?.items ?? []
+  const remoteStatus = combinedSearch?.remoteStatus
+  const remoteError = combinedSearch?.remoteError
 
   // Combine search results with barcode results (barcode results take precedence when shown)
   const displayedResults = barcodeResults.length > 0 ? barcodeResults : searchResults
@@ -248,6 +252,8 @@ export function NutritionPage() {
           isSearching={isSearching}
           isLookingUp={isLookingUp}
           searchResults={displayedResults}
+          remoteStatus={remoteStatus}
+          remoteError={remoteError}
           onScanBarcode={() => setShowScanner(true)}
           onAddFood={handleAddFood}
           onToggleFavorite={handleToggleFavorite}

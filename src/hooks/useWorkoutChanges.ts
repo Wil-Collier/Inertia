@@ -21,6 +21,9 @@ export function useWorkoutChanges({
   const hasChanges = useCallback(() => {
     if (!workout) return false
 
+    // Notes are always user-entered and should count as changes
+    if (workout.exercises.some((e) => (e.notes ?? "").trim().length > 0)) return true
+
     // If any set is completed, there are changes
     if (completedSets > 0) return true
 
@@ -41,7 +44,16 @@ export function useWorkoutChanges({
       const workoutEx = workout.exercises[i]
       const templateEx = template.exercises[i]
       if (workoutEx.exerciseId !== templateEx.exerciseId) return true
-      if (workoutEx.sets.length !== templateEx.targetSets) return true
+      const defaultSetCount = Math.max(1, templateEx.targetSets || 0)
+      if (workoutEx.sets.length !== defaultSetCount) return true
+
+      // Detect draft changes to set fields (weight/reps) even if not completed yet.
+      const defaultReps = templateEx.targetReps ?? 0
+      const defaultWeight = templateEx.targetWeight ?? 0
+      for (const set of workoutEx.sets) {
+        if ((set.reps ?? 0) !== defaultReps) return true
+        if ((set.weight ?? 0) !== defaultWeight) return true
+      }
     }
 
     return false

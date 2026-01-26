@@ -115,14 +115,39 @@ export function useUpdateMealEntry() {
       entryId: string; 
       updates: Partial<MealEntry> 
     }) => {
-      await db.transaction("rw", db.nutritionLogs, async () => {
+      await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
         const existing = await db.nutritionLogs.get(date)
         if (!existing) throw new Error("Log not found")
-        
-        const updatedEntries = existing.entries.map(e => 
+
+        const previousEntry = existing.entries.find((e) => e.id === entryId)
+        if (!previousEntry) throw new Error("Entry not found")
+
+        const nextFoodId = updates.foodId ?? previousEntry.foodId
+
+        // If the foodId changes, keep usageCount consistent for safe deletion checks.
+        if (updates.foodId && updates.foodId !== previousEntry.foodId) {
+          const [oldFood, newFood] = await Promise.all([
+            db.foods.get(previousEntry.foodId),
+            db.foods.get(nextFoodId),
+          ])
+
+          if (oldFood) {
+            await db.foods.update(previousEntry.foodId, {
+              usageCount: Math.max(0, (oldFood.usageCount ?? 0) - 1),
+            })
+          }
+
+          if (newFood) {
+            await db.foods.update(nextFoodId, {
+              usageCount: (newFood.usageCount ?? 0) + 1,
+            })
+          }
+        }
+
+        const updatedEntries = existing.entries.map((e) =>
           e.id === entryId ? { ...e, ...updates } : e
         )
-        
+
         await db.nutritionLogs.update(date, { entries: updatedEntries })
       })
     },

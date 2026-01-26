@@ -44,6 +44,29 @@ function getBackoffDelay(attempt: number): number {
 /** Timeout for API requests in milliseconds */
 const REQUEST_TIMEOUT_MS = 10000
 
+export type OpenFoodFactsErrorKind =
+  | "timeout"
+  | "rate_limit"
+  | "network"
+  | "http"
+  | "validation"
+  | "unknown"
+
+export class OpenFoodFactsError extends Error {
+  kind: OpenFoodFactsErrorKind
+  status?: number
+
+  constructor(kind: OpenFoodFactsErrorKind, message: string, options?: { status?: number; cause?: unknown }) {
+    super(message)
+    this.name = "OpenFoodFactsError"
+    this.kind = kind
+    this.status = options?.status
+    if (options?.cause !== undefined) {
+      ;(this as { cause?: unknown }).cause = options.cause
+    }
+  }
+}
+
 async function fetchWithRetry(
   url: string,
   options?: RequestInit
@@ -220,7 +243,9 @@ export async function searchFoods(
     const response = await fetchWithRetry(`${API_BASE}/cgi/search.pl?${params}`)
 
     if (!response.ok) {
-      throw new Error(`Search failed: ${response.status}`)
+      throw new OpenFoodFactsError("http", `Search failed: ${response.status}`, {
+        status: response.status,
+      })
     }
 
     const rawData = await response.json()
@@ -228,7 +253,9 @@ export async function searchFoods(
 
     if (!validation.success) {
       console.error("Open Food Facts search validation failed:", validation.error)
-      return { foods: [], total: 0 }
+      throw new OpenFoodFactsError("validation", "Search response validation failed", {
+        cause: validation.error,
+      })
     }
 
     const data = validation.data
@@ -243,7 +270,17 @@ export async function searchFoods(
     }
   } catch (error) {
     console.error("Open Food Facts search error:", error)
-    return { foods: [], total: 0 }
+
+    if (error instanceof OpenFoodFactsError) throw error
+
+    const message = error instanceof Error ? error.message : String(error)
+    const kind: OpenFoodFactsErrorKind = message.toLowerCase().includes("timed out")
+      ? "timeout"
+      : message.toLowerCase().includes("rate limited")
+        ? "rate_limit"
+        : "network"
+
+    throw new OpenFoodFactsError(kind, message, { cause: error })
   }
 }
 
@@ -258,7 +295,9 @@ export async function getProductByBarcode(
     )
 
     if (!response.ok) {
-      throw new Error(`Product lookup failed: ${response.status}`)
+      throw new OpenFoodFactsError("http", `Product lookup failed: ${response.status}`, {
+        status: response.status,
+      })
     }
 
     const rawData = await response.json()
@@ -266,7 +305,9 @@ export async function getProductByBarcode(
 
     if (!validation.success) {
       console.error("Open Food Facts product validation failed:", validation.error)
-      return null
+      throw new OpenFoodFactsError("validation", "Product response validation failed", {
+        cause: validation.error,
+      })
     }
 
     const data = validation.data
@@ -278,6 +319,16 @@ export async function getProductByBarcode(
     return parseProduct(data.product)
   } catch (error) {
     console.error("Open Food Facts product lookup error:", error)
-    return null
+
+    if (error instanceof OpenFoodFactsError) throw error
+
+    const message = error instanceof Error ? error.message : String(error)
+    const kind: OpenFoodFactsErrorKind = message.toLowerCase().includes("timed out")
+      ? "timeout"
+      : message.toLowerCase().includes("rate limited")
+        ? "rate_limit"
+        : "network"
+
+    throw new OpenFoodFactsError(kind, message, { cause: error })
   }
 }
