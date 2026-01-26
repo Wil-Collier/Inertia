@@ -36,7 +36,7 @@ export const FoodListItem = memo(({
   }, [onDelete])
 
   return (
-    <div className="rounded-lg border overflow-hidden">
+    <div className="rounded-lg border bg-card/50 shadow-xs overflow-hidden">
       <div className="flex items-center gap-3 p-3">
         <div className="flex-1">
           <p className="font-medium">{food.name}</p>

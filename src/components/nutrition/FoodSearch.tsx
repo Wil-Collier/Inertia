@@ -104,7 +104,7 @@ export function FoodSearch({
             </Button>
           </div>
 
-          <ScrollArea className="mt-4 h-[calc(100vh-280px)] min-h-[300px]">
+          <ScrollArea className="mt-4 h-[calc(100vh-280px)] min-h-[300px]" hideScrollBar>
             <div className="pb-[env(safe-area-inset-bottom,1rem)]">
               {(isSearching || isLookingUp) && searchResults.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">

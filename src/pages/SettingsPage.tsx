@@ -105,7 +105,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] overflow-y-auto no-scrollbar pb-20">
       <Header title="Settings" />
 
       <div className="space-y-4 p-4">

@@ -116,7 +116,7 @@ export function WorkoutPage() {
   const recentDates = workoutDates.slice().reverse().slice(0, 3)
 
   return (
-    <div className="flex flex-col pb-20">
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]">
       <Header
         title="Workout"
         rightAction={
@@ -131,7 +131,7 @@ export function WorkoutPage() {
         }
       />
 
-      <div className="space-y-6 p-4">
+      <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 p-4 pb-20">
         {/* Momentum & Stats */}
         <section className="grid grid-cols-2 gap-4">
            <Card className="bg-primary/5 border-none shadow-none">

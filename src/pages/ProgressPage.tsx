@@ -131,10 +131,10 @@ export function ProgressPage() {
   const volumeTooltipFormatter = useCallback((value: ValueType | undefined) => [`${Number(value ?? 0).toLocaleString()} ${weightUnit.unitLabel}`, "Volume"] as [string, string], [weightUnit.unitLabel])
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]">
       <Header title="Progress" />
 
-      <div className="space-y-4 p-4">
+      <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 p-4 pb-20">
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           <StatCard

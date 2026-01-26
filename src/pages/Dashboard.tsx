@@ -54,7 +54,7 @@ export function Dashboard() {
   }, [unlockedAchievements])
 
   return (
-    <div className="flex flex-col pb-20">
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]">
       <Header
         title="Inertia"
         rightAction={
@@ -64,7 +64,7 @@ export function Dashboard() {
         }
       />
 
-      <div className="space-y-4 p-4">
+      <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 p-4 pb-20">
         {/* Active Workout Banner */}
         {activeSession && (
           <Link to="/workout/active" className="block animate-in fade-in slide-in-from-top-4 duration-500">

@@ -206,7 +206,7 @@ export function NutritionPage() {
         }
       />
 
-      <div className="space-y-4 p-4">
+      <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 p-4 pb-20">
         <DateNavigator
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}

@@ -206,7 +206,7 @@ export function WorkoutTemplates() {
   )
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]">
       <Header
         title="Templates"
         showBack
@@ -218,8 +218,8 @@ export function WorkoutTemplates() {
         }
       />
 
-      <ScrollArea className="flex-1">
-        <div className="space-y-4 p-4">
+      <ScrollArea className="flex-1" hideScrollBar>
+        <div className="space-y-4 p-4 pb-20">
           {templates.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
