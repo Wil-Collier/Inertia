@@ -39,7 +39,7 @@ export function TemplateEditorPage() {
 
   const [name, setName] = useState("")
   const [entries, setEntries] = useState<Omit<MealEntry, "id">[]>([])
-  const [isInitialized, setIsInitialized] = useState(false)
+  const [initializedTemplateId, setInitializedTemplateId] = useState<string | null>(null)
   
   // Sheet state for adding foods
   const [showAddSheet, setShowAddSheet] = useState(false)
@@ -50,12 +50,23 @@ export function TemplateEditorPage() {
 
   // Load existing template data
   useEffect(() => {
-    if (templateId && existingTemplate && !isInitialized) {
+    if (!templateId) {
+      if (initializedTemplateId !== null) {
+        setName("")
+        setEntries([])
+        setInitializedTemplateId(null)
+      }
+      return
+    }
+
+    if (!existingTemplate) return
+
+    if (initializedTemplateId !== templateId) {
       setName(existingTemplate.name)
       setEntries(existingTemplate.entries)
-      setIsInitialized(true)
+      setInitializedTemplateId(templateId)
     }
-  }, [templateId, existingTemplate, isInitialized])
+  }, [templateId, existingTemplate, initializedTemplateId])
 
   // Food Search Data
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 500)

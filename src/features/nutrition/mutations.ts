@@ -3,7 +3,7 @@ import { toast } from "sonner"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import type { MealEntry, FoodItem, MealType, DailyNutrition, NutritionTotals } from "@/lib/types"
-import { calculateNutritionTotals } from "@/lib/nutritionUtils"
+import { calculateNutritionTotals, INITIAL_TOTALS } from "@/lib/nutritionUtils"
 import type { MealEntryWithFood } from "./queries"
 
 import { achievementService } from "@/services/achievementService"
@@ -99,13 +99,18 @@ export function useRemoveMealEntry() {
       await db.transaction("rw", db.nutritionLogs, async () => {
         const existing = await db.nutritionLogs.get(date)
         if (!existing) return
-        
-        await db.nutritionLogs.update(date, {
-          entries: existing.entries.filter((e) => e.id !== entryId),
-        })
+
+        const nextEntries = existing.entries.filter((e) => e.id !== entryId)
+
+        if (nextEntries.length === 0) {
+          await db.nutritionLogs.delete(date)
+        } else {
+          await db.nutritionLogs.update(date, { entries: nextEntries })
+        }
       })
-      
-      // Check nutrition achievements after entry removal
+
+      // Simple, correct approach for early dev: recalculate streaks from history.
+      await achievementService.updateStreaks()
       await achievementService.checkNutritionAchievements()
     },
     onMutate: async ({ date, entryId }) => {
@@ -129,14 +134,18 @@ export function useRemoveMealEntry() {
           foodsById
         )
 
+        const updatedLog = previous.log
+          ? {
+              ...previous.log,
+              entries: previous.log.entries.filter((e: MealEntry) => e.id !== entryId),
+            }
+          : null
+
         queryClient.setQueryData(queryKeys.nutrition.daily(date), {
           ...previous,
-          log: previous.log ? {
-            ...previous.log,
-            entries: previous.log.entries.filter((e: MealEntry) => e.id !== entryId)
-          } : null,
+          log: updatedLog && updatedLog.entries.length > 0 ? updatedLog : null,
           entriesWithFood: updatedEntriesWithFood,
-          totals: updatedTotals,
+          totals: updatedEntriesWithFood.length > 0 ? updatedTotals : INITIAL_TOTALS,
         })
       }
       
@@ -150,6 +159,7 @@ export function useRemoveMealEntry() {
     },
     onSettled: (_data, _error, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(variables.date) })
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.nutrition.all, "dates"] })
     }
   })
 }
@@ -158,10 +168,11 @@ export function useAddFood() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (food: Omit<FoodItem, "id">) => {
-      const id = crypto.randomUUID()
-      const newFood = { ...food, id, isCustom: food.isCustom ?? true }
-      await db.foods.add(newFood)
+    mutationFn: async (food: Omit<FoodItem, "id"> & { id?: string }) => {
+      const id = food.id ?? crypto.randomUUID()
+      const newFood: FoodItem = { ...food, id, isCustom: food.isCustom ?? true }
+      // Upsert to avoid duplicates when the ID is canonical (e.g. barcode IDs).
+      await db.foods.put(newFood)
       return newFood
     },
     onSuccess: () => {
@@ -215,8 +226,8 @@ export function useToggleFavoriteFood() {
       if (existing) {
         await db.foods.update(id, { isFavorite })
       } else if (food) {
-        // If food doesn't exist locally (e.g. from search), add it to DB
-        await db.foods.add({ ...food, isFavorite })
+        // If food doesn't exist locally (e.g. from search), upsert it.
+        await db.foods.put({ ...food, isFavorite, isCustom: food.isCustom ?? false })
       }
     },
     onMutate: async ({ id, isFavorite }) => {
@@ -372,15 +383,20 @@ export function useRemoveMealEntryGroup() {
         const existing = await db.nutritionLogs.get(date)
         if (!existing) return
 
-        await db.nutritionLogs.update(date, {
-          entries: existing.entries.filter((e) => e.templateInstanceId !== templateInstanceId),
-        })
+        const nextEntries = existing.entries.filter((e) => e.templateInstanceId !== templateInstanceId)
+        if (nextEntries.length === 0) {
+          await db.nutritionLogs.delete(date)
+        } else {
+          await db.nutritionLogs.update(date, { entries: nextEntries })
+        }
       })
-      
+
+      await achievementService.updateStreaks()
       await achievementService.checkNutritionAchievements()
     },
     onSuccess: (_, { date }) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.nutrition.all, "dates"] })
     },
     onError: () => {
       toast.error("Failed to remove template group")

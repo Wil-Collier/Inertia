@@ -38,8 +38,6 @@ interface WorkoutSetRowProps {
   showRemoveButton: boolean
 }
 
-const REPS_OPTIONS = Array.from({ length: 101 }, (_, i) => i)
-
 export const WorkoutSetRow = memo(({
   set,
   index,
@@ -73,6 +71,15 @@ export const WorkoutSetRow = memo(({
     }
     return opts
   }, [weightMax, weightStep, set.weight])
+
+  const repsOptions = useMemo(() => {
+    const opts = Array.from({ length: 101 }, (_, i) => i)
+    if (!opts.includes(set.reps)) {
+      opts.push(set.reps)
+      opts.sort((a, b) => a - b)
+    }
+    return opts
+  }, [set.reps])
 
   return (
     <div
@@ -222,7 +229,7 @@ export const WorkoutSetRow = memo(({
               ) : (
                 <ScrollPicker
                   value={set.reps}
-                  options={REPS_OPTIONS}
+                  options={repsOptions}
                   onChange={(reps) => onUpdateSet(workoutExerciseId, set.id, { reps })}
                   unit="reps"
                   className="w-full border-none bg-transparent"

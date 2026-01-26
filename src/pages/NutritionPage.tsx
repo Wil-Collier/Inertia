@@ -120,8 +120,7 @@ export function NutritionPage() {
       // If it's from OpenFoodFacts and not in our database, add it
       const exists = await db.foods.get(food.id)
       if (!food.isCustom && !exists) {
-        const newFood = await addFoodMutation.mutateAsync({ ...food, isCustom: false })
-        foodId = newFood.id
+        await addFoodMutation.mutateAsync({ ...food, isCustom: false })
       }
 
       addMealEntryMutation.mutate(
