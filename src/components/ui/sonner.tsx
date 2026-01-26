@@ -5,6 +5,28 @@ import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme } = useTheme()
 
+  const desktopOffset: NonNullable<ToasterProps["offset"]> = {
+    top: "calc(env(safe-area-inset-top, 0px) + 24px)",
+    right: "calc(env(safe-area-inset-right, 0px) + 24px)",
+    bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+    left: "calc(env(safe-area-inset-left, 0px) + 24px)",
+  }
+
+  const mobileOffset: NonNullable<ToasterProps["mobileOffset"]> = {
+    top: "calc(env(safe-area-inset-top, 0px) + 16px)",
+    right: "calc(env(safe-area-inset-right, 0px) + 16px)",
+    bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+    left: "calc(env(safe-area-inset-left, 0px) + 16px)",
+  }
+
+  const style: React.CSSProperties = {
+    "--normal-bg": "var(--popover)",
+    "--normal-text": "var(--popover-foreground)",
+    "--normal-border": "var(--border)",
+    "--border-radius": "var(--radius)",
+    ...props.style,
+  } as React.CSSProperties
+
   return (
     <Sonner
       theme={theme === "system" ? "system" : theme === "dark" ? "dark" : "light"}
@@ -26,16 +48,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
           <Loader2Icon className="size-4 animate-spin" />
         ),
       }}
-      style={
-        {
-          paddingTop: props.position?.startsWith("top") ? "env(safe-area-inset-top, 0px)" : undefined,
-          paddingBottom: props.position?.startsWith("bottom") ? "env(safe-area-inset-bottom, 0px)" : undefined,
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
-        } as React.CSSProperties
-      }
+      offset={props.offset ?? desktopOffset}
+      mobileOffset={props.mobileOffset ?? mobileOffset}
+      style={style}
       toastOptions={{
         classNames: {
           toast: "cn-toast",

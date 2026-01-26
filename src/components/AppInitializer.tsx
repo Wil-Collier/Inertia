@@ -6,6 +6,17 @@ interface AppInitializerProps {
   children: ReactNode
 }
 
+async function exportBackup() {
+  try {
+    // Use downloadExport to create a properly wrapped backup that can be imported
+    const { downloadExport } = await import("@/services/dataExport")
+    await downloadExport()
+  } catch (err) {
+    console.error("Failed to export backup:", err)
+    // Still allow proceeding even if backup fails
+  }
+}
+
 /**
  * Checks database health and initializes the application.
  */
@@ -34,17 +45,6 @@ export function AppInitializer({ children }: AppInitializerProps) {
 
     void initialize()
   }, [])
-
-  const handleExportBackup = async () => {
-    try {
-      // Use downloadExport to create a properly wrapped backup that can be imported
-      const { downloadExport } = await import("@/services/dataExport")
-      await downloadExport()
-    } catch (err) {
-      console.error("Failed to export backup:", err)
-      // Still allow proceeding even if backup fails
-    }
-  }
 
   const handleRecoverDatabase = async () => {
     setIsRecovering(true)
@@ -78,7 +78,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
           </p>
           <div className="space-y-3">
             <button
-              onClick={handleExportBackup}
+              onClick={exportBackup}
               disabled={isRecovering}
               className="w-full py-3 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             >
