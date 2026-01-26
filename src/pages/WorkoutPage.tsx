@@ -18,6 +18,7 @@ import { useTemplates, useWorkoutDates, useWorkoutStats } from "@/features/worko
 import { useExercisesByIds } from "@/features/exercises/queries"
 import { cn } from "@/lib/utils"
 import { format, subDays, startOfMonth, endOfMonth, parseISO } from "date-fns"
+import { parseDbDate } from "@/lib/dateUtils"
 import type { MuscleGroup } from "@/lib/types"
 
 export function WorkoutPage() {
@@ -100,7 +101,7 @@ export function WorkoutPage() {
       const weekStart = subDays(now, (weekOffset + 1) * 7)
       const weekEnd = subDays(now, weekOffset * 7)
       const count = recentWorkouts.filter(workout => {
-        const date = new Date(workout.date)
+        const date = parseDbDate(workout.date)
         return date >= weekStart && date <= weekEnd
       }).length
       return { offset: weekOffset, count }

@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { PageLoader } from "@/components/ui/PageLoader"
 import { isDatabaseHealthy, recoverDatabase } from "@/services/db"
+import { achievementService } from "@/services/achievementService"
+import { statsService } from "@/services/statsService"
 
 interface AppInitializerProps {
   children: ReactNode
@@ -27,6 +29,9 @@ export function AppInitializer({ children }: AppInitializerProps) {
   const [isRecovering, setIsRecovering] = useState(false)
 
   useEffect(() => {
+    let midnightTimeoutId: number | undefined
+    let dailyIntervalId: number | undefined
+
     async function initialize() {
       try {
         const healthy = await isDatabaseHealthy()
@@ -35,6 +40,28 @@ export function AppInitializer({ children }: AppInitializerProps) {
           setShowCorruptionPrompt(true)
           return
         }
+
+        // Initialize/repair derived state (early dev: correctness > micro perf).
+        await achievementService.ensureInitialized()
+        await achievementService.updateStreaks()
+        await statsService.recalculateAll()
+
+        // Keep streaks correct if the app stays open across midnight.
+        const now = new Date()
+        const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+        const msUntilMidnight = nextMidnight.getTime() - now.getTime() + 1000
+
+        midnightTimeoutId = window.setTimeout(() => {
+          void achievementService.updateStreaks().catch((err) => {
+            console.error("Failed to refresh streaks:", err)
+          })
+
+          dailyIntervalId = window.setInterval(() => {
+            void achievementService.updateStreaks().catch((err) => {
+              console.error("Failed to refresh streaks:", err)
+            })
+          }, 24 * 60 * 60 * 1000)
+        }, msUntilMidnight)
       } catch (err) {
         console.error("Database initialization failed:", err)
         setError(err instanceof Error ? err : new Error("Failed to initialize database"))
@@ -44,6 +71,15 @@ export function AppInitializer({ children }: AppInitializerProps) {
     }
 
     void initialize()
+
+    return () => {
+      if (midnightTimeoutId !== undefined) {
+        clearTimeout(midnightTimeoutId)
+      }
+      if (dailyIntervalId !== undefined) {
+        clearInterval(dailyIntervalId)
+      }
+    }
   }, [])
 
   const handleRecoverDatabase = async () => {

@@ -31,7 +31,7 @@ export function useCreateWorkout() {
       await statsService.addWorkout(newWorkout)
 
       // Update streaks and check achievements
-      await achievementService.updateWorkoutStreak(newWorkout.date)
+      await achievementService.updateStreaks()
       const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
       await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
 
@@ -73,7 +73,7 @@ export function useUpdateWorkout() {
 
       // Recalculate streaks and check achievements after workout update
       if (workout) {
-        await achievementService.updateWorkoutStreak(workout.date)
+        await achievementService.updateStreaks()
       }
       const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
       await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
@@ -107,6 +107,9 @@ export function useDeleteWorkout() {
       if (workout) {
         await statsService.removeWorkout(workout)
       }
+
+      // Deletion can invalidate current/last streak state.
+      await achievementService.updateStreaks()
 
       // Check achievements after workout deletion (volume/count may change)
       const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")

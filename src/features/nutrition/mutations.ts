@@ -43,7 +43,7 @@ export function useAddMealEntry() {
       })
 
       // Update streaks and check achievements
-      await achievementService.updateNutritionStreak(date)
+      await achievementService.updateStreaks()
       await achievementService.checkNutritionAchievements()
       
       return entry
@@ -360,7 +360,7 @@ export function useApplyMealTemplate() {
       })
 
       // Update streaks and check achievements
-      await achievementService.updateNutritionStreak(date)
+      await achievementService.updateStreaks()
       await achievementService.checkNutritionAchievements()
     },
     onSuccess: (_, { date }) => {

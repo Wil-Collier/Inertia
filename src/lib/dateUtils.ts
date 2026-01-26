@@ -3,6 +3,25 @@ import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date
 export const DB_DATE_FORMAT = "yyyy-MM-dd"
 
 /**
+ * Parse a DB date string (yyyy-MM-dd) as a local date.
+ *
+ * Important: `new Date("yyyy-MM-dd")` is parsed as UTC by JS, which shifts
+ * dates in non-UTC timezones.
+ */
+export function parseDbDate(dateStr: string): Date {
+  const [yStr, mStr, dStr] = dateStr.split("-")
+  const year = Number(yStr)
+  const monthIndex = Number(mStr) - 1
+  const day = Number(dStr)
+
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || !Number.isFinite(day)) {
+    throw new Error(`Invalid DB date: ${dateStr}`)
+  }
+
+  return new Date(year, monthIndex, day)
+}
+
+/**
  * Returns today's date formatted for DB storage (yyyy-MM-dd)
  */
 export const getToday = () => format(new Date(), DB_DATE_FORMAT)

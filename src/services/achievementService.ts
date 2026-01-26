@@ -1,5 +1,5 @@
 import { db } from "@/services/db"
-import { format, startOfWeek, eachDayOfInterval, subDays, differenceInCalendarDays, parseISO, isSameDay } from "date-fns"
+import { format, startOfWeek, eachDayOfInterval, subDays, parseISO, isSameDay } from "date-fns"
 import type { MuscleGroup, UnlockedAchievement, StreakData } from "@/lib/types"
 import { achievements } from "@/data/achievements"
 import { toast } from "sonner"
@@ -193,6 +193,7 @@ export const achievementService = {
    * Updates both workout and nutrition streaks.
    */
   async updateStreaks() {
+    await this.ensureInitialized()
     const workoutKeys = await db.workoutSessions.orderBy("date").uniqueKeys()
     const workoutDates = workoutKeys.filter((k): k is string => typeof k === "string")
     const logs = await db.nutritionLogs.toArray()
@@ -281,106 +282,19 @@ export const achievementService = {
    * Incrementally updates workout streak for a new workout.
    * @param workoutDate - Date of the new workout (yyyy-MM-dd)
    */
-  async updateWorkoutStreak(workoutDate: string) {
-    try {
-      const data = await db.achievements.get("achievements")
-      const streaks = data?.streaks || defaultStreaks
-      const unlockedAchievements = data?.unlockedAchievements || []
-      const { lastWorkoutDate, currentWorkoutStreak, longestWorkoutStreak } = streaks
-
-      const today = new Date()
-      const yesterday = subDays(today, 1)
-      const workoutDateParsed = parseISO(workoutDate)
-      const lastWorkoutParsed = lastWorkoutDate ? parseISO(lastWorkoutDate) : null
-
-      let newStreak = currentWorkoutStreak
-
-      if (!lastWorkoutParsed) {
-        newStreak = 1
-      } else if (isSameDay(workoutDateParsed, lastWorkoutParsed)) {
-        newStreak = currentWorkoutStreak
-      } else if (isSameDay(lastWorkoutParsed, yesterday) || isSameDay(lastWorkoutParsed, today)) {
-        if (isSameDay(workoutDateParsed, today) && !isSameDay(lastWorkoutParsed, today)) {
-          newStreak = currentWorkoutStreak + 1
-        }
-      } else {
-        const daysSinceLastWorkout = differenceInCalendarDays(today, lastWorkoutParsed)
-        if (daysSinceLastWorkout > 1) {
-          newStreak = 1
-        }
-      }
-
-      const newLongest = Math.max(newStreak, longestWorkoutStreak)
-      const newStreaks = {
-        ...streaks,
-        currentWorkoutStreak: newStreak,
-        longestWorkoutStreak: newLongest,
-        lastWorkoutDate: workoutDate,
-      }
-
-      await db.achievements.put({
-        id: "achievements",
-        unlockedAchievements,
-        streaks: newStreaks,
-      })
-    } catch (error) {
-      console.error("Failed to update workout streak:", error)
-    }
+  async updateWorkoutStreak(_workoutDate: string) {
+    // Early-dev correctness: incremental streak updates are easy to corrupt
+    // with backdated edits/deletes. Recompute from history.
+    await this.updateStreaks()
   },
 
   /**
    * Incrementally updates nutrition streak for a new log entry.
    * @param nutritionDate - Date of the nutrition log (yyyy-MM-dd)
    */
-  async updateNutritionStreak(nutritionDate: string) {
-    try {
-      const data = await db.achievements.get("achievements")
-      const streaks = data?.streaks || defaultStreaks
-      const unlockedAchievements = data?.unlockedAchievements || []
-      const {
-        lastNutritionDate,
-        currentNutritionStreak,
-        longestNutritionStreak,
-      } = streaks
-
-      const today = new Date()
-      const yesterday = subDays(today, 1)
-      const nutritionDateParsed = parseISO(nutritionDate)
-      const lastNutritionParsed = lastNutritionDate ? parseISO(lastNutritionDate) : null
-
-      let newStreak = currentNutritionStreak
-
-      if (!lastNutritionParsed) {
-        newStreak = 1
-      } else if (isSameDay(nutritionDateParsed, lastNutritionParsed)) {
-        newStreak = currentNutritionStreak
-      } else if (isSameDay(lastNutritionParsed, yesterday) || isSameDay(lastNutritionParsed, today)) {
-        if (isSameDay(nutritionDateParsed, today) && !isSameDay(lastNutritionParsed, today)) {
-          newStreak = currentNutritionStreak + 1
-        }
-      } else {
-        const daysSinceLastLog = differenceInCalendarDays(today, lastNutritionParsed)
-        if (daysSinceLastLog > 1) {
-          newStreak = 1
-        }
-      }
-
-      const newLongest = Math.max(newStreak, longestNutritionStreak)
-      const newStreaks = {
-        ...streaks,
-        currentNutritionStreak: newStreak,
-        longestNutritionStreak: newLongest,
-        lastNutritionDate: nutritionDate,
-      }
-
-      await db.achievements.put({
-        id: "achievements",
-        unlockedAchievements,
-        streaks: newStreaks,
-      })
-    } catch (error) {
-      console.error("Failed to update nutrition streak:", error)
-    }
+  async updateNutritionStreak(_nutritionDate: string) {
+    // Early-dev correctness: recompute from history to handle backdating/deletes.
+    await this.updateStreaks()
   },
 
   /**

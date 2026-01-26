@@ -21,7 +21,7 @@ import { useBodyWeightHistory } from "@/features/bodyweight/queries"
 import { useAddWeightEntry, useDeleteWeightEntry } from "@/features/bodyweight/mutations"
 import { useWorkoutStats, usePersonalRecords, useExerciseHistory, useProgressStats } from "@/features/workout/queries"
 import { calculateOneRepMax, calculateSetVolume } from "@/lib/workoutUtils"
-import { getNinetyDaysAgo, getToday } from "@/lib/dateUtils"
+import { getNinetyDaysAgo, getToday, parseDbDate } from "@/lib/dateUtils"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 import type { PersonalRecord } from "@/lib/types"
@@ -77,7 +77,7 @@ export function ProgressPage() {
     // Pre-group workouts by week key in a single pass (O(N))
     const workoutsByWeek = new Map<string, typeof recentWorkouts>()
     for (const workout of recentWorkouts) {
-      const workoutDate = new Date(workout.date)
+      const workoutDate = parseDbDate(workout.date)
       const weekStart = startOfWeek(workoutDate)
       const weekKey = format(weekStart, "yyyy-MM-dd")
 
@@ -123,7 +123,7 @@ export function ProgressPage() {
         oneRepMax: calculateOneRepMax(pr.weight, pr.reps),
       }))
       .filter((pr) => pr.exercise)
-      .toSorted((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .toSorted((a, b) => parseDbDate(b.date).getTime() - parseDbDate(a.date).getTime())
   }, [personalRecords, prExerciseMap])
 
   // Chart formatters

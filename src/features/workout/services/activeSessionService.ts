@@ -147,7 +147,7 @@ export const activeSessionService = {
       deferToBackground(() => {
         // Run streak update and achievement checks without blocking
         // The dynamic import is safe here since we're not in a transaction
-        achievementService.updateWorkoutStreak(completedWorkout.date)
+        achievementService.updateStreaks()
           .then(async () => {
             const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
             return achievementService.checkWorkoutAchievements(exerciseDatabaseMap)

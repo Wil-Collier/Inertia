@@ -14,6 +14,13 @@ export const statsService = {
   async getStats(): Promise<UserStats> {
     const data = await db.userStats.get("stats")
     if (!data) {
+      // Early-dev correctness: if stats are missing but workouts exist,
+      // rebuild from history instead of silently returning zeros.
+      const workoutCount = await db.workoutSessions.count()
+      if (workoutCount > 0) {
+        return await this.recalculateAll()
+      }
+
       const stats = { ...defaultUserStats, id: "stats" }
       await db.userStats.put(stats)
       return stats
