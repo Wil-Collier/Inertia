@@ -1,7 +1,5 @@
-import { memo } from "react"
+import { memo, useMemo, useState } from "react"
 import {
-  Plus,
-  Minus,
   Check,
   Trash2,
   Play,
@@ -11,7 +9,13 @@ import { Button } from "@/components/ui/button"
 import { DurationInput } from "@/components/ui/duration-input"
 import { cn } from "@/lib/utils"
 import type { WorkoutSet, Exercise } from "@/lib/types"
-import { DebouncedInput } from "./DebouncedInput"
+import { ScrollPicker } from "@/components/ui/scroll-picker"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 
 interface WorkoutSetRowProps {
   set: WorkoutSet
@@ -34,6 +38,8 @@ interface WorkoutSetRowProps {
   showRemoveButton: boolean
 }
 
+const REPS_OPTIONS = Array.from({ length: 101 }, (_, i) => i)
+
 export const WorkoutSetRow = memo(({
   set,
   index,
@@ -54,104 +60,40 @@ export const WorkoutSetRow = memo(({
   onStartRestTimer,
   showRemoveButton,
 }: WorkoutSetRowProps) => {
+  const [activePicker, setActivePicker] = useState<"weight" | "reps" | null>(null)
+
+  const isLb = weightUnitLabel.toLowerCase() === "lb" || weightUnitLabel.toLowerCase() === "lbs"
+  const weightStep = isLb ? 5 : 2.5
+  const weightMax = isLb ? 1000 : 450
+  const weightOptions = useMemo(() => {
+    const opts = Array.from({ length: Math.floor(weightMax / weightStep) + 1 }, (_, i) => i * weightStep)
+    if (!opts.includes(set.weight)) {
+      opts.push(set.weight)
+      opts.sort((a, b) => a - b)
+    }
+    return opts
+  }, [weightMax, weightStep, set.weight])
+
   return (
     <div
       className={cn(
-        "items-center gap-2 grid",
+        "items-center gap-2 grid py-1",
         isTimeBased
-          ? "grid-cols-[1fr_4fr_auto]"
+          ? "grid-cols-[40px_30px_1fr_40px]"
           : exercise?.isWeighted 
-            ? "grid-cols-[1fr_3fr_3fr_auto]" 
-            : "grid-cols-[1fr_6fr_auto]",
+            ? "grid-cols-[40px_30px_1fr_1fr_40px]" 
+            : "grid-cols-[40px_30px_1fr_40px]",
         set.isCompleted && "opacity-60"
       )}
     >
-      <span className="text-sm font-medium">{index + 1}</span>
-      
-      {/* Weight input (only for weighted, non-time-based exercises) */}
-      {exercise?.isWeighted && !isTimeBased && (
-        <DebouncedInput
-          type="number"
-          value={set.weight}
-          onChange={(weight) => {
-            onUpdateSet(workoutExerciseId, set.id, { weight })
-          }}
-          parseValue={(rawValue) => Math.round(parseFloat(rawValue))}
-          placeholder={weightUnitLabel}
-          className="h-9"
-          disabled={set.isCompleted}
-        />
-      )}
-
-      {/* Duration input/countdown for time-based exercises */}
-      {isTimeBased ? (
-        isActiveCountdown ? (
-          /* Show countdown in place of duration input */
-          <div className="flex h-9 items-center justify-center rounded-md border bg-primary/10 font-mono text-lg font-bold text-primary">
-            {countdownFormattedTime}
-          </div>
-        ) : (
-          /* Show editable duration input */
-          <DurationInput
-            value={set.reps} // reps stores duration in seconds
-            onChange={(seconds) =>
-              onUpdateSet(workoutExerciseId, set.id, {
-                reps: seconds,
-              })
-            }
-            disabled={set.isCompleted}
-          />
-        )
-      ) : (
-        /* Reps input for non-time-based exercises */
-        <div className="flex items-center gap-1.5">
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            className="h-9 w-9 border shrink-0"
-            disabled={set.isCompleted || (set.reps || 0) <= 0}
-            onClick={() => {
-              const reps = Math.max(0, (set.reps || 0) - 1)
-              onUpdateSet(workoutExerciseId, set.id, { reps })
-            }}
-          >
-            <Minus className="h-3 w-3" />
-          </Button>
-          <DebouncedInput
-            type="number"
-            value={set.reps}
-            onChange={(reps) => {
-              onUpdateSet(workoutExerciseId, set.id, { reps })
-            }}
-            parseValue={(rawValue) => Math.round(parseFloat(rawValue))}
-            placeholder="reps"
-            className="h-9 text-center"
-            disabled={set.isCompleted}
-          />
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            className="h-9 w-9 border shrink-0"
-            disabled={set.isCompleted}
-            onClick={() => {
-              const reps = (set.reps || 0) + 1
-              onUpdateSet(workoutExerciseId, set.id, { reps })
-            }}
-          >
-            <Plus className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <div className="flex gap-1">
+      {/* Status/Action Button (Left Side) */}
+      <div className="flex justify-center">
         {isTimeBased && !set.isCompleted ? (
-          /* Time-based exercise: Play/Pause button */
           isActiveCountdown ? (
-            /* Show pause or resume button based on running state */
             <Button
               size="icon-sm"
               variant={countdownIsRunning ? "default" : "outline"}
+              className="h-8 w-8"
               onClick={() => {
                 if (countdownIsRunning) {
                   onPauseCountdown()
@@ -160,17 +102,13 @@ export const WorkoutSetRow = memo(({
                 }
               }}
             >
-              {countdownIsRunning ? (
-                <Pause className="h-3 w-3" />
-              ) : (
-                <Play className="h-3 w-3" />
-              )}
+              {countdownIsRunning ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
             </Button>
           ) : (
-            /* Show play button to start */
             <Button
               size="icon-sm"
               variant="outline"
+              className="h-8 w-8"
               disabled={!canComplete}
               onClick={() => {
                 if (canComplete) {
@@ -182,10 +120,10 @@ export const WorkoutSetRow = memo(({
             </Button>
           )
         ) : (
-          /* Rep-based exercise or completed: Check button */
           <Button
             size="icon-sm"
             variant={set.isCompleted ? "default" : "outline"}
+            className="h-8 w-8"
             disabled={!set.isCompleted && !canComplete}
             onClick={() => {
               if (set.isCompleted || canComplete) {
@@ -199,23 +137,114 @@ export const WorkoutSetRow = memo(({
             <Check className="h-3 w-3" />
           </Button>
         )}
+      </div>
+
+      <span className="text-sm font-medium text-center">{index + 1}</span>
+      
+      {/* Weight Value Display */}
+      {exercise?.isWeighted && !isTimeBased && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 w-full text-center tabular-nums"
+          disabled={set.isCompleted}
+          onClick={() => setActivePicker("weight")}
+        >
+          {set.weight} <span className="ml-1 text-[10px] text-muted-foreground uppercase">{weightUnitLabel}</span>
+        </Button>
+      )}
+
+      {/* Duration/Reps Value Display */}
+      {isTimeBased ? (
+        isActiveCountdown ? (
+          <div className="flex h-9 items-center justify-center rounded-md border bg-primary/10 font-mono text-lg font-bold text-primary">
+            {countdownFormattedTime}
+          </div>
+        ) : (
+          <DurationInput
+            value={set.reps}
+            onChange={(seconds) =>
+              onUpdateSet(workoutExerciseId, set.id, {
+                reps: seconds,
+              })
+            }
+            disabled={set.isCompleted}
+          />
+        )
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 w-full text-center tabular-nums"
+          disabled={set.isCompleted}
+          onClick={() => setActivePicker("reps")}
+        >
+          {set.reps} <span className="ml-1 text-[10px] text-muted-foreground uppercase">reps</span>
+        </Button>
+      )}
+
+      {/* Trash button (Right Side) */}
+      <div className="flex justify-center">
         {!set.isCompleted && !isActiveCountdown && showRemoveButton ? (
           <Button
             size="icon-sm"
             variant="ghost"
-            onClick={() =>
-              onRemoveSet(workoutExerciseId, set.id)
-            }
+            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => onRemoveSet(workoutExerciseId, set.id)}
           >
-            <Trash2 className="h-3 w-3" />
+            <Trash2 className="h-4 w-4" />
           </Button>
         ) : (
-          /* Invisible placeholder to maintain layout */
-          showRemoveButton && (
-            <div className="w-7 h-7" />
-          )
+          showRemoveButton && <div className="w-8 h-8" />
         )}
       </div>
+
+      {/* Picker Sheet */}
+      <Sheet open={activePicker !== null} onOpenChange={(open) => !open && setActivePicker(null)}>
+        <SheetContent side="bottom" className="p-0 border-t-primary/20">
+          <SheetHeader className="px-4 py-4 border-b bg-muted/30">
+            <SheetTitle className="text-center text-xs font-bold uppercase tracking-widest text-primary">
+              {activePicker === "weight" ? `Set Weight (${weightUnitLabel})` : "Set Repetitions"}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col items-center bg-background px-6 pt-10 pb-16">
+            <div className="w-full max-w-sm relative">
+              {activePicker === "weight" ? (
+                <ScrollPicker
+                  value={set.weight}
+                  options={weightOptions}
+                  onChange={(weight) => onUpdateSet(workoutExerciseId, set.id, { weight })}
+                  unit={weightUnitLabel}
+                  className="w-full border-none bg-transparent"
+                  height={250}
+                  itemHeight={50}
+                />
+              ) : (
+                <ScrollPicker
+                  value={set.reps}
+                  options={REPS_OPTIONS}
+                  onChange={(reps) => onUpdateSet(workoutExerciseId, set.id, { reps })}
+                  unit="reps"
+                  className="w-full border-none bg-transparent"
+                  height={250}
+                  itemHeight={50}
+                />
+              )}
+              
+              {/* Visual Decorative elements to make it feel more "industrial" */}
+              <div className="absolute top-1/2 -translate-y-1/2 -left-4 w-1 h-12 bg-primary/20 rounded-full" />
+              <div className="absolute top-1/2 -translate-y-1/2 -right-4 w-1 h-12 bg-primary/20 rounded-full" />
+            </div>
+
+            <Button 
+              className="mt-10 w-full max-w-sm h-12 uppercase tracking-tight font-bold"
+              onClick={() => setActivePicker(null)}
+            >
+              Confirm
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 })

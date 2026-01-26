@@ -62,13 +62,20 @@ export const WorkoutExerciseCard = memo(({
   return (
     <Card className={cn("transition-all", !isExpanded && "gap-0")}>
       <CardHeader
-        className="cursor-pointer py-3"
+        className="cursor-pointer px-4 py-3"
         onClick={() => onToggleExpanded(workoutExercise.id)}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex-1 min-w-0">
+        <div className="grid grid-cols-[40px_1fr_auto_40px] gap-2 items-center">
+          <div className="flex justify-center">
+            {isExpanded ? (
+              <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+            )}
+          </div>
+          <div className="min-w-0">
             <div className="flex items-center gap-1">
-              <CardTitle className="text-base">
+              <CardTitle className={cn("text-base", !isExpanded && "truncate")}>
                 {exercise?.name || "Unknown Exercise"}
               </CardTitle>
               {exercise && <ExerciseInfoButton exercise={exercise} />}
@@ -79,20 +86,28 @@ export const WorkoutExerciseCard = memo(({
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
             {/* Notes indicator */}
             {workoutExercise.notes && (
               <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
             )}
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground tabular-nums">
               {workoutExercise.sets.filter((s) => s.isCompleted).length}/
               {workoutExercise.sets.length}
             </span>
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
+          </div>
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRemoveExercise(workoutExercise.id)
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -109,15 +124,16 @@ export const WorkoutExerciseCard = memo(({
             <div className={cn(
               "gap-2 text-xs text-muted-foreground grid",
               isTimeBased
-                ? "grid-cols-[1fr_4fr_auto]"
+                ? "grid-cols-[40px_30px_1fr_40px]"
                 : exercise?.isWeighted
-                  ? "grid-cols-[1fr_3fr_3fr_auto]"
-                  : "grid-cols-[1fr_6fr_auto]"
+                  ? "grid-cols-[40px_30px_1fr_1fr_40px]"
+                  : "grid-cols-[40px_30px_1fr_40px]"
             )}>
-              <span>Set</span>
-              {exercise?.isWeighted && !isTimeBased && <span>Weight</span>}
-              <span>{isTimeBased ? "Duration" : "Reps"}</span>
-              <span className="w-8"></span>
+              <span className="w-10"></span>
+              <span className="text-center">Set</span>
+              {exercise?.isWeighted && !isTimeBased && <span className="text-center">Weight</span>}
+              <span className="text-center">{isTimeBased ? "Duration" : "Reps"}</span>
+              <span className="w-10"></span>
             </div>
 
             {/* Sets */}
@@ -154,7 +170,7 @@ export const WorkoutExerciseCard = memo(({
               )
             })}
 
-            {/* Add Set & Remove Exercise */}
+            {/* Add Set */}
             <div className="flex gap-2 pt-2">
               <Button
                 variant="outline"
@@ -165,14 +181,6 @@ export const WorkoutExerciseCard = memo(({
               >
                 <Plus className="mr-1 h-3 w-3" />
                 Add Set
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onRemoveExercise(workoutExercise.id)}
-                tabIndex={isExpanded ? 0 : -1}
-              >
-                <Trash2 className="h-4 w-4" />
               </Button>
             </div>
 
