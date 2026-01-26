@@ -37,7 +37,7 @@ pnpm seed             # Open dev server with ?seed=true query param
 - **Database Definition:** `src/services/db.ts` exports the singleton `db` instance of `TrainingAppDatabase`.
 - **Schema:** Tables include `customExercises`, `workoutSessions`, `workoutTemplates`, `personalRecords`, `foods`, `nutritionLogs`, `mealTemplates`, `settings`, `bodyWeight`, `achievements`, `restTimer`, `activeSession`, `metadata`, `userStats`.
 - **Exercise Storage:** Default exercises are static in `src/data/exerciseDatabase.ts`. Only user-created exercises are in `customExercises`.
-- **Versioning:** When changing schema, increment `CURRENT_SCHEMA_VERSION` in `db.ts` and add migration logic in both `db.ts` and `src/services/backupMigrations.ts`.
+- **Versioning:** This app is in early development and is not in production. There is no need for migrations or backwards compatibility. Keep `CURRENT_SCHEMA_VERSION` at `1` in `db.ts`.
 
 ### Feature Organization
 Domain-sliced in `src/features/[domain]/` (e.g., `achievements/`, `workout/`, `nutrition/`).

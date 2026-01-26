@@ -142,7 +142,7 @@ export const WorkoutExerciseCard = memo(({
               const canComplete = isTimeBased
                 ? set.reps > 0
                 : exercise?.isWeighted
-                  ? set.weight > 0 && set.reps > 0
+                  ? set.weight >= 0 && set.reps > 0
                   : set.reps > 0
 
               return (

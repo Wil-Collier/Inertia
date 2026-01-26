@@ -30,7 +30,7 @@ export function useAddMealEntry() {
         mealType,
       }
       
-      await db.transaction("rw", db.nutritionLogs, async () => {
+      await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
         const existing = await db.nutritionLogs.get(date)
         
         if (existing) {
@@ -39,6 +39,12 @@ export function useAddMealEntry() {
           })
         } else {
           await db.nutritionLogs.add({ date, entries: [entry] })
+        }
+
+        // Increment usage count for optimization
+        const food = await db.foods.get(foodId)
+        if (food) {
+          await db.foods.update(foodId, { usageCount: (food.usageCount ?? 0) + 1 })
         }
       })
 
@@ -96,9 +102,18 @@ export function useRemoveMealEntry() {
   
   return useMutation({
     mutationFn: async ({ date, entryId }: { date: string; entryId: string }) => {
-      await db.transaction("rw", db.nutritionLogs, async () => {
+      await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
         const existing = await db.nutritionLogs.get(date)
         if (!existing) return
+
+        const entryToRemove = existing.entries.find(e => e.id === entryId)
+        if (entryToRemove) {
+          const food = await db.foods.get(entryToRemove.foodId)
+          // Only decrement if usageCount is tracked (number)
+          if (food && typeof food.usageCount === 'number') {
+            await db.foods.update(entryToRemove.foodId, { usageCount: Math.max(0, food.usageCount - 1) })
+          }
+        }
 
         const nextEntries = existing.entries.filter((e) => e.id !== entryId)
 
@@ -189,16 +204,24 @@ export function useDeleteFood() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      // Check if food is used in any meal entries using until() for proper early termination
+      const food = await db.foods.get(id)
+      if (!food) return // Already deleted?
+
+      // Optimized check using usageCount if available
       let isUsed = false
-      await db.nutritionLogs
-        .toCollection()
-        .until(() => isUsed)
-        .each((log) => {
-          if (log.entries.some((entry) => entry.foodId === id)) {
-            isUsed = true
-          }
-        })
+      if (typeof food.usageCount === 'number') {
+        isUsed = food.usageCount > 0
+      } else {
+        // Fallback to full scan for legacy data
+        await db.nutritionLogs
+          .toCollection()
+          .until(() => isUsed)
+          .each((log) => {
+            if (log.entries.some((entry) => entry.foodId === id)) {
+              isUsed = true
+            }
+          })
+      }
       
       if (isUsed) {
         throw new Error("Cannot delete food that is used in meal entries. Remove the entries first.")
@@ -348,7 +371,7 @@ export function useApplyMealTemplate() {
         templateName: template.name
       }))
       
-      await db.transaction("rw", db.nutritionLogs, async () => {
+      await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
         const existing = await db.nutritionLogs.get(date)
         if (existing) {
           await db.nutritionLogs.update(date, {
@@ -357,6 +380,21 @@ export function useApplyMealTemplate() {
         } else {
           await db.nutritionLogs.add({ date, entries: newEntries })
         }
+
+        // Increment usage counts
+        const foodCounts = new Map<string, number>()
+        newEntries.forEach(e => {
+          foodCounts.set(e.foodId, (foodCounts.get(e.foodId) || 0) + 1)
+        })
+
+        await Promise.all(
+          Array.from(foodCounts).map(async ([foodId, count]) => {
+            const food = await db.foods.get(foodId)
+            if (food) {
+              await db.foods.update(foodId, { usageCount: (food.usageCount ?? 0) + count })
+            }
+          })
+        )
       })
 
       // Update streaks and check achievements
@@ -379,9 +417,26 @@ export function useRemoveMealEntryGroup() {
 
   return useMutation({
     mutationFn: async ({ date, templateInstanceId }: { date: string; templateInstanceId: string }) => {
-      await db.transaction("rw", db.nutritionLogs, async () => {
+      await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
         const existing = await db.nutritionLogs.get(date)
         if (!existing) return
+
+        const entriesToRemove = existing.entries.filter((e) => e.templateInstanceId === templateInstanceId)
+        
+        // Decrement usage counts
+        const foodCounts = new Map<string, number>()
+        entriesToRemove.forEach(e => {
+          foodCounts.set(e.foodId, (foodCounts.get(e.foodId) || 0) + 1)
+        })
+
+        await Promise.all(
+          Array.from(foodCounts).map(async ([foodId, count]) => {
+            const food = await db.foods.get(foodId)
+            if (food && typeof food.usageCount === 'number') {
+              await db.foods.update(foodId, { usageCount: Math.max(0, food.usageCount - count) })
+            }
+          })
+        )
 
         const nextEntries = existing.entries.filter((e) => e.templateInstanceId !== templateInstanceId)
         if (nextEntries.length === 0) {

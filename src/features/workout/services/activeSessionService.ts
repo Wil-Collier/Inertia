@@ -32,6 +32,14 @@ function estimateOneRepMax(weight: number, reps: number): number {
  * Note: Sequential await in loop is intentional for transactional consistency.
  */
 async function updatePersonalRecords(workout: Workout): Promise<void> {
+  const exercisesToUpdate: { exerciseId: string, pr: { exerciseId: string, weight: number, reps: number, date: string, workoutId: string } }[] = []
+  
+  // 1. Fetch all existing PRs in parallel
+  const exerciseIds = workout.exercises.map(e => e.exerciseId)
+  const existingPRs = await db.personalRecords.bulkGet(exerciseIds)
+  const existingPRMap = new Map(existingPRs.filter(Boolean).map(pr => [pr!.exerciseId, pr!]))
+
+  // 2. Calculate updates in memory
   for (const exercise of workout.exercises) {
     const completedSets = exercise.sets.filter(s => s.isCompleted && s.weight > 0 && s.reps > 0)
     if (completedSets.length === 0) continue
@@ -48,24 +56,29 @@ async function updatePersonalRecords(workout: Workout): Promise<void> {
       }
     }
 
-    // Compare against existing PR
-    // oxlint-disable-next-line no-await-in-loop
-    const existingPR = await db.personalRecords.get(exercise.exerciseId)
+    const existingPR = existingPRMap.get(exercise.exerciseId)
     const existingE1RM = existingPR
       ? estimateOneRepMax(existingPR.weight, existingPR.reps)
       : 0
 
-    // Update PR if this is a new record
+    // Queue update if this is a new record
     if (bestE1RM > existingE1RM) {
-      // oxlint-disable-next-line no-await-in-loop
-      await db.personalRecords.put({
+      exercisesToUpdate.push({
         exerciseId: exercise.exerciseId,
-        weight: bestSet.weight,
-        reps: bestSet.reps,
-        date: workout.date,
-        workoutId: workout.id,
+        pr: {
+          exerciseId: exercise.exerciseId,
+          weight: bestSet.weight,
+          reps: bestSet.reps,
+          date: workout.date,
+          workoutId: workout.id,
+        }
       })
     }
+  }
+
+  // 3. Perform bulk update
+  if (exercisesToUpdate.length > 0) {
+    await db.personalRecords.bulkPut(exercisesToUpdate.map(e => e.pr))
   }
 }
 

@@ -13,6 +13,12 @@ export interface FoodItem {
   barcode?: string
   isCustom: boolean
   isFavorite?: boolean
+  /**
+   * Number of times this food has been logged (meal entries).
+   * Used to optimize deletion checks.
+   * If undefined, requires a full table scan to verify usage.
+   */
+  usageCount?: number
 }
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack"
