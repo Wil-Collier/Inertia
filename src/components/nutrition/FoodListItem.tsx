@@ -43,11 +43,12 @@ export const FoodListItem = memo(({
           {food.brand && (
             <p className="text-xs text-muted-foreground">{food.brand}</p>
           )}
-          <p className="text-sm text-muted-foreground">
-            {food.calories} Cal • P: {food.protein}g • C: {food.carbs}g • F:{" "}
-            {food.fat}g
+          <p className="text-xs text-muted-foreground">
+            {food.servingSize} • {food.calories} Cal
           </p>
-          <p className="text-xs text-muted-foreground">{food.servingSize}</p>
+          <p className="text-xs text-muted-foreground">
+            P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g
+          </p>
         </div>
         
         <div className="flex items-center gap-1">
