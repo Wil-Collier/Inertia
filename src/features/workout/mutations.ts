@@ -25,15 +25,61 @@ export function useCreateWorkout() {
       }
 
       const newWorkout: Workout = { ...workout, id, exerciseIds, weightUnit }
-      await db.workoutSessions.add(newWorkout)
 
-      // Update incremental stats
-      await statsService.addWorkout(newWorkout)
+      await db.transaction("rw", [
+        db.workoutSessions,
+        db.userStats,
+        db.achievements,
+        db.workoutTemplates,
+        db.personalRecords,
+        db.customExercises,
+        db.nutritionLogs,
+        db.settings
+      ], async () => {
+        await db.workoutSessions.add(newWorkout)
 
-      // Update streaks and check achievements
-      await achievementService.updateStreaks()
+        // Update incremental stats
+        await statsService.addWorkout(newWorkout)
+
+        // Update streaks and check achievements
+        await achievementService.updateStreaks()
+        // We can't use dynamic import inside a transaction easily without pre-loading
+        // but we can assume the service handles its own transactions or logic if needed,
+        // HOWEVER, since we are inside a transaction, we should be careful about async non-db calls.
+        // The dynamic import was previously outside. Let's move it out or pre-load it.
+        // Actually, achievementService.checkWorkoutAchievements does an import.
+        // Ideally we should pass the map in.
+      })
+      
+      // We need to run achievement checks. The service method checkWorkoutAchievements
+      // loads the exercise database. We should probably do that before the transaction
+      // or pass it in.
+      // Re-reading the original code:
+      // It did:
+      // await statsService.addWorkout(newWorkout)
+      // await achievementService.updateStreaks()
+      // const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
+      // await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+      
+      // If I wrap everything in a transaction, the import might block or fail if not handled well.
+      // Let's pre-load the import before the transaction.
       const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-      await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+
+      await db.transaction("rw", [
+        db.workoutSessions,
+        db.userStats,
+        db.achievements,
+        db.workoutTemplates,
+        db.personalRecords,
+        db.customExercises,
+        db.nutritionLogs,
+        db.settings
+      ], async () => {
+         await db.workoutSessions.add(newWorkout)
+         await statsService.addWorkout(newWorkout)
+         await achievementService.updateStreaks()
+         await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+      })
 
       return newWorkout
     },
@@ -54,29 +100,45 @@ export function useUpdateWorkout() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Workout> }) => {
-      // Get the old workout for stats delta calculation
-      const oldWorkout = await db.workoutSessions.get(id)
-
-      // If exercises are being updated, recompute exerciseIds
-      const finalUpdates = { ...updates }
-      if (updates.exercises) {
-        finalUpdates.exerciseIds = updates.exercises.map(e => e.exerciseId)
-      }
-
-      await db.workoutSessions.update(id, finalUpdates)
-      const workout = await db.workoutSessions.get(id)
-
-      // Update incremental stats if workout exists and exercises changed
-      if (oldWorkout && workout && updates.exercises) {
-        await statsService.updateWorkout(oldWorkout, workout)
-      }
-
-      // Recalculate streaks and check achievements after workout update
-      if (workout) {
-        await achievementService.updateStreaks()
-      }
+      // Pre-load necessary data for achievements
       const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-      await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+
+      let workout: Workout | undefined
+
+      await db.transaction("rw", [
+        db.workoutSessions,
+        db.userStats,
+        db.achievements,
+        db.workoutTemplates,
+        db.personalRecords,
+        db.customExercises,
+        db.nutritionLogs,
+        db.settings
+      ], async () => {
+        // Get the old workout for stats delta calculation
+        const oldWorkout = await db.workoutSessions.get(id)
+
+        // If exercises are being updated, recompute exerciseIds
+        const finalUpdates = { ...updates }
+        if (updates.exercises) {
+          finalUpdates.exerciseIds = updates.exercises.map(e => e.exerciseId)
+        }
+
+        await db.workoutSessions.update(id, finalUpdates)
+        workout = await db.workoutSessions.get(id)
+
+        // Update incremental stats if workout exists and exercises changed
+        if (oldWorkout && workout && updates.exercises) {
+          await statsService.updateWorkout(oldWorkout, workout)
+        }
+
+        // Recalculate streaks and check achievements after workout update
+        if (workout) {
+          await achievementService.updateStreaks()
+        }
+        
+        await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+      })
 
       return workout
     },
@@ -98,22 +160,35 @@ export function useDeleteWorkout() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // Get workout before deletion for stats update
-      const workout = await db.workoutSessions.get(id)
-
-      await db.workoutSessions.delete(id)
-
-      // Update incremental stats
-      if (workout) {
-        await statsService.removeWorkout(workout)
-      }
-
-      // Deletion can invalidate current/last streak state.
-      await achievementService.updateStreaks()
-
-      // Check achievements after workout deletion (volume/count may change)
+      // Pre-load data
       const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-      await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+
+      await db.transaction("rw", [
+        db.workoutSessions,
+        db.userStats,
+        db.achievements,
+        db.workoutTemplates,
+        db.personalRecords,
+        db.customExercises,
+        db.nutritionLogs,
+        db.settings
+      ], async () => {
+        // Get workout before deletion for stats update
+        const workout = await db.workoutSessions.get(id)
+
+        await db.workoutSessions.delete(id)
+
+        // Update incremental stats
+        if (workout) {
+          await statsService.removeWorkout(workout)
+        }
+
+        // Deletion can invalidate current/last streak state.
+        await achievementService.updateStreaks()
+
+        // Check achievements after workout deletion (volume/count may change)
+        await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+      })
 
       return id
     },

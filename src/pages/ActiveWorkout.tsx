@@ -18,7 +18,6 @@ import { useSettings } from "@/features/settings/queries"
 import { useRestTimerControls } from "@/hooks/useRestTimer"
 import { useCountdownTimer } from "@/hooks/useCountdownTimer"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
-import { useElapsedTime } from "@/hooks/useElapsedTime"
 import { useWorkoutChanges } from "@/hooks/useWorkoutChanges"
 import { playDingSound, unlockAudio } from "@/lib/audio"
 
@@ -74,11 +73,6 @@ export function ActiveWorkout() {
   const handleUserInteraction = useCallback(() => {
     void unlockAudio()
   }, [])
-
-  // Track elapsed time for the workout
-  const elapsed = useElapsedTime({
-    startedAt: activeSession?.startedAt ?? new Date().toISOString(),
-  })
 
   const workout = activeSession?.workout
   const exerciseIds = useMemo(
@@ -253,7 +247,7 @@ export function ActiveWorkout() {
         <WorkoutProgressSummary
           completedSets={completedSets}
           totalSets={totalSets}
-          formattedElapsedTime={elapsed.formattedTime}
+          startedAt={activeSession.startedAt}
           exerciseCount={workout.exercises.length}
         />
 

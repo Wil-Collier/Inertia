@@ -208,74 +208,76 @@ export const achievementService = {
    * @param nutritionDates - Array of nutrition log date strings (yyyy-MM-dd)
    */
   async recalculateStreaks(workoutDates: string[], nutritionDates: string[]) {
-    const data = await db.achievements.get("achievements")
-    const currentStreaks = data?.streaks || defaultStreaks
-    const unlockedAchievements = data?.unlockedAchievements || []
+    await db.transaction("rw", db.achievements, async () => {
+      const data = await db.achievements.get("achievements")
+      const currentStreaks = data?.streaks || defaultStreaks
+      const unlockedAchievements = data?.unlockedAchievements || []
 
-    /**
-     * Calculate current streak by iterating backwards from today through sorted dates.
-     * No artificial limit - works for streaks of any length.
-     */
-    const calculateStreak = (dates: string[]): number => {
-      if (dates.length === 0) return 0
+      /**
+       * Calculate current streak by iterating backwards from today through sorted dates.
+       * No artificial limit - works for streaks of any length.
+       */
+      const calculateStreak = (dates: string[]): number => {
+        if (dates.length === 0) return 0
 
-      // Sort dates descending (newest first)
-      const sortedDates = dates.toSorted().toReversed()
-      const today = new Date()
-      let streak = 0
-      let currentDate = today
+        // Sort dates descending (newest first)
+        const sortedDates = dates.toSorted().toReversed()
+        const today = new Date()
+        let streak = 0
+        let currentDate = today
 
-      for (const dateStr of sortedDates) {
-        const date = parseISO(dateStr)
+        for (const dateStr of sortedDates) {
+          const date = parseISO(dateStr)
 
-        // If this date matches current day we're checking, increment streak
-        if (isSameDay(date, currentDate)) {
-          streak++
-          currentDate = subDays(currentDate, 1)
-        } else if (date < currentDate) {
-          // If we haven't started counting yet (streak is 0) and
-          // date is yesterday, start the streak
-          if (streak === 0 && isSameDay(date, subDays(today, 1))) {
+          // If this date matches current day we're checking, increment streak
+          if (isSameDay(date, currentDate)) {
             streak++
-            currentDate = subDays(date, 1)
-          } else {
-            // Gap in streak - stop counting
-            break
+            currentDate = subDays(currentDate, 1)
+          } else if (date < currentDate) {
+            // If we haven't started counting yet (streak is 0) and
+            // date is yesterday, start the streak
+            if (streak === 0 && isSameDay(date, subDays(today, 1))) {
+              streak++
+              currentDate = subDays(date, 1)
+            } else {
+              // Gap in streak - stop counting
+              break
+            }
           }
+          // If date is in the future or same as today when we've already counted today, skip
         }
-        // If date is in the future or same as today when we've already counted today, skip
+
+        return streak
       }
 
-      return streak
-    }
+      const workoutStreak = calculateStreak(workoutDates)
+      const nutritionStreak = calculateStreak(nutritionDates)
 
-    const workoutStreak = calculateStreak(workoutDates)
-    const nutritionStreak = calculateStreak(nutritionDates)
+      const longestWorkoutStreak = Math.max(workoutStreak, currentStreaks.longestWorkoutStreak)
+      const longestNutritionStreak = Math.max(nutritionStreak, currentStreaks.longestNutritionStreak)
 
-    const longestWorkoutStreak = Math.max(workoutStreak, currentStreaks.longestWorkoutStreak)
-    const longestNutritionStreak = Math.max(nutritionStreak, currentStreaks.longestNutritionStreak)
+      const sortedWorkoutDates = workoutDates.toSorted().toReversed()
+      const sortedNutritionDates = nutritionDates.toSorted().toReversed()
 
-    const sortedWorkoutDates = workoutDates.toSorted().toReversed()
-    const sortedNutritionDates = nutritionDates.toSorted().toReversed()
+      const newStreaks = {
+        currentWorkoutStreak: workoutStreak,
+        longestWorkoutStreak: longestWorkoutStreak,
+        lastWorkoutDate: sortedWorkoutDates[0] || null,
+        currentNutritionStreak: nutritionStreak,
+        longestNutritionStreak: longestNutritionStreak,
+        lastNutritionDate: sortedNutritionDates[0] || null,
+      }
 
-    const newStreaks = {
-      currentWorkoutStreak: workoutStreak,
-      longestWorkoutStreak: longestWorkoutStreak,
-      lastWorkoutDate: sortedWorkoutDates[0] || null,
-      currentNutritionStreak: nutritionStreak,
-      longestNutritionStreak: longestNutritionStreak,
-      lastNutritionDate: sortedNutritionDates[0] || null,
-    }
-
-    try {
-      await db.achievements.put({
-        id: "achievements",
-        unlockedAchievements,
-        streaks: newStreaks,
-      })
-    } catch (error) {
-      console.error("Failed to save recalculated streaks:", error)
-    }
+      try {
+        await db.achievements.put({
+          id: "achievements",
+          unlockedAchievements,
+          streaks: newStreaks,
+        })
+      } catch (error) {
+        console.error("Failed to save recalculated streaks:", error)
+      }
+    })
   },
 
   /**

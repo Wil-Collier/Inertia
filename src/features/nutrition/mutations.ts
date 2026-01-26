@@ -8,6 +8,44 @@ import type { MealEntryWithFood } from "./queries"
 
 import { achievementService } from "@/services/achievementService"
 
+/**
+ * Shared helper to remove entries from a daily log and update food usage counts.
+ * Handles single or multiple entry removal.
+ */
+async function removeEntriesFromLog(date: string, filterFn: (entry: MealEntry) => boolean) {
+  await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
+    const existing = await db.nutritionLogs.get(date)
+    if (!existing) return
+
+    const entriesToRemove = existing.entries.filter(filterFn)
+    if (entriesToRemove.length === 0) return
+
+    // Calculate usage count decrements
+    const foodCounts = new Map<string, number>()
+    entriesToRemove.forEach(e => {
+      foodCounts.set(e.foodId, (foodCounts.get(e.foodId) || 0) + 1)
+    })
+
+    // Update food usage counts
+    await Promise.all(
+      Array.from(foodCounts).map(async ([foodId, count]) => {
+        const food = await db.foods.get(foodId)
+        if (food && typeof food.usageCount === 'number') {
+          await db.foods.update(foodId, { usageCount: Math.max(0, food.usageCount - count) })
+        }
+      })
+    )
+
+    // Update log
+    const nextEntries = existing.entries.filter((e) => !filterFn(e))
+    if (nextEntries.length === 0) {
+      await db.nutritionLogs.delete(date)
+    } else {
+      await db.nutritionLogs.update(date, { entries: nextEntries })
+    }
+  })
+}
+
 export function useAddMealEntry() {
   const queryClient = useQueryClient()
   
@@ -102,27 +140,7 @@ export function useRemoveMealEntry() {
   
   return useMutation({
     mutationFn: async ({ date, entryId }: { date: string; entryId: string }) => {
-      await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
-        const existing = await db.nutritionLogs.get(date)
-        if (!existing) return
-
-        const entryToRemove = existing.entries.find(e => e.id === entryId)
-        if (entryToRemove) {
-          const food = await db.foods.get(entryToRemove.foodId)
-          // Only decrement if usageCount is tracked (number)
-          if (food && typeof food.usageCount === 'number') {
-            await db.foods.update(entryToRemove.foodId, { usageCount: Math.max(0, food.usageCount - 1) })
-          }
-        }
-
-        const nextEntries = existing.entries.filter((e) => e.id !== entryId)
-
-        if (nextEntries.length === 0) {
-          await db.nutritionLogs.delete(date)
-        } else {
-          await db.nutritionLogs.update(date, { entries: nextEntries })
-        }
-      })
+      await removeEntriesFromLog(date, (e) => e.id === entryId)
 
       // Simple, correct approach for early dev: recalculate streaks from history.
       await achievementService.updateStreaks()
@@ -417,34 +435,7 @@ export function useRemoveMealEntryGroup() {
 
   return useMutation({
     mutationFn: async ({ date, templateInstanceId }: { date: string; templateInstanceId: string }) => {
-      await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
-        const existing = await db.nutritionLogs.get(date)
-        if (!existing) return
-
-        const entriesToRemove = existing.entries.filter((e) => e.templateInstanceId === templateInstanceId)
-        
-        // Decrement usage counts
-        const foodCounts = new Map<string, number>()
-        entriesToRemove.forEach(e => {
-          foodCounts.set(e.foodId, (foodCounts.get(e.foodId) || 0) + 1)
-        })
-
-        await Promise.all(
-          Array.from(foodCounts).map(async ([foodId, count]) => {
-            const food = await db.foods.get(foodId)
-            if (food && typeof food.usageCount === 'number') {
-              await db.foods.update(foodId, { usageCount: Math.max(0, food.usageCount - count) })
-            }
-          })
-        )
-
-        const nextEntries = existing.entries.filter((e) => e.templateInstanceId !== templateInstanceId)
-        if (nextEntries.length === 0) {
-          await db.nutritionLogs.delete(date)
-        } else {
-          await db.nutritionLogs.update(date, { entries: nextEntries })
-        }
-      })
+      await removeEntriesFromLog(date, (e) => e.templateInstanceId === templateInstanceId)
 
       await achievementService.updateStreaks()
       await achievementService.checkNutritionAchievements()

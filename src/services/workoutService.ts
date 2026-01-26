@@ -5,18 +5,22 @@ import type { LastPerformance } from "@/lib/types"
  * Get the last performance for an exercise (for progressive overload)
  */
 export async function getLastPerformance(exerciseId: string): Promise<LastPerformance | null> {
-  // Optimize: Search by date (newest first) and filter by exerciseId
-  // This is often faster than fetching all history for an exercise if the user
-  // works out regularly, as it avoids loading the entire history of a specific exercise.
+  // Optimize: Use the multi-entry index on exerciseIds to find relevant workouts immediately
+  // instead of scanning the date index and filtering.
+  // Then sort in memory (usually much smaller dataset).
   const sessions = await db.workoutSessions
-    .orderBy("date")
-    // oxlint-disable-next-line eslint-plugin-unicorn(no-array-reverse)
-    .reverse()
-    .filter((w) => w.exerciseIds?.includes(exerciseId) ?? false)
-    .limit(10) // Look at the last 10 workouts containing this exercise
+    .where("exerciseIds")
+    .equals(exerciseId)
     .toArray()
 
-  for (const workout of sessions) {
+  // Sort by date descending (newest first)
+  sessions.sort((a, b) => b.date.localeCompare(a.date))
+
+  // Limit to recent history to avoid processing too much if they've done this exercise 1000 times
+  // (though we already fetched them all, sorting 1000 items is fast)
+  const recentSessions = sessions.slice(0, 10)
+
+  for (const workout of recentSessions) {
     const workoutExercise = workout.exercises.find(
       (e) => e.exerciseId === exerciseId
     )

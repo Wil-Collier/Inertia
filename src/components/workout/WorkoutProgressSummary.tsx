@@ -1,14 +1,16 @@
+import { WorkoutTimer } from "./WorkoutTimer"
+
 interface WorkoutProgressSummaryProps {
   completedSets: number
   totalSets: number
-  formattedElapsedTime: string
+  startedAt: string
   exerciseCount: number
 }
 
 export function WorkoutProgressSummary({
   completedSets,
   totalSets,
-  formattedElapsedTime,
+  startedAt,
   exerciseCount,
 }: WorkoutProgressSummaryProps) {
   return (
@@ -21,7 +23,9 @@ export function WorkoutProgressSummary({
       </div>
       <div>
         <p className="text-sm text-muted-foreground">Elapsed</p>
-        <p className="font-medium font-mono">{formattedElapsedTime}</p>
+        <p className="font-medium font-mono">
+          <WorkoutTimer startedAt={startedAt} />
+        </p>
       </div>
       <div>
         <p className="text-sm text-muted-foreground">Exercises</p>
