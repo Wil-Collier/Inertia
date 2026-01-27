@@ -105,8 +105,9 @@ export function SettingsPage() {
       await clearAllData()
       setShowClearDialog(false)
       toast.success("All data cleared")
-    } catch {
-      toast.error("Failed to clear data")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to clear data"
+      toast.error(message)
     } finally {
       setIsClearing(false)
     }

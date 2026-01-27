@@ -102,9 +102,17 @@ export function useNutritionDates() {
   return useQuery({
     queryKey: [...queryKeys.nutrition.all, "dates"],
     queryFn: async () => {
-      // Use uniqueKeys() for efficient date retrieval without loading full objects
-      const keys = await db.nutritionLogs.orderBy("date").uniqueKeys()
-      return keys.filter((k): k is string => typeof k === "string")
+      // Avoid uniqueKeys() on Safari (can throw "Unable to open cursor").
+      const keys = await db.nutritionLogs.orderBy("date").keys()
+      const dates: string[] = []
+      let prev: string | undefined
+      for (const k of keys) {
+        if (typeof k !== "string") continue
+        if (k === prev) continue
+        dates.push(k)
+        prev = k
+      }
+      return dates
     },
   })
 }

@@ -8,6 +8,8 @@ async function loadAndSeed() {
   await seedTestData()
 }
 
+let hasTriggeredSeed = false
+
 function DevSeedingHandlerInner() {
   const navigate = useNavigate()
   const [isSeeding, setIsSeeding] = useState(false)
@@ -21,6 +23,10 @@ function DevSeedingHandlerInner() {
     const shouldSeed = params.get("seed") === "true"
 
     if (import.meta.env.DEV && shouldSeed) {
+      // Prevent duplicate runs (React StrictMode mounts effects twice in dev).
+      if (hasTriggeredSeed) return
+      hasTriggeredSeed = true
+
       const runSeed = async () => {
         console.log("DevSeedingHandler: Seeding triggered via URL param")
         setIsSeeding(true)

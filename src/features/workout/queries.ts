@@ -86,8 +86,17 @@ export function useWorkoutDates() {
   return useQuery({
     queryKey: [...queryKeys.workouts.all, "dates"],
     queryFn: async () => {
-      const keys = await db.workoutSessions.orderBy("date").uniqueKeys()
-      return keys.filter((k): k is string => typeof k === "string")
+      // Avoid uniqueKeys() on Safari (can throw "Unable to open cursor").
+      const keys = await db.workoutSessions.orderBy("date").keys()
+      const dates: string[] = []
+      let prev: string | undefined
+      for (const k of keys) {
+        if (typeof k !== "string") continue
+        if (k === prev) continue
+        dates.push(k)
+        prev = k
+      }
+      return dates
     },
   })
 }

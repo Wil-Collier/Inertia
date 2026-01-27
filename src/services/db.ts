@@ -104,14 +104,96 @@ export class TrainingAppDatabase extends Dexie {
 
 export const db = new TrainingAppDatabase()
 
+const REQUIRED_STORES = [
+  "customExercises",
+  "workoutSessions",
+  "workoutTemplates",
+  "personalRecords",
+  "foods",
+  "nutritionLogs",
+  "mealTemplates",
+  "settings",
+  "bodyWeight",
+  "achievements",
+  "restTimer",
+  "activeSession",
+  "metadata",
+  "userStats",
+] as const
+
+const REQUIRED_INDEX_CHECKS = [
+  ["customExercises", ["name", "muscleGroup"]],
+  ["workoutSessions", ["date", "templateId", "completedAt", "exerciseIds"]],
+  ["workoutTemplates", ["name"]],
+  ["personalRecords", ["date"]],
+  ["foods", ["name", "brand", "isFavorite", "isCustom"]],
+  ["mealTemplates", ["name"]],
+  ["bodyWeight", ["date"]],
+] as const satisfies ReadonlyArray<readonly [string, readonly string[]]>
+
+async function getNativeSchemaIssues(): Promise<string[]> {
+  // Ensure Dexie has opened (or will open) the database.
+  if (!db.isOpen()) {
+    await db.open()
+  }
+
+  const backend = db.backendDB()
+  const issues: string[] = []
+
+  for (const store of REQUIRED_STORES) {
+    if (!backend.objectStoreNames.contains(store)) {
+      issues.push(`Missing object store: ${store}`)
+    }
+  }
+
+  const indexIssueLists = await Promise.all(
+    REQUIRED_INDEX_CHECKS.map(async ([store, required]) => {
+      if (!backend.objectStoreNames.contains(store)) return [`Missing object store: ${store}`]
+
+      try {
+        const tx = backend.transaction([store], "readonly")
+        const os = tx.objectStore(store)
+        const storeIssues: string[] = []
+
+        for (const indexName of required) {
+          if (!os.indexNames.contains(indexName)) {
+            storeIssues.push(`Missing index: ${store}.${indexName}`)
+          }
+        }
+
+        // Ensure the transaction completes to avoid Safari leaving it dangling.
+        await new Promise<void>((resolve, reject) => {
+          tx.addEventListener("complete", () => resolve())
+          tx.addEventListener("abort", () => reject(tx.error))
+          tx.addEventListener("error", () => reject(tx.error))
+        })
+
+        return storeIssues
+      } catch (err) {
+        return [`Failed to inspect schema for store ${store}: ${err instanceof Error ? err.message : String(err)}`]
+      }
+    })
+  )
+
+  issues.push(...indexIssueLists.flat())
+
+  return issues
+}
+
 /**
  * Check if the database is healthy by performing a simple query.
  * Returns true if healthy, false if corrupted.
  */
 export async function isDatabaseHealthy(): Promise<boolean> {
   try {
-    // Try a simple operation that would fail on a corrupted database
-    await db.settings.count()
+    const issues = await getNativeSchemaIssues()
+    if (issues.length > 0) {
+      console.warn("Database schema issues detected:", issues)
+      return false
+    }
+
+    // Perform a non-cursor operation as a final sanity check.
+    await db.metadata.get("schemaVersion")
     return true
   } catch (error) {
     console.error("Database health check failed:", error)

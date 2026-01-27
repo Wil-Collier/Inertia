@@ -19,6 +19,66 @@ async function exportBackup() {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function isSafariCursorError(err: unknown): boolean {
+  const name = isRecord(err) && typeof err["name"] === "string" ? err["name"] : ""
+  const message = isRecord(err) && typeof err["message"] === "string" ? err["message"] : ""
+  const inner = isRecord(err) ? err["inner"] : undefined
+  const innerMessage = isRecord(inner) && typeof inner["message"] === "string" ? inner["message"] : ""
+
+  return (
+    name === "UnknownError" && (message.includes("Unable to open cursor") || innerMessage.includes("Unable to open cursor"))
+  )
+}
+
+function isMissingObjectStoreError(err: unknown): boolean {
+  const name = isRecord(err) && typeof err["name"] === "string" ? err["name"] : ""
+  const message = isRecord(err) && typeof err["message"] === "string" ? err["message"] : ""
+  const inner = isRecord(err) ? err["inner"] : undefined
+  const innerMessage = isRecord(inner) && typeof inner["message"] === "string" ? inner["message"] : ""
+
+  return (
+    name === "VersionError" ||
+    name === "NotFoundError" ||
+    message.includes("object store") ||
+    message.includes("version") ||
+    innerMessage.includes("object store")
+  )
+}
+
+async function sleep(ms: number) {
+  await new Promise<void>((resolve) => setTimeout(resolve, ms))
+}
+
+async function withSafariRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  const delays = [0, 50, 150, 400]
+
+  const attempt = async (i: number, lastError: unknown): Promise<T> => {
+    if (i >= delays.length) {
+      throw lastError instanceof Error ? lastError : new Error(`${label} failed`)
+    }
+
+    if (i > 0) {
+      await sleep(delays[i])
+      console.warn(`${label} failed; retrying (${i + 1}/${delays.length})`, lastError)
+    }
+
+    try {
+      return await fn()
+    } catch (err) {
+      if (!isSafariCursorError(err)) {
+        throw err
+      }
+      return await attempt(i + 1, err)
+    }
+  }
+
+  return await attempt(0, undefined)
+}
+
 /**
  * Checks database health and initializes the application.
  */
@@ -34,7 +94,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
 
     async function initialize() {
       try {
-        const healthy = await isDatabaseHealthy()
+        const healthy = await withSafariRetry("Database health check", isDatabaseHealthy)
         if (!healthy) {
           console.warn("Database corruption detected")
           setShowCorruptionPrompt(true)
@@ -42,9 +102,9 @@ export function AppInitializer({ children }: AppInitializerProps) {
         }
 
         // Initialize/repair derived state (early dev: correctness > micro perf).
-        await achievementService.ensureInitialized()
-        await achievementService.updateStreaks()
-        await statsService.recalculateAll()
+        await withSafariRetry("Achievement init", () => achievementService.ensureInitialized())
+        await withSafariRetry("Streak recalculation", () => achievementService.updateStreaks())
+        await withSafariRetry("Stats recalculation", () => statsService.recalculateAll())
 
         // Keep streaks correct if the app stays open across midnight.
         const now = new Date()
@@ -64,6 +124,13 @@ export function AppInitializer({ children }: AppInitializerProps) {
         }, msUntilMidnight)
       } catch (err) {
         console.error("Database initialization failed:", err)
+
+        // For Safari cursor/schema issues, prefer recovery/reset UI over a dead-end error screen.
+        if (isSafariCursorError(err) || isMissingObjectStoreError(err)) {
+          setShowCorruptionPrompt(true)
+          return
+        }
+
         setError(err instanceof Error ? err : new Error("Failed to initialize database"))
       } finally {
         setIsInitializing(false)

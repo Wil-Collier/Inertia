@@ -197,8 +197,18 @@ export const achievementService = {
     const run = async () => {
       await this.ensureInitialized()
 
-      const workoutKeys = await db.workoutSessions.orderBy("date").uniqueKeys()
-      const workoutDates = workoutKeys.filter((k): k is string => typeof k === "string")
+      // Safari can intermittently throw "Unable to open cursor" for IDBCursor.nextunique
+      // which Dexie uses under the hood for uniqueKeys(). Use keys() + in-order dedupe.
+      const workoutKeys = await db.workoutSessions.orderBy("date").keys()
+      const workoutDates: string[] = []
+      let prev: string | undefined
+      for (const k of workoutKeys) {
+        if (typeof k !== "string") continue
+        if (k === prev) continue
+        workoutDates.push(k)
+        prev = k
+      }
+
       const logs = await db.nutritionLogs.toArray()
       const nutritionDates = logs.filter((day) => day.entries.length > 0).map((day) => day.date)
 

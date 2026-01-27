@@ -1,4 +1,4 @@
-import { exportDatabase, importDatabase, db, CURRENT_SCHEMA_VERSION } from "@/services/db"
+import { exportDatabase, importDatabase, CURRENT_SCHEMA_VERSION, recoverDatabase } from "@/services/db"
 import { migrateBackupData, backupNeedsMigration, type DexieExportData } from "@/services/backupMigrations"
 import { z } from "zod"
 
@@ -137,15 +137,8 @@ export async function importData(file: File): Promise<{ success: boolean; messag
  */
 export async function clearAllData(): Promise<void> {
   try {
-    // Close any active connections first
-    db.close()
-
-    // Delete the database
-    await db.delete()
-
-    // Reopen the database to ensure schema is recreated
-    // This is critical for Safari which may not complete deletion properly
-    await db.open()
+    // Use the native deletion path (more reliable on Safari/iOS).
+    await recoverDatabase()
 
     // Clear localStorage (old data)
     localStorage.clear()
