@@ -36,13 +36,26 @@ export const achievementService = {
     // to avoid holding transaction open during module loading
     const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
 
-    await db.transaction("rw", [db.achievements, db.workoutSessions, db.workoutTemplates, db.personalRecords, db.customExercises, db.nutritionLogs, db.settings], async () => {
+    await db.transaction(
+      "rw",
+      [
+        db.achievements,
+        db.workoutSessions,
+        db.workoutTemplates,
+        db.personalRecords,
+        db.customExercises,
+        db.nutritionLogs,
+        db.settings,
+        db.userStats,
+      ],
+      async () => {
       await this.ensureInitialized()
 
       await this.checkWorkoutAchievements(exerciseDatabaseMap)
       await this.checkNutritionAchievements()
       await this.updateStreaks()
-    })
+      }
+    )
   },
 
   /**
