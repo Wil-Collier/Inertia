@@ -64,9 +64,4 @@ function RestTimerBannerInner({ defaultDuration }: RestTimerBannerProps) {
 
 export const RestTimerBanner = memo(RestTimerBannerInner)
 
-/**
- * Hook to get just the timer controls without causing re-renders.
- * Use this in parent components that need to start/control the timer
- * but don't need to display the current time.
- */
-export { useRestTimer }
+
