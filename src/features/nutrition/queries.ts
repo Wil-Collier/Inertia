@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import { searchFoods, OpenFoodFactsError } from "@/services/openFoodFacts"
+import { searchFoods, NutritionApiError } from "@/services/nutritionApi"
 import type { FoodItem, MealEntry } from "@/lib/types"
 import { calculateNutritionTotals, calculateNutritionAverages, INITIAL_TOTALS } from "@/lib/nutritionUtils"
 
@@ -91,7 +91,7 @@ export function useFoodSearch(query: string) {
             food.name.toLowerCase().includes(lowerQuery) ||
             (food.brand?.toLowerCase().includes(lowerQuery) ?? false)
         )
-        .limit(50)
+        .limit(20)
         .toArray()
     },
     enabled: query.length >= 2,
@@ -148,7 +148,7 @@ export function useNutritionHistory(startDate: string, endDate: string) {
 }
 
 /**
- * Combined food search hook that queries both local database and OpenFoodFacts API.
+ * Combined food search hook that queries both local database and remote API.
  * This should be used instead of directly accessing db.foods for consistency.
  */
 export function useCombinedFoodSearch(query: string) {
@@ -169,20 +169,21 @@ export function useCombinedFoodSearch(query: string) {
             food.name.toLowerCase().includes(lowerQuery) ||
             (food.brand?.toLowerCase().includes(lowerQuery) ?? false)
         )
-        .limit(50)
+        .limit(20)
         .toArray()
 
-      // Then search OpenFoodFacts API (but keep local results even if remote fails)
+      // Then search remote API (but keep local results even if remote fails)
       let remote: FoodItem[] = []
       let remoteStatus: CombinedFoodSearchResult["remoteStatus"] = "ok"
       let remoteError: string | undefined
 
       try {
-        const res = await searchFoods(query, 1, 20)
+        // Use page 0 (0-indexed) for the API
+        const res = await searchFoods(query, 0, 20)
         remote = res.foods
       } catch (error) {
         remoteStatus = "error"
-        if (error instanceof OpenFoodFactsError) {
+        if (error instanceof NutritionApiError) {
           remoteError = error.message
         } else {
           remoteError = error instanceof Error ? error.message : String(error)

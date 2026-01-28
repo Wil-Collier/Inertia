@@ -83,6 +83,15 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      // Proxy /api requests to Wrangler Pages dev server
+      "/api": {
+        target: "http://localhost:8788",
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {

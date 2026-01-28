@@ -27,7 +27,7 @@ import {
   useRemoveMealEntryGroup,
 } from "@/features/nutrition/mutations"
 import { useSettings } from "@/features/settings/queries"
-import { getProductByBarcode } from "@/services/openFoodFacts"
+import { getProductByBarcode } from "@/services/nutritionApi"
 import { db } from "@/services/db"
 import { toast } from "sonner"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
@@ -69,7 +69,7 @@ export function NutritionPage() {
   // Debounce search query for API calls
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 500)
 
-  // Use React Query for combined food search (local + OpenFoodFacts)
+  // Use React Query for combined food search (local + remote)
   const { data: combinedSearch, isFetching: isSearching } =
     useCombinedFoodSearch(debouncedSearchQuery)
 
@@ -121,7 +121,7 @@ export function NutritionPage() {
     async (food: FoodItem, qty: number) => {
       let foodId = food.id
 
-      // If it's from OpenFoodFacts and not in our database, add it
+      // If it's from remote search and not in our database, add it
       const exists = await db.foods.get(food.id)
       if (!food.isCustom && !exists) {
         await addFoodMutation.mutateAsync({ ...food, isCustom: false })
