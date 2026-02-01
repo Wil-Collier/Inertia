@@ -12,10 +12,6 @@
         "run_worker_first": [
             "/api/*"
         ]
-    },
-    // Environment variables
-    "vars": {
-        "NUTRITION_PROVIDER": "fatsecret"
     }
     // D1 Database (uncomment when implementing cloud sync)
     // "d1_databases": [
