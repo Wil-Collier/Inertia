@@ -142,7 +142,7 @@ export const exerciseDatabase: ExerciseWithInstructions[] = rawExercises.map(
   (raw, index) => ({
     id: generateExerciseId(raw.name, index),
     name: raw.name,
-    muscleGroup: getMuscleGroup(raw.primaryMuscles),
+    muscleGroup: raw.category === "cardio" ? "cardio" : getMuscleGroup(raw.primaryMuscles),
     isCustom: false,
     isWeighted: isWeighted(raw),
     isTimeBased: isTimeBased(raw),

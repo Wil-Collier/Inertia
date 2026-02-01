@@ -68,13 +68,25 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Split vendor chunks
-          "vendor-react": ["react", "react-dom"],
-          "vendor-tanstack": ["@tanstack/react-router", "@tanstack/react-query"],
-          "vendor-recharts": ["recharts"],
-          "vendor-utils": ["zustand", "date-fns"],
-          "vendor-barcode": ["html5-qrcode"],
+        manualChunks: (id) => {
+          if (id.includes("node_modules")) {
+            if (id.includes("@tanstack/react-router") || id.includes("@tanstack/react-query")) {
+              return "vendor-tanstack"
+            }
+            if (id.includes("recharts")) {
+              return "vendor-recharts"
+            }
+            if (id.includes("zustand") || id.includes("date-fns")) {
+              return "vendor-utils"
+            }
+            if (id.includes("html5-qrcode")) {
+              return "vendor-barcode"
+            }
+            // Match exactly react or react-dom packages, avoiding matches like 'lucide-react'
+            if (id.includes("/react/") || id.includes("/react-dom/")) {
+              return "vendor-react"
+            }
+          }
         },
       },
     },
