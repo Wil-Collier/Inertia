@@ -34,6 +34,7 @@ coverage
 # Cloudflare
 .wrangler
 .dev.vars
+.dev.vars*
 
 # PWA / Service Worker
 dev-dist

@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react"
 import { defineConfig, type PluginOption } from "vite"
 import { VitePWA } from "vite-plugin-pwa"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
+import { cloudflare } from "@cloudflare/vite-plugin"
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -11,6 +12,7 @@ export default defineConfig({
     tanstackRouter(),
     react(),
     tailwindcss(),
+    cloudflare(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg"],
@@ -41,36 +43,16 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/world\.openfoodfacts\.org\/api\/.*/i,
+            urlPattern: /^\/api\/nutrition\/.*/i,
             handler: "NetworkFirst",
             options: {
-              cacheName: "openfoodfacts-api-cache",
+              cacheName: "nutrition-api-cache",
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60, // 1 hour
               },
               cacheableResponse: {
                 statuses: [0, 200],
-              },
-              fetchOptions: {
-                mode: "cors",
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/world\.openfoodfacts\.org\/cgi\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "openfoodfacts-search-cache",
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 30, // 30 minutes
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-              fetchOptions: {
-                mode: "cors",
               },
             },
           },
@@ -81,15 +63,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-    },
-  },
-  server: {
-    proxy: {
-      // Proxy /api requests to Wrangler Pages dev server
-      "/api": {
-        target: "http://localhost:8788",
-        changeOrigin: true,
-      },
     },
   },
   build: {

@@ -56,6 +56,14 @@ Services encapsulate business logic and cross-cutting concerns (e.g., `achieveme
 - **Routing:** TanStack Router (file-based). Routes in `src/routes/`, page components in `src/pages/`.
 - **State:** Zustand for ephemeral UI state (e.g., `restTimerStore.ts`). Use React Query + Dexie for all persisted data.
 
+### Backend (Cloudflare Workers + Hono)
+- **Entry Point:** `worker/index.ts` - Hono app that handles all `/api/*` routes.
+- **Configuration:** `wrangler.jsonc` - Cloudflare Workers configuration with static asset handling.
+- **Environment:** `worker/env.ts` - TypeScript interface for environment bindings.
+- **Routing:** Hono routes mounted by feature (e.g., `worker/nutrition/routes.ts`).
+- **Development:** The Cloudflare Vite plugin (`@cloudflare/vite-plugin`) runs Workers locally during `pnpm dev`.
+- **Deployment:** `pnpm deploy` builds and deploys to Cloudflare Workers.
+
 ## Code Style & Conventions
 
 ### TypeScript & Naming
@@ -77,3 +85,5 @@ Services encapsulate business logic and cross-cutting concerns (e.g., `achieveme
 - **tailwindcss** (v4)
 - **recharts** (v3)
 - **lucide-react** - Icons
+- **hono** - Lightweight web framework for Workers
+- **@cloudflare/vite-plugin** - Vite integration for Cloudflare Workers
