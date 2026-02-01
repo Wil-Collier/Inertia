@@ -93,7 +93,7 @@ export function NutritionHistoryPage() {
 
   // Chart Formatters
   const caloriesTooltipFormatter = useCallback((value: number | string | Array<number | string> | undefined) => [`${String(value ?? 0)} Cal`, "Calories"] as [string, string], [])
-  const caloriesLabelFormatter = useCallback((_label: string | number, payload: readonly { payload?: { dateLabel?: string } }[]) => {
+  const caloriesLabelFormatter = useCallback((_label: React.ReactNode, payload: readonly { payload?: { dateLabel?: string } }[]) => {
     if (payload?.[0]?.payload?.dateLabel) {
       return payload[0].payload.dateLabel
     }
@@ -139,13 +139,12 @@ export function NutritionHistoryPage() {
                 <p className="text-4xl font-black tracking-tighter">{averages.calories}</p>
                 {caloriesTrend !== null && (
                   <span
-                    className={`flex items-center text-xxs font-bold px-1.5 py-0.5 rounded-full ${
-                      caloriesTrend > 0
+                    className={`flex items-center text-xxs font-bold px-1.5 py-0.5 rounded-full ${caloriesTrend > 0
                         ? "bg-trend-positive/10 text-trend-positive"
                         : caloriesTrend < 0
                           ? "bg-trend-negative/10 text-trend-negative"
                           : "bg-muted text-muted-foreground"
-                    }`}
+                      }`}
                   >
                     {caloriesTrend > 0 ? (
                       <TrendingUp className="h-3 w-3 mr-0.5" />
