@@ -8,7 +8,7 @@ export function useAddExercise() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (exercise: Omit<Exercise, "id">) => {
+    mutationFn: async (exercise: Omit<Exercise, "id" | "isCustom" | "createdAt">) => {
       const newExercise: Exercise = {
         id: crypto.randomUUID(),
         name: exercise.name,
@@ -16,6 +16,8 @@ export function useAddExercise() {
         isCustom: true,
         isWeighted: exercise.isWeighted,
         isTimeBased: exercise.isTimeBased,
+        description: exercise.description,
+        createdAt: new Date().toISOString(),
       }
       await db.customExercises.add(newExercise)
       return newExercise
@@ -53,16 +55,37 @@ export function useDeleteExercise() {
         }
 
         // Only delete custom exercises and their associated PRs
-        await db.customExercises.delete(id)
-        await db.personalRecords.where("exerciseId").equals(id).delete()
-      })
+      await db.customExercises.delete(id)
+      await db.personalRecords.where("exerciseId").equals(id).delete()
+    })
+  },
+  onSuccess: () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
+    toast.success("Exercise deleted")
+  },
+  onError: (error) => {
+    toast.error(error instanceof Error ? error.message : "Failed to delete exercise")
+  }
+})
+}
+
+export function useUpdateExercise() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Exercise> }) => {
+      await db.customExercises.update(id, updates)
+      const updatedExercise = await db.customExercises.get(id)
+      if (!updatedExercise) throw new Error("Failed to retrieve updated exercise")
+      return updatedExercise
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
-      toast.success("Exercise deleted")
+      toast.success("Exercise updated")
     },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to delete exercise")
+    onError: () => {
+      toast.error("Failed to update exercise")
     }
   })
 }
+
