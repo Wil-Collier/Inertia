@@ -1,4 +1,5 @@
 import { Search, X, ScanBarcode, Loader2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
@@ -57,9 +58,9 @@ export function FoodSearch({
   extraTabContents,
 }: FoodSearchProps) {
   return (
-    <div className={className}>
-      <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        <TabsList className="w-full">
+    <div className={cn("flex flex-col", className)}>
+      <Tabs value={activeTab} onValueChange={onTabChange} className="w-full flex-1 flex flex-col min-h-0">
+        <TabsList className="w-full shrink-0">
           <TabsTrigger value="search" className="flex-1">
             Search
           </TabsTrigger>
@@ -72,8 +73,8 @@ export function FoodSearch({
           {extraTabTriggers}
         </TabsList>
 
-        <TabsContent value="search" className="mt-4">
-          <div className="flex gap-2">
+        <TabsContent value="search" className="mt-4 flex-1 flex flex-col min-h-0">
+          <div className="flex gap-2 shrink-0">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -109,12 +110,12 @@ export function FoodSearch({
           </div>
 
           {remoteStatus === "error" && searchQuery.trim().length >= 2 && (
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 text-xs text-muted-foreground shrink-0">
               Remote search unavailable. Showing local results{remoteError ? ": " + remoteError : ""}
             </p>
           )}
 
-          <ScrollArea className="mt-4 h-[calc(100vh-280px)] min-h-[300px]" hideScrollBar>
+          <ScrollArea className="mt-4 flex-1" hideScrollBar>
             <div className="pb-[env(safe-area-inset-bottom,1rem)]">
               {(isSearching || isLookingUp) && searchResults.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -148,8 +149,8 @@ export function FoodSearch({
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="myfoods" className="mt-4">
-          <ScrollArea className="h-[calc(100vh-220px)] min-h-[300px]">
+        <TabsContent value="myfoods" className="mt-4 flex-1 flex flex-col min-h-0">
+          <ScrollArea className="flex-1">
             <div className="space-y-3 pb-[env(safe-area-inset-bottom,1rem)]">
               <CustomFoodForm
                 onSave={onSaveCustomFood}
@@ -180,8 +181,8 @@ export function FoodSearch({
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="favorites" className="mt-4">
-          <ScrollArea className="h-[calc(100vh-220px)] min-h-[300px]">
+        <TabsContent value="favorites" className="mt-4 flex-1 flex flex-col min-h-0">
+          <ScrollArea className="flex-1">
             <div className="pb-[env(safe-area-inset-bottom,1rem)]">
               {favorites.length > 0 ? (
                 <div className="space-y-2">

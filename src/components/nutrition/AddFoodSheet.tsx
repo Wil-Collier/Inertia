@@ -73,15 +73,15 @@ export function AddFoodSheet({
 }: AddFoodSheetProps) {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh]">
+      <SheetContent side="bottom" className="h-[80vh]">
         <SheetHeader>
-          <SheetTitle>
+          <SheetTitle className="uppercase tracking-tight">
             Add to {selectedMealLabel}
           </SheetTitle>
         </SheetHeader>
 
         <FoodSearch
-          className="mt-4 px-4"
+          className="mt-4 px-4 flex flex-col h-[calc(80vh-100px)]"
           activeTab={activeTab}
           onTabChange={setActiveTab}
           searchQuery={searchQuery}
@@ -107,8 +107,8 @@ export function AddFoodSheet({
             </TabsTrigger>
           }
           extraTabContents={
-            <TabsContent value="templates" className="mt-4">
-              <ScrollArea className="h-[calc(100vh-220px)] min-h-[300px]">
+            <TabsContent value="templates" className="mt-4 flex-1 min-h-0">
+              <ScrollArea className="h-full">
                 <div className="pb-[env(safe-area-inset-bottom,1rem)] space-y-4">
                   <Link to="/nutrition/template-editor" className="block">
                     <Button className="w-full" variant="outline" onClick={() => onOpenChange(false)}>

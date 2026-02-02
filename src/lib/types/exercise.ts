@@ -14,4 +14,6 @@ export interface Exercise {
   isCustom: boolean
   isWeighted: boolean
   isTimeBased: boolean
+  createdAt?: string
+  description?: string
 }

@@ -87,6 +87,16 @@ export function ExerciseInfoSheet({ exercise, isOpen, onOpenChange }: ExerciseIn
               </div>
             )}
 
+            {/* Description */}
+            {exercise.description && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium">
+                  Description
+                </h3>
+                <p className="text-sm text-muted-foreground">{exercise.description}</p>
+              </div>
+            )}
+
             {/* Instructions */}
             {!isLoading && instructions?.instructions && instructions.instructions.length > 0 && (
               <div className="space-y-3">
@@ -108,17 +118,11 @@ export function ExerciseInfoSheet({ exercise, isOpen, onOpenChange }: ExerciseIn
             )}
 
             {/* No instructions available */}
-            {!isLoading && !instructions && (
+            {!isLoading && !instructions && !exercise.description && (
               <div className="py-8 text-center">
-                <Info className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  No instructions available for this exercise yet.
+                  No description provided
                 </p>
-                {exercise.isCustom && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Custom exercises don't have built-in instructions.
-                  </p>
-                )}
               </div>
             )}
           </div>
@@ -137,10 +141,6 @@ export function ExerciseInfoButton({
   className?: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
-  const { instructions } = useExerciseInstructions(exercise.id)
-
-  // Only show button if there are instructions available
-  if (!instructions) return null
 
   return (
     <>

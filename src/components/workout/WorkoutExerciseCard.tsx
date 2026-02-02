@@ -75,7 +75,7 @@ export const WorkoutExerciseCard = memo(({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1">
-              <CardTitle className={cn("text-base", !isExpanded && "truncate")}>
+              <CardTitle className={cn("text-base leading-tight", !isExpanded && "line-clamp-2")}>
                 {exercise?.name || "Unknown Exercise"}
               </CardTitle>
               {exercise && <ExerciseInfoButton exercise={exercise} />}
