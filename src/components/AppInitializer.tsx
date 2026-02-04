@@ -3,6 +3,10 @@ import { PageLoader } from "@/components/ui/PageLoader"
 import { isDatabaseHealthy, recoverDatabase } from "@/services/db"
 import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
+import { registerSyncDexieHooks } from "@/features/sync/dexieHooks"
+import { useSyncTriggers } from "@/features/sync/useSyncTriggers"
+import { useDebouncedPush } from "@/features/sync/useDebouncedPush"
+import { SYNC_ENABLED } from "@/features/sync/syncEngine"
 
 interface AppInitializerProps {
   children: ReactNode
@@ -83,6 +87,9 @@ async function withSafariRetry<T>(label: string, fn: () => Promise<T>): Promise<
  * Checks database health and initializes the application.
  */
 export function AppInitializer({ children }: AppInitializerProps) {
+  useSyncTriggers()
+  useDebouncedPush()
+
   const [isInitializing, setIsInitializing] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [showCorruptionPrompt, setShowCorruptionPrompt] = useState(false)
@@ -99,6 +106,10 @@ export function AppInitializer({ children }: AppInitializerProps) {
           console.warn("Database corruption detected")
           setShowCorruptionPrompt(true)
           return
+        }
+
+        if (SYNC_ENABLED) {
+          registerSyncDexieHooks()
         }
 
         // Initialize/repair derived state (early dev: correctness > micro perf).

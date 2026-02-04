@@ -19,7 +19,7 @@ import type {
   PersonalRecord,
   FoodItem,
   DailyNutrition,
-  MealEntry,
+  MealTemplate,
   UserSettings,
   WeightEntry,
   UnlockedAchievement,
@@ -54,7 +54,7 @@ export class TrainingAppDatabase extends Dexie {
 
   foods!: Table<FoodItem>
   nutritionLogs!: Table<DailyNutrition>
-  mealTemplates!: Table<{ id: string; name: string; entries: Omit<MealEntry, "id">[] }>
+  mealTemplates!: Table<MealTemplate>
 
   settings!: Table<UserSettings & { id: string }>
   bodyWeight!: Table<WeightEntry>

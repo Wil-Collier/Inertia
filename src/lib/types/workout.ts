@@ -19,8 +19,9 @@ export interface LastPerformance {
   workoutId: string
 }
 
-export interface Workout {
-  id: string
+import type { SyncableWithId } from "./syncable"
+
+export interface Workout extends SyncableWithId {
   date: string
   name: string
   exercises: WorkoutExercise[]
@@ -47,8 +48,7 @@ export interface TemplateExercise {
   targetWeight?: number
 }
 
-export interface WorkoutTemplate {
-  id: string
+export interface WorkoutTemplate extends SyncableWithId {
   name: string
   exercises: TemplateExercise[]
 }

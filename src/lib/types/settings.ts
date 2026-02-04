@@ -1,4 +1,5 @@
 import type { NutritionGoals } from "./nutrition"
+import type { Syncable } from "./syncable"
 
 export type ThemeMode = "light" | "dark" | "system"
 
@@ -10,7 +11,7 @@ export interface UnitPreferences {
   distance: DistanceUnit
 }
 
-export interface UserSettings {
+export interface UserSettings extends Syncable {
   theme: ThemeMode
   nutritionGoals: NutritionGoals
   restTimerDuration: number

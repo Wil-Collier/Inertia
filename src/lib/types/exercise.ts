@@ -7,8 +7,9 @@ export type MuscleGroup =
   | "core"
   | "cardio"
 
-export interface Exercise {
-  id: string
+import type { SyncableWithId } from "./syncable"
+
+export interface Exercise extends SyncableWithId {
   name: string
   muscleGroup: MuscleGroup
   isCustom: boolean

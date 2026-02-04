@@ -25,6 +25,7 @@ import { WorkoutSettings } from "@/components/settings/WorkoutSettings"
 import { UnitSettings } from "@/components/settings/UnitSettings"
 import { NutritionGoalSettings } from "@/components/settings/NutritionGoalSettings"
 import { DataManagement } from "@/components/settings/DataManagement"
+import { SyncSettings } from "@/components/settings/SyncSettings"
 
 export function SettingsPage() {
   const updateSettingsMutation = useUpdateSettings()
@@ -146,6 +147,9 @@ export function SettingsPage() {
             nutritionGoals: { ...settings.nutritionGoals, [field]: value } 
           })}
         />
+
+        {/* Cloud Sync */}
+        <SyncSettings />
 
         {/* Data Management */}
         <DataManagement
