@@ -64,14 +64,35 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    dedupe: ["react", "react-dom"],
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+      "@tanstack/react-query",
+      "@tanstack/react-router",
+    ],
+    esbuildOptions: {
+      target: "es2019",
+    },
   },
   build: {
+    target: "es2019",
     rollupOptions: {
       output: {
         manualChunks: (id) => {
           if (id.includes("node_modules")) {
-            if (id.includes("@tanstack/react-router") || id.includes("@tanstack/react-query")) {
-              return "vendor-tanstack"
+            const isReact =
+              id.includes("/react/") ||
+              id.includes("/react-dom/") ||
+              id.includes("/react/jsx-runtime") ||
+              id.includes("/react/jsx-dev-runtime")
+            const isTanstack = id.includes("@tanstack/react-router") || id.includes("@tanstack/react-query")
+            if (isReact || isTanstack) {
+              return "vendor-core"
             }
             if (id.includes("recharts")) {
               return "vendor-recharts"
@@ -81,10 +102,6 @@ export default defineConfig({
             }
             if (id.includes("html5-qrcode")) {
               return "vendor-barcode"
-            }
-            // Match exactly react or react-dom packages, avoiding matches like 'lucide-react'
-            if (id.includes("/react/") || id.includes("/react-dom/")) {
-              return "vendor-react"
             }
           }
         },
