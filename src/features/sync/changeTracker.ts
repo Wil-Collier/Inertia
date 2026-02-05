@@ -30,6 +30,10 @@ function getMetadataTable(transaction?: Transaction) {
   return transaction ? transaction.table<MetadataRecord>("metadata") : db.metadata
 }
 
+function transactionHasMetadataStore(transaction: Transaction): boolean {
+  return transaction.storeNames.includes("metadata")
+}
+
 async function updatePendingChanges(
   updater: (current: PendingChange[]) => PendingChange[],
   transaction?: Transaction
@@ -85,8 +89,17 @@ export async function enqueueChange(change: PendingChange): Promise<void> {
 }
 
 export async function enqueueChangeInTransaction(change: PendingChange, transaction: Transaction): Promise<void> {
-  await updatePendingChanges((current) => mergePendingChange(current, change), transaction)
-  queuePendingCountRefreshAfterTransaction(transaction)
+  if (transactionHasMetadataStore(transaction)) {
+    await updatePendingChanges((current) => mergePendingChange(current, change), transaction)
+    queuePendingCountRefreshAfterTransaction(transaction)
+    return
+  }
+
+  // Fallback for single-table transactions (e.g. table hooks).
+  // We cannot add stores to the existing transaction, so enqueue after commit.
+  transaction.on("complete", () => {
+    void enqueueChange(change)
+  })
 }
 
 export async function removePendingChanges(toRemove: PendingChange[]): Promise<void> {
