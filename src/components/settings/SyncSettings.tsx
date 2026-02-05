@@ -31,9 +31,6 @@ export function SyncSettings() {
   useEffect(() => {
     if (!syncEnabled) return
     if (lastStatus.current !== sync.status) {
-      if (sync.status === "success" && lastStatus.current === "syncing") {
-        toast.success("Sync complete")
-      }
       if (sync.status === "error" && sync.lastError) {
         toast.error(sync.lastError)
       }

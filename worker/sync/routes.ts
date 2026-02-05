@@ -111,9 +111,21 @@ syncRoutes.post("/push", async (c) => {
 
     if (changes === 0) {
       const existing = await c.env.DB
-        .prepare("SELECT updated_at FROM sync_store WHERE user_id = ? AND collection = ? AND id = ?")
+        .prepare("SELECT updated_at, device_id FROM sync_store WHERE user_id = ? AND collection = ? AND id = ?")
         .bind(userId, change.collection, change.id)
-        .first<{ updated_at: number }>()
+        .first<{ updated_at: number; device_id: string | null }>()
+
+      // Check for idempotent retry:
+      // If the server has the exact same timestamp and device_id, 
+      // we can assume this change was already applied successfully.
+      if (
+        existing &&
+        existing.updated_at === updatedAt &&
+        (existing.device_id ?? null) === (deviceId ?? null)
+      ) {
+        accepted += 1
+        return
+      }
 
       conflicts.push({
         collection: change.collection,
