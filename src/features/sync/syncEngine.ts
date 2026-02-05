@@ -280,7 +280,7 @@ async function hasLocalData(): Promise<boolean> {
   ] = await Promise.all([
     db.workoutSessions.count(),
     db.workoutTemplates.count(),
-    db.foods.filter((food) => food.isCustom).count(),
+    db.foods.count(),
     db.nutritionLogs.count(),
     db.mealTemplates.count(),
     db.bodyWeight.count(),
@@ -355,7 +355,7 @@ async function buildPushChangesFromPending(pending: PendingChange[], deviceId: s
         }
       }
 
-      if (change.collection === "foods" && (!isFoodItem(record) || !record.isCustom)) {
+      if (change.collection === "foods" && !isFoodItem(record)) {
         return { pending: change, change: null }
       }
 
@@ -439,7 +439,7 @@ async function buildFullSnapshot(deviceId: string, overrideUpdatedAt?: number): 
   ] = await Promise.all([
     db.workoutSessions.toArray(),
     db.workoutTemplates.toArray(),
-    db.foods.filter((food) => food.isCustom).toArray(),
+    db.foods.toArray(),
     db.nutritionLogs.toArray(),
     db.mealTemplates.toArray(),
     db.bodyWeight.toArray(),

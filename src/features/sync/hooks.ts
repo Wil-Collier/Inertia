@@ -65,6 +65,14 @@ function useTokenExpiryPrompt(expiresAtMs: number | null, clearAuth: () => void)
       return
     }
 
+    // Fix: setTimeout uses a 32-bit int, so max delay is ~24.8 days.
+    // If the token lasts longer than that (e.g. 90 days), setTimeout overflows
+    // and fires immediately. We simply don't schedule the auto-logout if it's too far out.
+    const MAX_TIMEOUT_DELAY = 2147483647
+    if (msUntilExpiry > MAX_TIMEOUT_DELAY) {
+      return
+    }
+
     const promptDelay = Math.max(msUntilExpiry - REAUTH_BUFFER_MS, 0)
     const promptTimeoutId = window.setTimeout(() => {
       toast.info("Please sign in again to continue syncing")

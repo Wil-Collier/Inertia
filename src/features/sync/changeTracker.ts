@@ -48,6 +48,21 @@ function queuePendingCountRefresh() {
   })
 }
 
+const pendingRefreshTransactions = new WeakSet<Transaction>()
+
+function queuePendingCountRefreshAfterTransaction(transaction: Transaction) {
+  if (pendingRefreshTransactions.has(transaction)) return
+  pendingRefreshTransactions.add(transaction)
+
+  const refresh = () => {
+    void refreshPendingCount()
+  }
+
+  transaction.on("complete", refresh)
+  transaction.on("abort", refresh)
+  transaction.on("error", refresh)
+}
+
 export async function refreshPendingCount(): Promise<void> {
   const pending = await getPendingChanges()
   useSyncStore.getState().setPendingCount(pending.length)
@@ -71,7 +86,7 @@ export async function enqueueChange(change: PendingChange): Promise<void> {
 
 export async function enqueueChangeInTransaction(change: PendingChange, transaction: Transaction): Promise<void> {
   await updatePendingChanges((current) => mergePendingChange(current, change), transaction)
-  queuePendingCountRefresh()
+  queuePendingCountRefreshAfterTransaction(transaction)
 }
 
 export async function removePendingChanges(toRemove: PendingChange[]): Promise<void> {

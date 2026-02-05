@@ -66,20 +66,30 @@ interface SyncState {
   setInitialSyncState: (state: InitialSyncState | null) => void
 }
 
-export const useSyncStore = create<SyncState>()((set) => ({
-  status: "idle",
-  lastSyncedAtMs: null,
-  lastError: null,
-  pendingCount: 0,
-  conflicts: [],
-  initialSyncState: null,
-  setStatus: (status) => set({ status }),
-  setLastSyncedAtMs: (timestamp) => set({ lastSyncedAtMs: timestamp }),
-  setLastError: (error) => set({ lastError: error }),
-  setPendingCount: (count) => set({ pendingCount: count }),
-  setConflicts: (conflicts) => set({ conflicts }),
-  setInitialSyncState: (state) => set({ initialSyncState: state }),
-}))
+export const useSyncStore = create<SyncState>()(
+  persist(
+    (set) => ({
+      status: "idle",
+      lastSyncedAtMs: null,
+      lastError: null,
+      pendingCount: 0,
+      conflicts: [],
+      initialSyncState: null,
+      setStatus: (status) => set({ status }),
+      setLastSyncedAtMs: (timestamp) => set({ lastSyncedAtMs: timestamp }),
+      setLastError: (error) => set({ lastError: error }),
+      setPendingCount: (count) => set({ pendingCount: count }),
+      setConflicts: (conflicts) => set({ conflicts }),
+      setInitialSyncState: (state) => set({ initialSyncState: state }),
+    }),
+    {
+      name: "inertia-sync-store",
+      partialize: (state) => ({
+        lastSyncedAtMs: state.lastSyncedAtMs,
+      }),
+    }
+  )
+)
 
 export function clearAuthStorage(): void {
   localStorage.removeItem(SYNC_AUTH_STORAGE_KEY)

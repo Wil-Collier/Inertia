@@ -118,8 +118,7 @@ function resolveChangeId(tableName: SyncableTableName, primKey: unknown, obj: un
 
 function shouldTrackRecord(tableName: SyncableTableName, obj: unknown): boolean {
   if (tableName !== "foods") return true
-  if (!isRecord(obj)) return false
-  return obj.isCustom === true
+  return isRecord(obj)
 }
 
 function shouldIgnoreUpdate(tableName: SyncableTableName, mods: Record<string, unknown>): boolean {
