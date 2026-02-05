@@ -157,7 +157,6 @@ export async function resolveInitialSync(strategy: InitialSyncStrategy): Promise
     }
 
     if (strategy === "merge") {
-      await backfillUpdatedAt()
       await pushFullSnapshot(accessToken)
       const pullResult = await pullAllChanges(accessToken)
       if (pullResult.changes.length > 0) {
@@ -174,7 +173,6 @@ export async function resolveInitialSync(strategy: InitialSyncStrategy): Promise
     }
 
     if (strategy === "use-local") {
-      await backfillUpdatedAt()
       await overwriteCloudWithLocal(accessToken)
       const pullResult = await pullAllChanges(accessToken)
       if (pullResult.changes.length > 0) {
@@ -226,7 +224,6 @@ async function ensureInitialSync(): Promise<boolean> {
   }
 
   if (localHasData && !cloudHasData) {
-    await backfillUpdatedAt()
     await pushFullSnapshot(accessToken)
     const pullResult = await pullAllChanges(accessToken)
     if (pullResult.changes.length > 0) {
@@ -293,8 +290,6 @@ async function hasLocalData(): Promise<boolean> {
 async function pushPendingChangesInternal(accessToken: string, updateStatus: boolean): Promise<void> {
   const pending = await getPendingChanges()
   if (pending.length === 0) return
-
-  await backfillUpdatedAt()
 
   const deviceId = getDeviceId()
   const prepared = await buildPushChangesFromPending(pending, deviceId)
@@ -678,52 +673,6 @@ async function deleteLocalRecord(collection: SyncCollection, id: string): Promis
     default:
       return
   }
-}
-
-async function backfillUpdatedAt(): Promise<void> {
-  const now = Date.now()
-
-  await withSyncHooksSuppressed(async () => {
-    await db.transaction(
-      "rw",
-      [
-        db.workoutSessions,
-        db.workoutTemplates,
-        db.foods,
-        db.nutritionLogs,
-        db.mealTemplates,
-        db.bodyWeight,
-        db.settings,
-        db.customExercises,
-      ],
-      async () => {
-        await db.workoutSessions.toCollection().modify((workout: { updatedAt?: number }) => {
-          workout.updatedAt ??= now
-        })
-        await db.workoutTemplates.toCollection().modify((template: { updatedAt?: number }) => {
-          template.updatedAt ??= now
-        })
-        await db.foods.toCollection().modify((food: { updatedAt?: number }) => {
-          food.updatedAt ??= now
-        })
-        await db.nutritionLogs.toCollection().modify((log: { updatedAt?: number }) => {
-          log.updatedAt ??= now
-        })
-        await db.mealTemplates.toCollection().modify((template: { updatedAt?: number }) => {
-          template.updatedAt ??= now
-        })
-        await db.bodyWeight.toCollection().modify((entry: { updatedAt?: number }) => {
-          entry.updatedAt ??= now
-        })
-        await db.settings.toCollection().modify((settings: { updatedAt?: number }) => {
-          settings.updatedAt ??= now
-        })
-        await db.customExercises.toCollection().modify((exercise: { updatedAt?: number }) => {
-          exercise.updatedAt ??= now
-        })
-      }
-    )
-  })
 }
 
 async function clearLocalSyncData(): Promise<void> {

@@ -41,7 +41,7 @@ async function removeEntriesFromLog(date: string, filterFn: (entry: MealEntry) =
     if (nextEntries.length === 0) {
       await db.nutritionLogs.delete(date)
     } else {
-      await db.nutritionLogs.update(date, { entries: nextEntries, updatedAt: Date.now() })
+      await db.nutritionLogs.update(date, { entries: nextEntries })
     }
   })
 }
@@ -74,10 +74,9 @@ export function useAddMealEntry() {
         if (existing) {
           await db.nutritionLogs.update(date, {
             entries: [...existing.entries, entry],
-            updatedAt: Date.now(),
           })
         } else {
-          await db.nutritionLogs.add({ date, entries: [entry], updatedAt: Date.now() })
+          await db.nutritionLogs.add({ date, entries: [entry] })
         }
 
         // Increment usage count for optimization
@@ -149,7 +148,7 @@ export function useUpdateMealEntry() {
           e.id === entryId ? { ...e, ...updates } : e
         )
 
-        await db.nutritionLogs.update(date, { entries: updatedEntries, updatedAt: Date.now() })
+        await db.nutritionLogs.update(date, { entries: updatedEntries })
       })
     },
     onSuccess: (_, { date }) => {
@@ -420,10 +419,9 @@ export function useApplyMealTemplate() {
         if (existing) {
           await db.nutritionLogs.update(date, {
             entries: [...existing.entries, ...newEntries],
-            updatedAt: Date.now(),
           })
         } else {
-          await db.nutritionLogs.add({ date, entries: newEntries, updatedAt: Date.now() })
+          await db.nutritionLogs.add({ date, entries: newEntries })
         }
 
         // Increment usage counts
