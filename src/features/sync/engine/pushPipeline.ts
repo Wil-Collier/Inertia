@@ -1,13 +1,13 @@
 import { db } from "@/services/db"
 import { pushChanges } from "@/features/sync/api"
 import {
+  acknowledgeProcessedPendingChanges,
   clearPendingChanges,
   getRecordVersion,
   listPendingChanges,
-  removePendingChanges,
   setRecordVersionsBulk,
 } from "@/features/sync/changeTracker"
-import type { PendingChange, PendingChangeKey } from "@/features/sync/types"
+import type { PendingChange } from "@/features/sync/types"
 import type { PushChange, SyncCollection } from "@/features/sync/schemas"
 import { toCloudRecord } from "@/features/sync/projection"
 import { getDeviceId } from "@/features/sync/deviceId"
@@ -44,11 +44,23 @@ export async function pushPendingChangesInternal(accessToken: string, updateStat
       }))
     )
 
-    const processedKeys: PendingChangeKey[] = chunk.map((entry) => ({
-      collection: entry.pending.collection,
-      id: entry.pending.id,
-    }))
-    await removePendingChanges(processedKeys)
+    const processedKeys = new Set<string>()
+    response.acceptedChanges.forEach((item) => {
+      processedKeys.add(`${item.collection}:${item.id}`)
+    })
+    response.conflicts.forEach((item) => {
+      processedKeys.add(`${item.collection}:${item.id}`)
+    })
+
+    await acknowledgeProcessedPendingChanges(
+      chunk
+        .filter((entry) => processedKeys.has(`${entry.pending.collection}:${entry.pending.id}`))
+        .map((entry) => ({
+          collection: entry.pending.collection,
+          id: entry.pending.id,
+          mutationId: entry.pending.mutationId,
+        }))
+    )
   })
 }
 

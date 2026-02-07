@@ -51,6 +51,14 @@ function isBaseVersionConflictError(error: unknown): boolean {
   )
 }
 
+function isMutationIdConflictError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return (
+    error.message.includes("idx_sync_events_user_mutation") ||
+    error.message.includes("sync_events.user_id, sync_events.mutation_id")
+  )
+}
+
 function isSyncEventRow(value: unknown): value is SyncEventRow {
   if (!isRecord(value)) return false
   return (
@@ -158,6 +166,26 @@ syncRoutes.post("/push", async (c) => {
         version = insertedEvent?.version ?? null
       }
     } catch (error) {
+      if (isMutationIdConflictError(error)) {
+        const duplicateEvent = await c.env.DB
+          .prepare("SELECT version, collection, id, mutation_id FROM sync_events WHERE user_id = ? AND mutation_id = ?")
+          .bind(userId, change.mutationId)
+          .first<{ version: number; collection: string; id: string; mutation_id: string }>()
+
+        if (!duplicateEvent) {
+          throw error
+        }
+
+        accepted += 1
+        acceptedChanges.push({
+          collection: duplicateEvent.collection,
+          id: duplicateEvent.id,
+          version: duplicateEvent.version,
+          mutationId: duplicateEvent.mutation_id,
+        })
+        return
+      }
+
       if (!isBaseVersionConflictError(error)) {
         throw error
       }

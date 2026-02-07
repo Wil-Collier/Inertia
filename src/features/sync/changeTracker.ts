@@ -139,6 +139,25 @@ export async function removePendingChanges(keys: PendingChangeKey[]): Promise<vo
   queuePendingCountRefresh()
 }
 
+export async function acknowledgeProcessedPendingChanges(
+  entries: Array<{ collection: SyncCollection; id: string; mutationId: string }>
+): Promise<void> {
+  if (entries.length === 0) return
+
+  await db.transaction("rw", db.syncPendingChanges, async () => {
+    await Promise.all(
+      entries.map(async (entry) => {
+        const key: [string, string] = [entry.collection, entry.id]
+        const current = await db.syncPendingChanges.get(key)
+        if (current?.mutationId !== entry.mutationId) return
+        await db.syncPendingChanges.delete(key)
+      })
+    )
+  })
+
+  queuePendingCountRefresh()
+}
+
 export async function clearPendingChanges(): Promise<void> {
   await db.syncPendingChanges.clear()
   queuePendingCountRefresh()

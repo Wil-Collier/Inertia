@@ -63,7 +63,11 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
             local.updatedAt = Date.now()
           }
 
-          await upsertLocalRecord(change.collection, change.id, local)
+          const applied = await upsertLocalRecord(change.collection, change.id, local)
+          if (!applied) {
+            throw new Error(`Invalid pulled record for ${change.collection}:${change.id}`)
+          }
+
           await setRecordVersion(change.collection, change.id, change.version, transaction)
         })
       }
@@ -131,42 +135,42 @@ export async function clearLocalSyncData(): Promise<void> {
   await clearLocalDataOwnerUserId()
 }
 
-async function upsertLocalRecord(collection: SyncCollection, id: string, record: unknown): Promise<void> {
+async function upsertLocalRecord(collection: SyncCollection, id: string, record: unknown): Promise<boolean> {
   switch (collection) {
     case "workouts":
-      if (!isWorkout(record)) return
+      if (!isWorkout(record)) return false
       await db.workoutSessions.put(record)
-      return
+      return true
     case "templates":
-      if (!isWorkoutTemplate(record)) return
+      if (!isWorkoutTemplate(record)) return false
       await db.workoutTemplates.put(record)
-      return
+      return true
     case "foods":
-      if (!isFoodItem(record)) return
+      if (!isFoodItem(record)) return false
       await db.foods.put(record)
-      return
+      return true
     case "nutrition":
-      if (!isDailyNutrition(record)) return
+      if (!isDailyNutrition(record)) return false
       await db.nutritionLogs.put(record)
-      return
+      return true
     case "mealTemplates":
-      if (!isMealTemplate(record)) return
+      if (!isMealTemplate(record)) return false
       await db.mealTemplates.put(record)
-      return
+      return true
     case "weight":
-      if (!isWeightEntry(record)) return
+      if (!isWeightEntry(record)) return false
       await db.bodyWeight.put(record)
-      return
+      return true
     case "settings":
-      if (!isUserSettings(record)) return
+      if (!isUserSettings(record)) return false
       await db.settings.put({ id, ...record })
-      return
+      return true
     case "exercises":
-      if (!isExercise(record)) return
+      if (!isExercise(record)) return false
       await db.customExercises.put(record)
-      return
+      return true
     default:
-      return
+      return false
   }
 }
 
