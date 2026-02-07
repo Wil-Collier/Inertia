@@ -146,6 +146,8 @@ function parseSetCookieValue(setCookie: string | null): string {
   return value ?? ""
 }
 
+const TEST_ORIGIN = "http://localhost"
+
 describe("authRoutes integration", () => {
   let db: FakeD1
 
@@ -162,7 +164,7 @@ describe("authRoutes integration", () => {
       "/login",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: TEST_ORIGIN },
         body: JSON.stringify({ idToken: "google-token" }),
       },
       {
@@ -184,7 +186,27 @@ describe("authRoutes integration", () => {
 
     const setCookie = response.headers.get("set-cookie")
     expect(setCookie).toContain("inertia_rt=")
+    expect(response.headers.get("cache-control")).toBe("no-store")
+    expect(response.headers.get("pragma")).toBe("no-cache")
     expect(db.refreshSessions.size).toBe(1)
+  })
+
+  it("rejects state-changing auth requests without trusted origin", async () => {
+    const response = await authRoutes.request(
+      "/login",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: "google-token" }),
+      },
+      {
+        DB: db,
+        JWT_SECRET: "secret",
+        GOOGLE_CLIENT_ID: "google-client",
+      }
+    )
+
+    expect(response.status).toBe(403)
   })
 
   it("allows previous refresh token during grace window then rejects after expiry", async () => {
@@ -195,7 +217,7 @@ describe("authRoutes integration", () => {
       "/login",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: TEST_ORIGIN },
         body: JSON.stringify({ idToken: "google-token" }),
       },
       {
@@ -211,7 +233,7 @@ describe("authRoutes integration", () => {
       "/refresh",
       {
         method: "POST",
-        headers: { Cookie: `inertia_rt=${originalToken}` },
+        headers: { Cookie: `inertia_rt=${originalToken}`, Origin: TEST_ORIGIN },
       },
       {
         DB: db,
@@ -226,7 +248,7 @@ describe("authRoutes integration", () => {
       "/refresh",
       {
         method: "POST",
-        headers: { Cookie: `inertia_rt=${originalToken}` },
+        headers: { Cookie: `inertia_rt=${originalToken}`, Origin: TEST_ORIGIN },
       },
       {
         DB: db,
@@ -241,7 +263,7 @@ describe("authRoutes integration", () => {
       "/refresh",
       {
         method: "POST",
-        headers: { Cookie: `inertia_rt=${originalToken}` },
+        headers: { Cookie: `inertia_rt=${originalToken}`, Origin: TEST_ORIGIN },
       },
       {
         DB: db,
@@ -259,7 +281,7 @@ describe("authRoutes integration", () => {
       "/login",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: TEST_ORIGIN },
         body: JSON.stringify({ idToken: "google-token" }),
       },
       {
@@ -275,7 +297,7 @@ describe("authRoutes integration", () => {
       "/logout",
       {
         method: "POST",
-        headers: { Cookie: `inertia_rt=${token}` },
+        headers: { Cookie: `inertia_rt=${token}`, Origin: TEST_ORIGIN },
       },
       {
         DB: db,
@@ -290,7 +312,7 @@ describe("authRoutes integration", () => {
       "/refresh",
       {
         method: "POST",
-        headers: { Cookie: `inertia_rt=${token}` },
+        headers: { Cookie: `inertia_rt=${token}`, Origin: TEST_ORIGIN },
       },
       {
         DB: db,

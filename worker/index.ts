@@ -12,12 +12,18 @@ import { nutrition } from "./nutrition/routes"
 import { authRoutes } from "./auth/routes"
 import { syncRoutes } from "./sync/routes"
 import { authMiddleware } from "./middleware/auth"
+import { securityHeadersMiddleware } from "./middleware/securityHeaders"
+import { createRateLimitMiddleware } from "./middleware/rateLimit"
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>()
 
 // Middleware
 app.use("*", logger())
+app.use("/api/*", securityHeadersMiddleware)
+app.use("/api/auth/*", createRateLimitMiddleware({ bucket: "auth", windowMs: 60_000, max: 30 }))
+app.use("/api/sync/*", createRateLimitMiddleware({ bucket: "sync", windowMs: 60_000, max: 240 }))
+app.use("/api/nutrition/*", createRateLimitMiddleware({ bucket: "nutrition", windowMs: 60_000, max: 120 }))
 
 // Global error handler — prevent leaking internal details
 app.onError((err, c) => {

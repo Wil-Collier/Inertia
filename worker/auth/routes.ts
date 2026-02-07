@@ -25,6 +25,18 @@ type RefreshSessionRow = {
 
 export const authRoutes = new Hono<{ Bindings: Env }>()
 
+authRoutes.use("*", async (c, next) => {
+  if (c.req.method === "POST" && !isTrustedOrigin(c)) {
+    c.header("Cache-Control", "no-store")
+    c.header("Pragma", "no-cache")
+    return c.json({ error: "FORBIDDEN", message: "Invalid request origin" }, 403)
+  }
+
+  await next()
+  c.header("Cache-Control", "no-store")
+  c.header("Pragma", "no-cache")
+})
+
 authRoutes.post("/login", async (c) => {
   try {
     const body = await c.req.json()
@@ -159,6 +171,8 @@ authRoutes.post("/refresh", async (c) => {
 
   return c.json({
     accessToken: access.token,
+    userId: session.user_id,
+    email: session.user_email,
     expiresAtMs: access.expiresAtMs,
   })
 })
@@ -189,7 +203,7 @@ function getSessionIdFromToken(token: string | undefined): string | null {
 function setRefreshCookie(c: Parameters<typeof setCookie>[0], value: string, ttlMs: number): void {
   setCookie(c, REFRESH_COOKIE_NAME, value, {
     httpOnly: true,
-    sameSite: "Lax",
+    sameSite: "Strict",
     secure: c.req.url.startsWith("https://"),
     path: REFRESH_COOKIE_PATH,
     maxAge: Math.floor(ttlMs / 1000),
@@ -246,4 +260,38 @@ function toBase64Url(bytes: Uint8Array): string {
     .map((byte) => String.fromCharCode(byte))
     .join("")
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "")
+}
+
+function isTrustedOrigin(c: { req: { header: (name: string) => string | undefined; url: string }; env: Env }): boolean {
+  const requestOrigin = getRequestOrigin(c.req.header("Origin"), c.req.header("Referer"))
+  if (!requestOrigin) return false
+
+  const configuredOrigins = c.env.APP_ORIGINS
+    ?.split(",")
+    .map((origin) => normalizeOrigin(origin.trim()))
+    .filter((origin): origin is string => origin !== null)
+
+  const allowedOrigins =
+    configuredOrigins && configuredOrigins.length > 0
+      ? new Set(configuredOrigins)
+      : new Set([new URL(c.req.url).origin])
+
+  return allowedOrigins.has(requestOrigin)
+}
+
+function getRequestOrigin(originHeader?: string, refererHeader?: string): string | null {
+  const explicitOrigin = normalizeOrigin(originHeader)
+  if (explicitOrigin) {
+    return explicitOrigin
+  }
+  return normalizeOrigin(refererHeader)
+}
+
+function normalizeOrigin(urlLike: string | undefined): string | null {
+  if (!urlLike) return null
+  try {
+    return new URL(urlLike).origin
+  } catch {
+    return null
+  }
 }

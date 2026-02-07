@@ -99,6 +99,57 @@ await achievementService.checkNutritionAchievements()
 - Shared types: Zod schemas in `shared/syncSchemas.ts` used by both client and worker.
 - Dev: `@cloudflare/vite-plugin` runs Workers locally during `pnpm dev`.
 
+## Security Best Practices & Procedures
+
+### Core Security Rules (Secure-by-Default)
+
+- **No token persistence in Web Storage:** Never persist access tokens in `localStorage`/`sessionStorage`. Keep access tokens in memory only.
+- **Refresh token handling:** Refresh tokens must remain `httpOnly` cookies scoped to auth routes.
+- **CSRF/origin checks for auth state changes:** All state-changing auth endpoints must enforce trusted `Origin`/`Referer` checks.
+- **Auth response caching:** Login/refresh/logout responses must send `Cache-Control: no-store`.
+- **Input validation:** Treat all request inputs as untrusted. Validate with Zod before any DB or provider calls.
+- **Request size limits:** Enforce payload size limits on sync endpoints (`/api/sync/push`, `/api/sync/pull`).
+- **Rate limiting:** Keep route-level rate limits enabled for `/api/auth/*`, `/api/sync/*`, and `/api/nutrition/*`.
+- **SQL safety:** Use parameterized D1 queries only; never build SQL with string interpolation from user input.
+- **Error hygiene:** Do not leak internal stack traces or secrets in API responses.
+- **Security headers:** Preserve API security headers middleware (`nosniff`, referrer policy, permissions policy, CSP for API responses).
+- **CSP maintenance:** Keep app-shell CSP in `index.html` aligned with required providers (Google OAuth, APIs) and avoid broad wildcards.
+- **Secrets discipline:** Never hardcode credentials. Use Worker environment bindings (`JWT_SECRET`, `GOOGLE_CLIENT_ID`, provider secrets, `APP_ORIGINS`).
+
+### Auth & Session Procedure
+
+- Access token lifecycle:
+  - Access token issued by `/api/auth/login` or `/api/auth/refresh`.
+  - Access token stored only in memory state.
+  - On app startup, restore session via `/api/auth/refresh` (cookie-based).
+- Cookie policy:
+  - Use `httpOnly`, `sameSite`, `secure` (when HTTPS), and explicit `path`.
+- Origin allowlist:
+  - Configure trusted origins with `APP_ORIGINS` (comma-separated) in Worker env for production.
+
+### Security Review Procedure (Required on Security-Relevant Changes)
+
+Security-relevant scope includes: auth, sync, middleware, API routes, request parsing, storage, CSP/headers, third-party network calls.
+
+1. Identify trust boundary changes (browser/client, Worker API, D1, third-party APIs).
+2. Confirm all new/changed inputs are schema-validated and bounded.
+3. Confirm no new sensitive data is persisted in Web Storage or logs.
+4. Confirm auth endpoints keep origin checks and `no-store` behavior.
+5. Confirm rate limits and payload caps still apply to changed routes.
+6. Add/update integration tests for security behavior (for example: 401/403/413/429 paths).
+7. Run verification commands:
+   - `pnpm vitest run`
+   - `pnpm build && pnpm lint`
+
+### Testing Expectations for Security Controls
+
+- Add or update tests when touching security controls:
+  - Auth origin enforcement (`403` on untrusted origin).
+  - Rate limiting behavior (`429`).
+  - Request validation failures (`400`).
+  - Payload limit enforcement (`413`).
+  - Session refresh behavior and auth-state transitions.
+
 ## Code Style & Conventions
 
 ### TypeScript

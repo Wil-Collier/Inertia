@@ -24,6 +24,7 @@ describe("verifyGoogleIdToken", () => {
         sub: "google-sub-1",
         email: "user@example.com",
         aud: "client-123",
+        iss: "https://accounts.google.com",
         email_verified: true,
       },
     })
@@ -49,6 +50,7 @@ describe("verifyGoogleIdToken", () => {
         sub: "google-sub-1",
         email: "user@example.com",
         aud: "different-client",
+        iss: "https://accounts.google.com",
         email_verified: true,
       },
     })
@@ -60,6 +62,7 @@ describe("verifyGoogleIdToken", () => {
         sub: "google-sub-1",
         email: "user@example.com",
         aud: "client-123",
+        iss: "https://accounts.google.com",
         email_verified: false,
       },
     })
@@ -73,6 +76,7 @@ describe("verifyGoogleIdToken", () => {
         sub: "google-sub-2",
         email: "verified@example.com",
         aud: "client-123",
+        iss: "accounts.google.com",
         email_verified: "true",
       },
     })
@@ -81,5 +85,20 @@ describe("verifyGoogleIdToken", () => {
       sub: "google-sub-2",
       email: "verified@example.com",
     })
+  })
+
+  it("rejects invalid issuer", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        sub: "google-sub-3",
+        email: "verified@example.com",
+        aud: "client-123",
+        iss: "https://evil.example.com",
+        email_verified: true,
+      },
+    })
+
+    await expect(verifyGoogleIdToken("id-token", "client-123")).rejects.toThrow("FORBIDDEN")
   })
 })

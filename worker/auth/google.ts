@@ -4,8 +4,10 @@ export interface VerifiedGoogleToken {
 }
 
 export async function verifyGoogleIdToken(idToken: string, clientId: string): Promise<VerifiedGoogleToken> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 5000)
   const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
-  const response = await fetch(url)
+  const response = await fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeoutId))
 
   if (!response.ok) {
     throw new Error("INVALID_TOKEN")
@@ -22,6 +24,11 @@ export async function verifyGoogleIdToken(idToken: string, clientId: string): Pr
   }
 
   if (data.aud !== clientId) {
+    throw new Error("FORBIDDEN")
+  }
+
+  const issuer = typeof data.iss === "string" ? data.iss : null
+  if (issuer !== "accounts.google.com" && issuer !== "https://accounts.google.com") {
     throw new Error("FORBIDDEN")
   }
 

@@ -7,6 +7,7 @@ import { registerSyncDexieHooks } from "@/features/sync/dexieHooks"
 import { useSyncTriggers } from "@/features/sync/useSyncTriggers"
 import { useDebouncedPush } from "@/features/sync/useDebouncedPush"
 import { SYNC_ENABLED } from "@/features/sync/syncEngine"
+import { restoreSession } from "@/features/sync/api"
 
 interface AppInitializerProps {
   children: ReactNode
@@ -110,6 +111,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
 
         if (SYNC_ENABLED) {
           registerSyncDexieHooks()
+          void restoreSession()
         }
 
         // Initialize/repair derived state (early dev: correctness > micro perf).

@@ -17,47 +17,43 @@ interface AuthState {
   expiresAtMs: number | null
   isAuthenticated: boolean
   setAuth: (payload: { accessToken: string; userId: string; email: string; expiresAtMs: number }) => void
-  setAccessToken: (payload: { accessToken: string; expiresAtMs: number }) => void
+  setAccessToken: (payload: { accessToken: string; userId: string; email: string; expiresAtMs: number }) => void
   clearAuth: () => void
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
+export const useAuthStore = create<AuthState>()((set) => ({
+  accessToken: null,
+  userId: null,
+  email: null,
+  expiresAtMs: null,
+  isAuthenticated: false,
+  setAuth: ({ accessToken, userId, email, expiresAtMs }) =>
+    set({
+      accessToken,
+      userId,
+      email,
+      expiresAtMs: normalizeExpiresAtMs(expiresAtMs),
+      isAuthenticated: true,
+    }),
+  setAccessToken: ({ accessToken, userId, email, expiresAtMs }) =>
+    set({
+      accessToken,
+      userId,
+      email,
+      expiresAtMs: normalizeExpiresAtMs(expiresAtMs),
+      isAuthenticated: true,
+    }),
+  clearAuth: () =>
+    set({
       accessToken: null,
       userId: null,
       email: null,
       expiresAtMs: null,
       isAuthenticated: false,
-      setAuth: ({ accessToken, userId, email, expiresAtMs }) =>
-        set({
-          accessToken,
-          userId,
-          email,
-          expiresAtMs: normalizeExpiresAtMs(expiresAtMs),
-          isAuthenticated: true,
-        }),
-      setAccessToken: ({ accessToken, expiresAtMs }) =>
-        set((state) => ({
-          ...state,
-          accessToken,
-          expiresAtMs: normalizeExpiresAtMs(expiresAtMs),
-          isAuthenticated: !!state.userId,
-        })),
-      clearAuth: () =>
-        set({
-          accessToken: null,
-          userId: null,
-          email: null,
-          expiresAtMs: null,
-          isAuthenticated: false,
-        }),
     }),
-    {
-      name: SYNC_AUTH_STORAGE_KEY,
-    }
-  )
-)
+}))
+
+purgeLegacyAuthStorage()
 
 interface SyncState {
   status: SyncStatus
@@ -100,5 +96,10 @@ export const useSyncStore = create<SyncState>()(
 )
 
 export function clearAuthStorage(): void {
+  purgeLegacyAuthStorage()
+}
+
+function purgeLegacyAuthStorage(): void {
+  if (typeof window === "undefined") return
   localStorage.removeItem(SYNC_AUTH_STORAGE_KEY)
 }

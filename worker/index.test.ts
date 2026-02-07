@@ -34,6 +34,8 @@ describe("worker app integration", () => {
     expect(response.status).toBe(200)
     expect(body.status).toBe("ok")
     expect(typeof body.timestamp).toBe("string")
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff")
+    expect(response.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin")
   })
 
   it("returns 404 for unknown API paths", async () => {
@@ -95,7 +97,7 @@ describe("worker app integration", () => {
       "/api/auth/login",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: "http://localhost" },
         body: JSON.stringify({}),
       },
       createEnv()
@@ -104,5 +106,26 @@ describe("worker app integration", () => {
     const body = await readJson(response)
     expect(response.status).toBe(400)
     expect(body.error).toBe("INVALID_TOKEN")
+  })
+
+  it("applies auth rate limiting after repeated requests", async () => {
+    const requests = Array.from({ length: 31 }, () =>
+      app.request(
+        "/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Origin: "http://localhost",
+            "CF-Connecting-IP": "198.51.100.7",
+          },
+          body: JSON.stringify({}),
+        },
+        createEnv()
+      )
+    )
+
+    const responses = await Promise.all(requests)
+    expect(responses.some((response) => response.status === 429)).toBe(true)
   })
 })

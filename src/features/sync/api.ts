@@ -82,10 +82,22 @@ export async function refreshAccessToken(): Promise<RefreshResponse> {
 
   useAuthStore.getState().setAccessToken({
     accessToken: refreshed.accessToken,
+    userId: refreshed.userId,
+    email: refreshed.email,
     expiresAtMs: refreshed.expiresAtMs,
   })
 
   return refreshed
+}
+
+export async function restoreSession(): Promise<boolean> {
+  try {
+    await refreshAccessToken()
+    return true
+  } catch {
+    useAuthStore.getState().clearAuth()
+    return false
+  }
 }
 
 export async function logoutSession(): Promise<LogoutResponse> {

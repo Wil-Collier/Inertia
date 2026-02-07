@@ -30,6 +30,9 @@ type AcceptedChange = {
   mutationId: string
 }
 
+const MAX_PUSH_REQUEST_BYTES = 1024 * 1024
+const MAX_PULL_REQUEST_BYTES = 64 * 1024
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
@@ -74,6 +77,13 @@ function isSyncEventRow(value: unknown): value is SyncEventRow {
 
 async function runSequentially<T>(items: T[], task: (item: T) => Promise<void>): Promise<void> {
   await items.reduce((promise, item) => promise.then(() => task(item)), Promise.resolve())
+}
+
+function getContentLength(headerValue: string | undefined): number | null {
+  if (!headerValue) return null
+  const parsed = Number.parseInt(headerValue, 10)
+  if (!Number.isFinite(parsed) || parsed < 0) return null
+  return parsed
 }
 
 async function upsertSyncStoreSnapshot(
@@ -123,7 +133,18 @@ async function upsertSyncStoreSnapshot(
 export const syncRoutes = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 syncRoutes.post("/push", async (c) => {
-  const body = await c.req.json()
+  const contentLength = getContentLength(c.req.header("Content-Length"))
+  if (contentLength !== null && contentLength > MAX_PUSH_REQUEST_BYTES) {
+    return c.json({ error: "PAYLOAD_TOO_LARGE", message: "Push payload exceeds size limit" }, 413)
+  }
+
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: "INVALID_REQUEST", message: "Invalid JSON payload" }, 400)
+  }
+
   const parsed = PushRequestSchema.safeParse(body)
   if (!parsed.success) {
     return c.json({ error: "INVALID_REQUEST", message: "Invalid push payload" }, 400)
@@ -333,7 +354,18 @@ syncRoutes.post("/push", async (c) => {
 })
 
 syncRoutes.post("/pull", async (c) => {
-  const body = await c.req.json()
+  const contentLength = getContentLength(c.req.header("Content-Length"))
+  if (contentLength !== null && contentLength > MAX_PULL_REQUEST_BYTES) {
+    return c.json({ error: "PAYLOAD_TOO_LARGE", message: "Pull payload exceeds size limit" }, 413)
+  }
+
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: "INVALID_REQUEST", message: "Invalid JSON payload" }, 400)
+  }
+
   const parsed = PullRequestSchema.safeParse(body)
   if (!parsed.success) {
     return c.json({ error: "INVALID_REQUEST", message: "Invalid pull payload" }, 400)

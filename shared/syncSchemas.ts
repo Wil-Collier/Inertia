@@ -102,6 +102,8 @@ export type LoginResponse = z.infer<typeof LoginResponseSchema>
 
 export const RefreshResponseSchema = z.object({
   accessToken: z.string(),
+  userId: z.string(),
+  email: z.string(),
   expiresAtMs: z.number(),
 })
 export type RefreshResponse = z.infer<typeof RefreshResponseSchema>

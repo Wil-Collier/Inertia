@@ -38,7 +38,7 @@ describe("nutrition routes integration", () => {
   it("returns 400 when search query is missing", async () => {
     const response = await nutrition.request("/search", {}, createEnv())
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: "Missing required parameter: q" })
+    expect(await response.json()).toEqual({ error: "Invalid search parameters" })
     expect(searchMock).not.toHaveBeenCalled()
   })
 
@@ -92,14 +92,14 @@ describe("nutrition routes integration", () => {
   it("returns 400 when barcode code is missing", async () => {
     const response = await nutrition.request("/barcode", {}, createEnv())
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: "Missing required parameter: code" })
+    expect(await response.json()).toEqual({ error: "Invalid barcode format" })
     expect(lookupBarcodeMock).not.toHaveBeenCalled()
   })
 
   it("returns 404 when provider does not find barcode", async () => {
     lookupBarcodeMock.mockResolvedValueOnce(null)
 
-    const response = await nutrition.request("/barcode?code=123", {}, createEnv())
+    const response = await nutrition.request("/barcode?code=12345678", {}, createEnv())
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({ error: "Product not found" })
   })
@@ -107,7 +107,7 @@ describe("nutrition routes integration", () => {
   it("returns 500 when barcode lookup throws", async () => {
     lookupBarcodeMock.mockRejectedValueOnce(new Error("lookup failed"))
 
-    const response = await nutrition.request("/barcode?code=123", {}, createEnv())
+    const response = await nutrition.request("/barcode?code=12345678", {}, createEnv())
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: "Barcode lookup failed" })
   })

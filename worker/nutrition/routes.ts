@@ -2,12 +2,41 @@
  * Nutrition API routes using Hono
  */
 
+import { z } from "zod"
 import { Hono } from "hono"
 import type { Env } from "../env"
 import type { SearchResponse, BarcodeResponse } from "./types"
 import { getProvider } from "./providerFactory"
 
 const nutrition = new Hono<{ Bindings: Env }>()
+
+const SEARCH_QUERY_MAX_LENGTH = 100
+const BARCODE_PATTERN = /^[0-9]{8,14}$/
+
+const OptionalLocaleParamSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return value
+    const trimmed = value.trim()
+    return trimmed.length === 0 ? undefined : trimmed
+  },
+  z
+    .string()
+    .regex(/^[a-z]{2}$/i, "Must be a 2-letter code")
+    .transform((value) => value.toLowerCase())
+    .optional()
+)
+
+const SearchQuerySchema = z.object({
+  q: z.string().trim().min(1).max(SEARCH_QUERY_MAX_LENGTH),
+  page: z.coerce.number().int().min(0).max(200).default(0),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  region: OptionalLocaleParamSchema,
+  language: OptionalLocaleParamSchema,
+})
+
+const BarcodeQuerySchema = z.object({
+  code: z.string().trim().regex(BARCODE_PATTERN, "Barcode must be 8-14 digits"),
+})
 
 /**
  * GET /api/nutrition/search
@@ -20,39 +49,30 @@ const nutrition = new Hono<{ Bindings: Env }>()
  * - language (optional): Language code (e.g., "en")
  */
 nutrition.get("/search", async (c) => {
-    const query = c.req.query("q")
-    const pageParam = parseInt(c.req.query("page") || "0", 10)
-    const page = Math.max(0, isNaN(pageParam) ? 0 : pageParam)
+  const parsed = SearchQuerySchema.safeParse(c.req.query())
+  if (!parsed.success) {
+    return c.json({ error: "Invalid search parameters" }, 400)
+  }
 
-    const limitParam = parseInt(c.req.query("limit") || "20", 10)
-    const limit = Math.max(
-        1,
-        Math.min(isNaN(limitParam) ? 20 : limitParam, 50)
-    )
-    const region = c.req.query("region") || undefined
-    const language = c.req.query("language") || undefined
+  const { q, page, limit, region, language } = parsed.data
 
-    if (!query) {
-        return c.json({ error: "Missing required parameter: q" }, 400)
+  try {
+    const { provider, name } = getProvider(c.env)
+    const result = await provider.search(q, page, limit, { region, language })
+
+    const response: SearchResponse = {
+      items: result.items,
+      provider: name,
+      page,
+      hasMore: result.hasMore,
     }
 
-    try {
-        const { provider, name } = getProvider(c.env)
-        const result = await provider.search(query, page, limit, { region, language })
+    return c.json(response)
+  } catch (error) {
+    console.error("Nutrition search error:", error)
 
-        const response: SearchResponse = {
-            items: result.items,
-            provider: name,
-            page,
-            hasMore: result.hasMore,
-        }
-
-        return c.json(response)
-    } catch (error) {
-        console.error("Nutrition search error:", error)
-
-        return c.json({ error: "Nutrition search failed" }, 500)
-    }
+    return c.json({ error: "Nutrition search failed" }, 500)
+  }
 })
 
 /**
@@ -62,31 +82,32 @@ nutrition.get("/search", async (c) => {
  * - code (required): Barcode string
  */
 nutrition.get("/barcode", async (c) => {
-    const code = c.req.query("code")
+  const parsed = BarcodeQuerySchema.safeParse(c.req.query())
+  if (!parsed.success) {
+    return c.json({ error: "Invalid barcode format" }, 400)
+  }
 
-    if (!code) {
-        return c.json({ error: "Missing required parameter: code" }, 400)
+  const code = parsed.data.code
+
+  try {
+    const { provider, name } = getProvider(c.env)
+    const item = await provider.lookupBarcode(code)
+
+    if (!item) {
+      return c.json({ error: "Product not found" }, 404)
     }
 
-    try {
-        const { provider, name } = getProvider(c.env)
-        const item = await provider.lookupBarcode(code)
-
-        if (!item) {
-            return c.json({ error: "Product not found" }, 404)
-        }
-
-        const response: BarcodeResponse = {
-            item,
-            provider: name,
-        }
-
-        return c.json(response)
-    } catch (error) {
-        console.error("Barcode lookup error:", error)
-
-        return c.json({ error: "Barcode lookup failed" }, 500)
+    const response: BarcodeResponse = {
+      item,
+      provider: name,
     }
+
+    return c.json(response)
+  } catch (error) {
+    console.error("Barcode lookup error:", error)
+
+    return c.json({ error: "Barcode lookup failed" }, 500)
+  }
 })
 
 export { nutrition }

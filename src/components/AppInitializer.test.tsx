@@ -9,6 +9,7 @@ const ensureInitializedMock = vi.fn()
 const updateStreaksMock = vi.fn()
 const recalculateAllMock = vi.fn()
 const registerSyncDexieHooksMock = vi.fn()
+const restoreSessionMock = vi.fn()
 
 vi.mock("@/services/db", () => ({
   isDatabaseHealthy: (...args: unknown[]) => isDatabaseHealthyMock(...args),
@@ -44,6 +45,10 @@ vi.mock("@/features/sync/syncEngine", () => ({
   SYNC_ENABLED: true,
 }))
 
+vi.mock("@/features/sync/api", () => ({
+  restoreSession: (...args: unknown[]) => restoreSessionMock(...args),
+}))
+
 describe("AppInitializer", () => {
   afterEach(() => {
     cleanup()
@@ -57,6 +62,7 @@ describe("AppInitializer", () => {
     updateStreaksMock.mockReset().mockResolvedValue(undefined)
     recalculateAllMock.mockReset().mockResolvedValue(undefined)
     registerSyncDexieHooksMock.mockReset()
+    restoreSessionMock.mockReset().mockResolvedValue(false)
   })
 
   it("renders children after successful initialization", async () => {
@@ -69,6 +75,7 @@ describe("AppInitializer", () => {
     await screen.findByText("ready-state")
 
     expect(registerSyncDexieHooksMock).toHaveBeenCalled()
+    expect(restoreSessionMock).toHaveBeenCalled()
     expect(ensureInitializedMock).toHaveBeenCalled()
     expect(updateStreaksMock).toHaveBeenCalled()
     expect(recalculateAllMock).toHaveBeenCalled()

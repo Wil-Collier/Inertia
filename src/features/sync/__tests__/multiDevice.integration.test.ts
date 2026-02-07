@@ -490,6 +490,8 @@ describe("multi-device sync integration", () => {
         return new Response(
           JSON.stringify({
             accessToken: "new-token",
+            userId: "u1",
+            email: "u1@example.com",
             expiresAtMs: Date.now() + 60_000,
           }),
           { status: 200 }
@@ -535,6 +537,8 @@ describe("multi-device sync integration", () => {
         return new Response(
           JSON.stringify({
             accessToken: "new-token",
+            userId: "u1",
+            email: "u1@example.com",
             expiresAtMs: Date.now() + 60_000,
           }),
           { status: 200 }

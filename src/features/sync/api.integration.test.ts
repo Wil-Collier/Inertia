@@ -73,9 +73,17 @@ describe("sync API integration", () => {
       }
 
       if (url === "/api/auth/refresh") {
-        return new Response(JSON.stringify({ accessToken: "new-token", expiresAtMs: Date.now() + 120_000 }), {
-          status: 200,
-        })
+        return new Response(
+          JSON.stringify({
+            accessToken: "new-token",
+            userId: "u1",
+            email: "u1@example.com",
+            expiresAtMs: Date.now() + 120_000,
+          }),
+          {
+            status: 200,
+          }
+        )
       }
 
       if (url === "/api/sync/push" && auth === "Bearer new-token") {
@@ -113,9 +121,17 @@ describe("sync API integration", () => {
       }
 
       if (url === "/api/auth/refresh") {
-        return new Response(JSON.stringify({ accessToken: "new-token", expiresAtMs: Date.now() + 60_000 }), {
-          status: 200,
-        })
+        return new Response(
+          JSON.stringify({
+            accessToken: "new-token",
+            userId: "u1",
+            email: "u1@example.com",
+            expiresAtMs: Date.now() + 60_000,
+          }),
+          {
+            status: 200,
+          }
+        )
       }
 
       return new Response(JSON.stringify({ error: "NOT_FOUND", message: "unknown" }), { status: 404 })
