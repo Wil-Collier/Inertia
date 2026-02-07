@@ -1,4 +1,4 @@
-import type { Transaction } from "dexie"
+import Dexie, { type Transaction } from "dexie"
 import { db } from "@/services/db"
 import { TABLE_TO_COLLECTION, type SyncableTableName } from "@/features/sync/types"
 import {
@@ -44,7 +44,7 @@ export function registerSyncDexieHooks(): void {
       if (!shouldTrackRecord(tableName, obj)) return
       if (!isRecord(mods)) return
       const modsRecord = mods
-      if (shouldIgnoreUpdate(tableName, modsRecord)) return
+      if (shouldIgnoreUpdate(tableName, modsRecord, obj)) return
 
       const now = Date.now()
       const id = resolveChangeId(tableName, primKey, obj)
@@ -86,7 +86,7 @@ type QueuePendingArgs = {
 
 function queuePendingChange(args: QueuePendingArgs): void {
   if (transactionHasSyncStores(args.transaction)) {
-    void (async () => {
+    const enqueuePromise = (async () => {
       const baseVersion = await getRecordVersion(args.collection, args.id, args.transaction)
       await enqueuePendingChangeInTransaction(
         {
@@ -99,7 +99,10 @@ function queuePendingChange(args: QueuePendingArgs): void {
         },
         args.transaction
       )
-    })().catch((error) => {
+    })()
+
+    // Keep the write transaction open until pending change bookkeeping is persisted.
+    void Dexie.waitFor(enqueuePromise).catch((error: unknown) => {
       console.error("[Sync] Failed to enqueue pending change in transaction", error)
     })
     return
@@ -168,19 +171,48 @@ function shouldTrackRecord(tableName: SyncableTableName, obj: unknown): boolean 
   return isRecord(obj)
 }
 
-function shouldIgnoreUpdate(tableName: SyncableTableName, mods: Record<string, unknown>): boolean {
+function shouldIgnoreUpdate(tableName: SyncableTableName, mods: Record<string, unknown>, current?: unknown): boolean {
   const keys = Object.keys(mods)
   if (keys.length === 0) return true
 
   if (tableName === "foods") {
-    const meaningful = keys.filter((key) => key !== "usageCount" && key !== "updatedAt")
+    const meaningful = keys.filter((key) => !isFoodDerivedKey(key))
     return meaningful.length === 0
   }
 
   if (tableName === "workoutSessions") {
-    const meaningful = keys.filter((key) => key !== "exerciseIds" && key !== "updatedAt")
+    if (isDerivedWorkoutRebuildOnly(mods, current)) {
+      return true
+    }
+
+    const meaningful = keys.filter((key) => !isWorkoutDerivedKey(key))
     return meaningful.length === 0
   }
 
   return false
+}
+
+function isFoodDerivedKey(key: string): boolean {
+  return key === "usageCount" || key.startsWith("usageCount.") || key === "updatedAt"
+}
+
+function isWorkoutDerivedKey(key: string): boolean {
+  return key === "id" || key === "exerciseIds" || key.startsWith("exerciseIds.") || key === "updatedAt"
+}
+
+function isDerivedWorkoutRebuildOnly(mods: Record<string, unknown>, current?: unknown): boolean {
+  const keys = Object.keys(mods)
+  const onlyRebuildKeys = keys.every((key) => key === "exerciseIds" || key.startsWith("exerciseIds.") || key === "exercises")
+  if (!onlyRebuildKeys) return false
+
+  if (!isRecord(current)) return false
+  return deepEqualJson(mods.exercises, current.exercises)
+}
+
+function deepEqualJson(a: unknown, b: unknown): boolean {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b)
+  } catch {
+    return false
+  }
 }

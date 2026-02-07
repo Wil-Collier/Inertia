@@ -9,11 +9,16 @@ import {
   DEFAULT_NUTRITION_GOALS 
 } from "@/lib/constants"
 
+type UserSettingsUpdate = Partial<Omit<UserSettings, "unitPreferences" | "nutritionGoals">> & {
+  unitPreferences?: Partial<UserSettings["unitPreferences"]>
+  nutritionGoals?: Partial<UserSettings["nutritionGoals"]>
+}
+
 export function useUpdateSettings() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (updates: Partial<UserSettings>) => {
+    mutationFn: async (updates: UserSettingsUpdate) => {
       return await db.transaction("rw", [db.settings, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const existing = await db.settings.get("settings")
 

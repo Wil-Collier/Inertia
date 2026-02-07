@@ -54,11 +54,17 @@ export const statsService = {
     const volumeLbs = this.calculateWorkoutVolumeLbs(workout)
 
     const run = async () => {
-      const current = await this.getStats()
+      const existing = await db.userStats.get("stats")
+      if (!existing) {
+        // If stats are missing, rebuild from persisted history instead of
+        // applying a delta, which can double-count when the workout is already saved.
+        return await this.recalculateAll()
+      }
+
       const updated: UserStats & { id: string } = {
         id: "stats",
-        totalWorkouts: current.totalWorkouts + 1,
-        totalVolumeLbs: current.totalVolumeLbs + volumeLbs,
+        totalWorkouts: existing.totalWorkouts + 1,
+        totalVolumeLbs: existing.totalVolumeLbs + volumeLbs,
         lastUpdated: new Date().toISOString(),
       }
       await db.userStats.put(updated)
@@ -79,11 +85,16 @@ export const statsService = {
     const volumeLbs = this.calculateWorkoutVolumeLbs(workout)
 
     const run = async () => {
-      const current = await this.getStats()
+      const existing = await db.userStats.get("stats")
+      if (!existing) {
+        // Missing stats should be repaired from history first.
+        return await this.recalculateAll()
+      }
+
       const updated: UserStats & { id: string } = {
         id: "stats",
-        totalWorkouts: Math.max(0, current.totalWorkouts - 1),
-        totalVolumeLbs: Math.max(0, current.totalVolumeLbs - volumeLbs),
+        totalWorkouts: Math.max(0, existing.totalWorkouts - 1),
+        totalVolumeLbs: Math.max(0, existing.totalVolumeLbs - volumeLbs),
         lastUpdated: new Date().toISOString(),
       }
       await db.userStats.put(updated)
@@ -107,11 +118,16 @@ export const statsService = {
     const volumeDelta = newVolumeLbs - oldVolumeLbs
 
     const run = async () => {
-      const current = await this.getStats()
+      const existing = await db.userStats.get("stats")
+      if (!existing) {
+        // Missing stats should be repaired from history first.
+        return await this.recalculateAll()
+      }
+
       const updated: UserStats & { id: string } = {
         id: "stats",
-        totalWorkouts: current.totalWorkouts, // count unchanged for update
-        totalVolumeLbs: Math.max(0, current.totalVolumeLbs + volumeDelta),
+        totalWorkouts: existing.totalWorkouts, // count unchanged for update
+        totalVolumeLbs: Math.max(0, existing.totalVolumeLbs + volumeDelta),
         lastUpdated: new Date().toISOString(),
       }
       await db.userStats.put(updated)

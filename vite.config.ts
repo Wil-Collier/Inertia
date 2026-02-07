@@ -7,13 +7,15 @@ import { VitePWA } from "vite-plugin-pwa"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import { cloudflare } from "@cloudflare/vite-plugin"
 
+const isVitest = process.env.VITEST === "true"
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     tanstackRouter(),
     react(),
     tailwindcss(),
-    cloudflare(),
+    ...(!isVitest ? [cloudflare()] : []),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg"],
@@ -112,6 +114,32 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
-    include: ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.integration.test.ts"],
+    include: [
+      "src/**/*.test.ts",
+      "src/**/*.test.tsx",
+      "src/**/*.spec.ts",
+      "src/**/*.spec.tsx",
+      "src/**/*.integration.test.ts",
+      "src/**/*.integration.test.tsx",
+      "worker/**/*.test.ts",
+      "worker/**/*.test.tsx",
+      "worker/**/*.integration.test.ts",
+      "worker/**/*.integration.test.tsx",
+    ],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      reportsDirectory: "./coverage",
+      include: ["src/**/*.{ts,tsx}", "worker/**/*.{ts,tsx}"],
+      exclude: [
+        "**/*.d.ts",
+        "**/*.test.*",
+        "**/*.spec.*",
+        "**/*.integration.test.*",
+        "src/test/**",
+        "src/routeTree.gen.ts",
+        "e2e/**",
+      ],
+    },
   },
 })
