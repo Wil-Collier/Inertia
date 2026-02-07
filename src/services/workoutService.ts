@@ -13,12 +13,12 @@ export async function getLastPerformance(exerciseId: string): Promise<LastPerfor
     .equals(exerciseId)
     .toArray()
 
-  // Sort by date descending (newest first)
-  sessions.sort((a, b) => b.date.localeCompare(a.date))
+  // Sort by date descending (newest first) — use toSorted to avoid mutating the array
+  const sorted = sessions.toSorted((a, b) => b.date.localeCompare(a.date))
 
   // Limit to recent history to avoid processing too much if they've done this exercise 1000 times
   // (though we already fetched them all, sorting 1000 items is fast)
-  const recentSessions = sessions.slice(0, 10)
+  const recentSessions = sorted.slice(0, 10)
 
   for (const workout of recentSessions) {
     const workoutExercise = workout.exercises.find(

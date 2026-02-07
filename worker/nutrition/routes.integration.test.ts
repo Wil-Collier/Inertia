@@ -86,7 +86,7 @@ describe("nutrition routes integration", () => {
     const body = await response.json()
 
     expect(response.status).toBe(500)
-    expect(body).toEqual({ error: "provider down" })
+    expect(body).toEqual({ error: "Nutrition search failed" })
   })
 
   it("returns 400 when barcode code is missing", async () => {
@@ -109,6 +109,6 @@ describe("nutrition routes integration", () => {
 
     const response = await nutrition.request("/barcode?code=123", {}, createEnv())
     expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({ error: "lookup failed" })
+    expect(await response.json()).toEqual({ error: "Barcode lookup failed" })
   })
 })

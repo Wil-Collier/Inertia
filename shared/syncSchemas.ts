@@ -30,8 +30,10 @@ export const PushChangeSchema = z.object({
 })
 export type PushChange = z.infer<typeof PushChangeSchema>
 
+export const MAX_PUSH_BATCH = 200
+
 export const PushRequestSchema = z.object({
-  changes: z.array(PushChangeSchema),
+  changes: z.array(PushChangeSchema).max(MAX_PUSH_BATCH),
 })
 export type PushRequest = z.infer<typeof PushRequestSchema>
 

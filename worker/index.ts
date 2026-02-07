@@ -19,7 +19,14 @@ const app = new Hono<{ Bindings: Env }>()
 // Middleware
 app.use("*", logger())
 
-// Mount nutrition routes
+// Global error handler — prevent leaking internal details
+app.onError((err, c) => {
+    console.error("Unhandled error:", err)
+    return c.json({ error: "Internal server error" }, 500)
+})
+
+// Mount nutrition routes (auth required)
+app.use("/api/nutrition/*", authMiddleware)
 app.route("/api/nutrition", nutrition)
 
 // Auth routes (no auth required)

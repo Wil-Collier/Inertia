@@ -1,3 +1,5 @@
+import { ACTIVE_SESSION_ID } from "@/lib/constants"
+
 export const queryKeys = {
   // Workouts
   workouts: {
@@ -60,6 +62,6 @@ export const queryKeys = {
   
   // Active Session (special - ephemeral)
   activeSession: {
-    current: ["activeSession", "current"] as const,
+    current: ["activeSession", ACTIVE_SESSION_ID] as const,
   },
 } as const

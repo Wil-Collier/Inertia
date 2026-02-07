@@ -46,7 +46,12 @@ export function useUpdateSettings() {
       const previous = queryClient.getQueryData<UserSettings>(queryKeys.settings.all)
       
       if (previous) {
-        queryClient.setQueryData(queryKeys.settings.all, { ...previous, ...updates })
+        queryClient.setQueryData(queryKeys.settings.all, {
+          ...previous,
+          ...updates,
+          unitPreferences: { ...previous.unitPreferences, ...updates.unitPreferences },
+          nutritionGoals: { ...previous.nutritionGoals, ...updates.nutritionGoals },
+        })
       }
       
       return { previous }

@@ -1,15 +1,9 @@
 import { db } from "@/services/db"
 import type { Workout } from "@/lib/types"
+import { calculateOneRepMax } from "@/lib/workoutUtils"
 import { statsService } from "@/services/statsService"
 import { achievementService } from "@/services/achievementService"
 import type { SyncCollection } from "@/features/sync/schemas"
-
-function estimateOneRepMax(weight: number, reps: number): number {
-  if (reps === 0 || weight === 0) return 0
-  if (reps === 1) return weight
-  if (reps >= 13) return weight * (1 + reps / 30)
-  return weight * (36 / (37 - reps))
-}
 
 async function recalculatePersonalRecords(): Promise<void> {
   const workouts = await db.workoutSessions.toArray()
@@ -44,10 +38,10 @@ function updateBestRecordsFromWorkout(
     if (completedSets.length === 0) continue
 
     let bestSet = completedSets[0]
-    let bestE1RM = estimateOneRepMax(bestSet.weight, bestSet.reps)
+    let bestE1RM = calculateOneRepMax(bestSet.weight, bestSet.reps)
 
     for (const set of completedSets) {
-      const e1rm = estimateOneRepMax(set.weight, set.reps)
+      const e1rm = calculateOneRepMax(set.weight, set.reps)
       if (e1rm > bestE1RM) {
         bestE1RM = e1rm
         bestSet = set

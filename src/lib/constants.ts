@@ -28,3 +28,6 @@ export const DEFAULT_NUTRITION_GOALS = {
 } as const
 export const DEFAULT_REST_TIMER_DURATION = 90
 export const DEFAULT_THEME = "system" as const
+
+// Singleton record IDs
+export const ACTIVE_SESSION_ID = "current"

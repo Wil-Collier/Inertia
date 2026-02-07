@@ -13,6 +13,7 @@ import { toCloudRecord } from "@/features/sync/projection"
 import { getDeviceId } from "@/features/sync/deviceId"
 import { useSyncStore } from "@/features/sync/store"
 import { getLocalRecord } from "@/features/sync/engine/applyPipeline"
+import { ACTIVE_SESSION_ID } from "@/lib/constants"
 import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
 
 const MAX_PUSH_BATCH = 200
@@ -197,7 +198,7 @@ async function buildFullSnapshot(): Promise<PushChange[]> {
     exercises,
   ] = await Promise.all([
     db.workoutSessions.toArray(),
-    db.activeSession.get("current"),
+    db.activeSession.get(ACTIVE_SESSION_ID),
     db.workoutTemplates.toArray(),
     db.foods.toArray(),
     db.nutritionLogs.toArray(),
@@ -226,7 +227,7 @@ async function buildFullSnapshot(): Promise<PushChange[]> {
 
   await Promise.all([
     ...workouts.map((workout) => pushRecord("workouts", workout.id, workout)),
-    ...(activeSession ? [pushRecord("activeSession", "current", activeSession)] : []),
+    ...(activeSession ? [pushRecord("activeSession", ACTIVE_SESSION_ID, activeSession)] : []),
     ...templates.map((template) => pushRecord("templates", template.id, template)),
     ...foods.map((food) => pushRecord("foods", food.id, food)),
     ...nutrition.map((log) => pushRecord("nutrition", log.date, log)),

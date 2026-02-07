@@ -133,6 +133,9 @@ syncRoutes.post("/push", async (c) => {
   const userEmail = c.get("userEmail")
   const now = Date.now()
 
+  // Maximum serialized JSON size per record (512 KB)
+  const MAX_RECORD_SIZE_BYTES = 512 * 1024
+
   let accepted = 0
   const acceptedChanges: AcceptedChange[] = []
   const conflicts: Array<{
@@ -147,6 +150,18 @@ syncRoutes.post("/push", async (c) => {
     const deleted = change.data === null
     const dataJson = change.data ? JSON.stringify(change.data) : null
     const deviceId = change.deviceId ?? null
+
+    // Reject oversized records
+    if (dataJson && dataJson.length > MAX_RECORD_SIZE_BYTES) {
+      conflicts.push({
+        collection: change.collection,
+        id: change.id,
+        serverVersion: 0,
+        clientBaseVersion: change.baseVersion,
+        reason: "RECORD_TOO_LARGE",
+      })
+      return
+    }
 
     const existingEvent = await c.env.DB
       .prepare(
@@ -352,13 +367,27 @@ syncRoutes.post("/pull", async (c) => {
   const hasMore = rows.length > limit
   const page = hasMore ? rows.slice(0, limit) : rows
 
-  const changes = page.map((row) => ({
-    collection: row.collection,
-    id: row.id,
-    data: row.data ? JSON.parse(row.data) : null,
-    version: row.version,
-    deleted: row.deleted === 1,
-  }))
+  const changes = page.map((row) => {
+    let data: Record<string, unknown> | null = null
+    if (row.data) {
+      try {
+        const parsed: unknown = JSON.parse(row.data)
+        if (isRecord(parsed)) {
+          data = parsed
+        }
+      } catch (error) {
+        console.error(`Corrupted sync_events data for ${row.collection}/${row.id} at version ${row.version}:`, error)
+        // Skip corrupted rows by returning null data rather than crashing the entire pull
+      }
+    }
+    return {
+      collection: row.collection,
+      id: row.id,
+      data,
+      version: row.version,
+      deleted: row.deleted === 1,
+    }
+  })
 
   const last = page[page.length - 1]
   const nextCursor = last ? { version: last.version } : null

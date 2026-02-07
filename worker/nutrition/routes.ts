@@ -51,9 +51,7 @@ nutrition.get("/search", async (c) => {
     } catch (error) {
         console.error("Nutrition search error:", error)
 
-        const message = error instanceof Error ? error.message : String(error)
-
-        return c.json({ error: message }, 500)
+        return c.json({ error: "Nutrition search failed" }, 500)
     }
 })
 
@@ -87,9 +85,7 @@ nutrition.get("/barcode", async (c) => {
     } catch (error) {
         console.error("Barcode lookup error:", error)
 
-        const message = error instanceof Error ? error.message : String(error)
-
-        return c.json({ error: message }, 500)
+        return c.json({ error: "Barcode lookup failed" }, 500)
     }
 })
 

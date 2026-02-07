@@ -213,7 +213,11 @@ export const achievementService = {
         prev = k
       }
 
-      const logs = await db.nutritionLogs.toArray()
+      // Load nutrition log dates. Unlike workouts where every record counts,
+      // nutrition logs need filtering for non-empty entries.
+      // IndexedDB/Dexie doesn't support field projection, so we must load records,
+      // but this is still efficient since nutrition logs are one-per-day.
+      const logs = await db.nutritionLogs.orderBy("date").toArray()
       const nutritionDates = logs.filter((day) => day.entries.length > 0).map((day) => day.date)
 
       await this.recalculateStreaks(workoutDates, nutritionDates)

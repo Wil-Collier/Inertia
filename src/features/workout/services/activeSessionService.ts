@@ -3,8 +3,9 @@ import { toast } from "sonner"
 import type { Workout, WorkoutExercise, WorkoutSet, ActiveWorkoutSession } from "@/lib/types"
 import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
-import { buildWorkoutExerciseFromTemplate } from "@/lib/workoutUtils"
+import { buildWorkoutExerciseFromTemplate, calculateOneRepMax } from "@/lib/workoutUtils"
 import { getToday } from "@/lib/dateUtils"
+import { ACTIVE_SESSION_ID } from "@/lib/constants"
 
 /** Defer a callback to run in the background without blocking UI */
 function deferToBackground(callback: () => void) {
@@ -13,17 +14,6 @@ function deferToBackground(callback: () => void) {
   } else {
     setTimeout(callback, 0)
   }
-}
-
-/**
- * Calculate estimated 1RM using simplified Brzycki formula.
- * Used for comparing PRs across different rep ranges.
- */
-function estimateOneRepMax(weight: number, reps: number): number {
-  if (reps === 0 || weight === 0) return 0
-  if (reps === 1) return weight
-  if (reps >= 13) return weight * (1 + reps / 30)
-  return weight * (36 / (37 - reps))
 }
 
 /**
@@ -46,10 +36,10 @@ async function updatePersonalRecords(workout: Workout): Promise<void> {
 
     // Find the best set by estimated 1RM
     let bestSet = completedSets[0]
-    let bestE1RM = estimateOneRepMax(bestSet.weight, bestSet.reps)
+    let bestE1RM = calculateOneRepMax(bestSet.weight, bestSet.reps)
 
     for (const set of completedSets) {
-      const e1rm = estimateOneRepMax(set.weight, set.reps)
+      const e1rm = calculateOneRepMax(set.weight, set.reps)
       if (e1rm > bestE1RM) {
         bestE1RM = e1rm
         bestSet = set
@@ -58,7 +48,7 @@ async function updatePersonalRecords(workout: Workout): Promise<void> {
 
     const existingPR = existingPRMap.get(exercise.exerciseId)
     const existingE1RM = existingPR
-      ? estimateOneRepMax(existingPR.weight, existingPR.reps)
+      ? calculateOneRepMax(existingPR.weight, existingPR.reps)
       : 0
 
     // Queue update if this is a new record
@@ -84,7 +74,7 @@ async function updatePersonalRecords(workout: Workout): Promise<void> {
 
 export const activeSessionService = {
   async getSession(): Promise<ActiveWorkoutSession | null> {
-    const session = await db.activeSession.get("current")
+    const session = await db.activeSession.get(ACTIVE_SESSION_ID)
     return session || null
   },
 
@@ -92,7 +82,7 @@ export const activeSessionService = {
    * Check if an active session exists (lightweight check for route guards)
    */
   async hasActiveSession(): Promise<boolean> {
-    const session = await db.activeSession.get("current")
+    const session = await db.activeSession.get(ACTIVE_SESSION_ID)
     return !!session
   },
 
@@ -126,7 +116,7 @@ export const activeSessionService = {
       }
 
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        await db.activeSession.put({ id: "current", ...session })
+        await db.activeSession.put({ id: ACTIVE_SESSION_ID, ...session })
       })
       return session
     } catch (error) {
@@ -138,7 +128,7 @@ export const activeSessionService = {
 
   async finishWorkout() {
     try {
-      const session = await db.activeSession.get("current")
+      const session = await db.activeSession.get(ACTIVE_SESSION_ID)
       if (!session) return null
 
       const completedWorkout: Workout = {
@@ -152,7 +142,7 @@ export const activeSessionService = {
         [db.workoutSessions, db.activeSession, db.personalRecords, db.userStats, db.syncPendingChanges, db.syncRecordVersions],
         async () => {
         await db.workoutSessions.add(completedWorkout)
-        await db.activeSession.delete("current")
+        await db.activeSession.delete(ACTIVE_SESSION_ID)
 
         // Update incremental stats
         await statsService.addWorkout(completedWorkout)
@@ -184,7 +174,7 @@ export const activeSessionService = {
   async cancelWorkout() {
     try {
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        await db.activeSession.delete("current")
+        await db.activeSession.delete(ACTIVE_SESSION_ID)
       })
     } catch (error) {
       console.error("Failed to cancel workout:", error)
@@ -196,7 +186,7 @@ export const activeSessionService = {
   async updateWorkoutName(name: string) {
     try {
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        await db.activeSession.update("current", { "workout.name": name })
+        await db.activeSession.update(ACTIVE_SESSION_ID, { "workout.name": name })
       })
     } catch (error) {
       console.error("Failed to update workout name:", error)
@@ -208,7 +198,7 @@ export const activeSessionService = {
   async addExercise(exerciseId: string) {
     try {
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        const session = await db.activeSession.get("current")
+        const session = await db.activeSession.get(ACTIVE_SESSION_ID)
         if (!session) return
 
         const newExercise: WorkoutExercise = {
@@ -230,7 +220,7 @@ export const activeSessionService = {
   async removeExercise(workoutExerciseId: string) {
     try {
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        const session = await db.activeSession.get("current")
+        const session = await db.activeSession.get(ACTIVE_SESSION_ID)
         if (!session) return
 
         session.workout.exercises = session.workout.exercises.filter(e => e.id !== workoutExerciseId)
@@ -246,7 +236,7 @@ export const activeSessionService = {
   async reorderExercises(exerciseIds: string[]) {
     try {
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        const session = await db.activeSession.get("current")
+        const session = await db.activeSession.get(ACTIVE_SESSION_ID)
         if (!session) return
 
         const exercisesById = new Map(session.workout.exercises.map(e => [e.id, e]))
@@ -274,7 +264,7 @@ export const activeSessionService = {
   async updateExerciseNotes(workoutExerciseId: string, notes: string) {
     try {
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        const session = await db.activeSession.get("current")
+        const session = await db.activeSession.get(ACTIVE_SESSION_ID)
         if (!session) return
 
         const exercise = session.workout.exercises.find(e => e.id === workoutExerciseId)
@@ -293,7 +283,7 @@ export const activeSessionService = {
   async addSet(workoutExerciseId: string) {
     try {
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        const session = await db.activeSession.get("current")
+        const session = await db.activeSession.get(ACTIVE_SESSION_ID)
         if (!session) return
 
         const exercise = session.workout.exercises.find(e => e.id === workoutExerciseId)
@@ -319,7 +309,7 @@ export const activeSessionService = {
   async updateSet(workoutExerciseId: string, setId: string, updates: Partial<WorkoutSet>) {
     try {
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        const session = await db.activeSession.get("current")
+        const session = await db.activeSession.get(ACTIVE_SESSION_ID)
         if (!session) return
 
         const exercise = session.workout.exercises.find(e => e.id === workoutExerciseId)
@@ -341,7 +331,7 @@ export const activeSessionService = {
   async removeSet(workoutExerciseId: string, setId: string) {
     try {
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        const session = await db.activeSession.get("current")
+        const session = await db.activeSession.get(ACTIVE_SESSION_ID)
         if (!session) return
 
         const exercise = session.workout.exercises.find(e => e.id === workoutExerciseId)
@@ -360,7 +350,7 @@ export const activeSessionService = {
   async toggleSetComplete(workoutExerciseId: string, setId: string) {
     try {
       await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
-        const session = await db.activeSession.get("current")
+        const session = await db.activeSession.get(ACTIVE_SESSION_ID)
         if (!session) return
 
         const exercise = session.workout.exercises.find(e => e.id === workoutExerciseId)

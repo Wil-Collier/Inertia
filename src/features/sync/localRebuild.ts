@@ -9,17 +9,10 @@ export async function rebuildLocalOnlyFields(changedCollections: Set<SyncCollect
   if (!shouldRebuildWorkouts && !shouldRebuildFoods) return
 
   await withSyncHooksSuppressed(async () => {
-    await db.transaction("rw", [db.workoutSessions, db.nutritionLogs, db.foods], async () => {
-      if (shouldRebuildWorkouts) {
-        const workouts = await db.workoutSessions.toArray()
-        await Promise.all(
-          workouts.map((workout) =>
-            db.workoutSessions.update(workout.id, {
-              exerciseIds: workout.exercises.map((exercise) => exercise.exerciseId),
-            })
-          )
-        )
-      }
+    await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
+      // Note: workout exerciseIds rebuild is intentionally omitted here.
+      // The exerciseIds field is already correctly computed during upsert
+      // in fromCloudRecord (projection.ts) when applying pulled changes.
 
       if (shouldRebuildFoods) {
         const logs = await db.nutritionLogs.toArray()
