@@ -5,10 +5,15 @@ import { createQueryWrapper, createTestQueryClient } from "@/test/helpers/queryH
 import { db } from "@/services/db"
 import {
   useExerciseHistory,
+  usePersonalRecords,
+  useProgressStats,
+  useTemplate,
   useWorkout,
   useWorkoutDates,
+  useWorkouts,
   useWorkoutsByExercise,
 } from "@/features/workout/queries"
+import { getToday } from "@/lib/dateUtils"
 
 describe("workout query hooks integration", () => {
   beforeEach(async () => {
@@ -30,6 +35,43 @@ describe("workout query hooks integration", () => {
       throw new TypeError("Expected error object")
     }
     expect(result.current.error.message).toBe("Workout missing-id not found")
+  })
+
+  it("returns workouts with newest-first ordering and limit", async () => {
+    await db.workoutSessions.bulkPut([
+      {
+        id: "w-old",
+        name: "Old",
+        date: "2026-02-01",
+        weightUnit: "kg",
+        exercises: [],
+      },
+      {
+        id: "w-mid",
+        name: "Mid",
+        date: "2026-02-02",
+        weightUnit: "kg",
+        exercises: [],
+      },
+      {
+        id: "w-new",
+        name: "New",
+        date: "2026-02-03",
+        weightUnit: "kg",
+        exercises: [],
+      },
+    ])
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+
+    const { result } = renderHook(() => useWorkouts(2), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data?.map((workout) => workout.id)).toEqual(["w-new", "w-mid"])
   })
 
   it("returns workouts by exercise sorted newest first", async () => {
@@ -72,6 +114,23 @@ describe("workout query hooks integration", () => {
     expect(result.current.data?.map((workout) => workout.id)).toEqual(["w-new", "w-old"])
   })
 
+  it("surfaces an error when requested template does not exist", async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+
+    const { result } = renderHook(() => useTemplate("missing-template"), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true)
+    })
+
+    expect(result.current.error).toBeInstanceOf(Error)
+    if (!(result.current.error instanceof Error)) {
+      throw new TypeError("Expected Error")
+    }
+    expect(result.current.error.message).toBe("Template missing-template not found")
+  })
+
   it("deduplicates workout dates from index keys", async () => {
     await db.workoutSessions.bulkPut([
       {
@@ -107,6 +166,72 @@ describe("workout query hooks integration", () => {
     })
 
     expect(result.current.data).toEqual(["2026-02-08", "2026-02-09"])
+  })
+
+  it("returns personal records as a map keyed by exercise id", async () => {
+    await db.personalRecords.bulkPut([
+      { exerciseId: "bench", weight: 225, reps: 5, date: "2026-02-01", workoutId: "w1" },
+      { exerciseId: "row", weight: 185, reps: 8, date: "2026-02-02", workoutId: "w2" },
+    ])
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => usePersonalRecords(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data).toMatchObject({
+      bench: { exerciseId: "bench", weight: 225, reps: 5 },
+      row: { exerciseId: "row", weight: 185, reps: 8 },
+    })
+  })
+
+  it("builds progress stats from persisted stats, recent workouts and PR count", async () => {
+    await db.userStats.put({
+      id: "stats",
+      totalWorkouts: 9,
+      totalVolumeLbs: 12345,
+      lastUpdated: "2026-02-10T00:00:00.000Z",
+    })
+
+    await db.workoutSessions.bulkPut([
+      {
+        id: "w-recent",
+        name: "Recent",
+        date: getToday(),
+        weightUnit: "kg",
+        exercises: [],
+      },
+      {
+        id: "w-old",
+        name: "Old",
+        date: "2000-01-01",
+        weightUnit: "kg",
+        exercises: [],
+      },
+    ])
+
+    await db.personalRecords.bulkPut([
+      { exerciseId: "bench", weight: 225, reps: 5, date: "2026-02-01", workoutId: "w1" },
+      { exerciseId: "row", weight: 185, reps: 8, date: "2026-02-02", workoutId: "w2" },
+    ])
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useProgressStats(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data).toMatchObject({
+      totalWorkouts: 9,
+      totalVolume: 12345,
+      last30Days: 1,
+      prsCount: 2,
+    })
   })
 
   it("builds exercise history from completed sets only", async () => {

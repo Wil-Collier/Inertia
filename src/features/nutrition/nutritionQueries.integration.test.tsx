@@ -4,7 +4,13 @@ import { clearDatabase } from "@/test/helpers/dbTestUtils"
 import { createQueryWrapper, createTestQueryClient } from "@/test/helpers/queryHookTestUtils"
 import { db } from "@/services/db"
 import { NutritionApiError } from "@/services/nutritionApi"
-import { useCombinedFoodSearch } from "@/features/nutrition/queries"
+import {
+  useCombinedFoodSearch,
+  useDailyNutrition,
+  useFoodSearch,
+  useNutritionDates,
+  useNutritionHistory,
+} from "@/features/nutrition/queries"
 
 const searchFoodsMock = vi.fn()
 
@@ -21,6 +27,201 @@ describe("nutrition query hooks integration", () => {
     await clearDatabase()
     vi.clearAllMocks()
     searchFoodsMock.mockResolvedValue({ foods: [], hasMore: false })
+  })
+
+  it("computes daily totals and preserves entries with missing foods", async () => {
+    await db.foods.put({
+      id: "food-1",
+      name: "Rice",
+      calories: 100,
+      protein: 5,
+      carbs: 20,
+      fat: 1,
+      fiber: 2,
+      sugar: 1,
+      servingSize: "100g",
+      isCustom: true,
+    })
+
+    await db.nutritionLogs.put({
+      date: "2026-02-11",
+      entries: [
+        { id: "e-1", foodId: "food-1", quantity: 2, mealType: "lunch" },
+        { id: "e-2", foodId: "missing-food", quantity: 1, mealType: "dinner" },
+      ],
+    })
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useDailyNutrition("2026-02-11"), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data?.totals).toMatchObject({
+      calories: 200,
+      protein: 10,
+      carbs: 40,
+      fat: 2,
+      fiber: 4,
+      sugar: 2,
+    })
+    expect(result.current.data?.entriesWithFood).toHaveLength(2)
+    expect(result.current.data?.entriesWithFood[0]?.food?.id).toBe("food-1")
+    expect(result.current.data?.entriesWithFood[1]?.food).toBeUndefined()
+  })
+
+  it("searches foods by name and brand case-insensitively", async () => {
+    await db.foods.bulkPut([
+      {
+        id: "f-1",
+        name: "Steel Cut Oats",
+        brand: "IRON MILLS",
+        calories: 150,
+        protein: 5,
+        carbs: 27,
+        fat: 3,
+        fiber: 4,
+        sugar: 1,
+        servingSize: "40g",
+        isCustom: true,
+      },
+      {
+        id: "f-2",
+        name: "Greek Yogurt",
+        brand: "Farm Fresh",
+        calories: 90,
+        protein: 15,
+        carbs: 4,
+        fat: 0,
+        fiber: 0,
+        sugar: 4,
+        servingSize: "100g",
+        isCustom: true,
+      },
+    ])
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+
+    const byName = renderHook(() => useFoodSearch("oAt"), { wrapper })
+    await waitFor(() => {
+      expect(byName.result.current.isSuccess).toBe(true)
+    })
+
+    const byBrand = renderHook(() => useFoodSearch("iron"), { wrapper })
+    await waitFor(() => {
+      expect(byBrand.result.current.isSuccess).toBe(true)
+    })
+
+    expect(byName.result.current.data?.map((food) => food.id)).toEqual(["f-1"])
+    expect(byBrand.result.current.data?.map((food) => food.id)).toEqual(["f-1"])
+  })
+
+  it("does not run local food search for short queries", async () => {
+    await db.foods.put({
+      id: "f-1",
+      name: "Test",
+      calories: 1,
+      protein: 1,
+      carbs: 1,
+      fat: 1,
+      fiber: 0,
+      sugar: 0,
+      servingSize: "1g",
+      isCustom: true,
+    })
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useFoodSearch("t"), { wrapper })
+
+    expect(result.current.fetchStatus).toBe("idle")
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it("returns unique ordered nutrition dates", async () => {
+    await db.nutritionLogs.bulkPut([
+      { date: "2026-02-08", entries: [] },
+      { date: "2026-02-08", entries: [{ id: "e1", foodId: "x", quantity: 1, mealType: "lunch" }] },
+      { date: "2026-02-09", entries: [] },
+      { date: "2026-02-10", entries: [] },
+    ])
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useNutritionDates(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data).toEqual(["2026-02-08", "2026-02-09", "2026-02-10"])
+  })
+
+  it("returns empty history stats when no logs are in range", async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useNutritionHistory("2026-02-01", "2026-02-02"), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data?.dailyTotals).toEqual([])
+    expect(result.current.data?.averages).toEqual({
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      fiber: 0,
+      sugar: 0,
+    })
+  })
+
+  it("computes history averages from returned daily totals", async () => {
+    await db.foods.put({
+      id: "food-1",
+      name: "Rice",
+      calories: 100,
+      protein: 10,
+      carbs: 20,
+      fat: 5,
+      fiber: 2,
+      sugar: 1,
+      servingSize: "100g",
+      isCustom: true,
+    })
+
+    await db.nutritionLogs.bulkPut([
+      {
+        date: "2026-02-01",
+        entries: [{ id: "n1", foodId: "food-1", quantity: 1, mealType: "lunch" }],
+      },
+      {
+        date: "2026-02-02",
+        entries: [{ id: "n2", foodId: "food-1", quantity: 2, mealType: "dinner" }],
+      },
+    ])
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useNutritionHistory("2026-02-01", "2026-02-03"), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data?.dailyTotals).toHaveLength(2)
+    expect(result.current.data?.averages).toEqual({
+      calories: 150,
+      protein: 15,
+      carbs: 30,
+      fat: 8,
+      fiber: 3,
+      sugar: 2,
+    })
   })
 
   it("returns local + remote combined results, preserving local data for matching IDs", async () => {

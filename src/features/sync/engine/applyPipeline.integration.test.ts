@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest"
-import { applyPulledChanges } from "@/features/sync/engine/applyPipeline"
+import { applyPulledChanges, clearLocalSyncData } from "@/features/sync/engine/applyPipeline"
 import { db } from "@/services/db"
 import { clearDatabase } from "@/test/helpers/dbTestUtils"
-import { getRecordVersion, setRecordVersion } from "@/features/sync/changeTracker"
+import {
+  getLocalDataOwnerUserId,
+  getRecordVersion,
+  setLocalDataOwnerUserId,
+  setRecordVersion,
+} from "@/features/sync/changeTracker"
 
 describe("applyPulledChanges integration", () => {
   beforeEach(async () => {
@@ -50,6 +55,148 @@ describe("applyPulledChanges integration", () => {
     expect(await getRecordVersion("nutrition", "2026-02-07")).toBe(4)
   })
 
+  it("persists valid records and versions for every supported sync collection", async () => {
+    await applyPulledChanges([
+      {
+        collection: "workouts",
+        id: "w-1",
+        data: {
+          id: "w-1",
+          name: "Push",
+          date: "2026-02-10",
+          weightUnit: "kg",
+          exercises: [{ id: "we-1", exerciseId: "bench", sets: [] }],
+        },
+        version: 1,
+        deleted: false,
+      },
+      {
+        collection: "activeSession",
+        id: "current",
+        data: {
+          startedAt: "2026-02-10T10:00:00.000Z",
+          workout: {
+            id: "aw-1",
+            name: "Live Push",
+            date: "2026-02-10",
+            weightUnit: "kg",
+            exercises: [{ id: "we-2", exerciseId: "row", sets: [] }],
+          },
+        },
+        version: 2,
+        deleted: false,
+      },
+      {
+        collection: "templates",
+        id: "tpl-1",
+        data: {
+          id: "tpl-1",
+          name: "Template",
+          exercises: [{ exerciseId: "bench", targetSets: 3 }],
+        },
+        version: 3,
+        deleted: false,
+      },
+      {
+        collection: "foods",
+        id: "food-1",
+        data: {
+          id: "food-1",
+          name: "Chicken",
+          calories: 165,
+          protein: 31,
+          carbs: 0,
+          fat: 3.6,
+          fiber: 0,
+          sugar: 0,
+          servingSize: "100g",
+          isCustom: true,
+        },
+        version: 4,
+        deleted: false,
+      },
+      {
+        collection: "nutrition",
+        id: "2026-02-10",
+        data: {
+          date: "2026-02-10",
+          entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "lunch" }],
+        },
+        version: 5,
+        deleted: false,
+      },
+      {
+        collection: "mealTemplates",
+        id: "mt-1",
+        data: {
+          id: "mt-1",
+          name: "Lunch",
+          entries: [{ foodId: "food-1", quantity: 2, mealType: "lunch" }],
+        },
+        version: 6,
+        deleted: false,
+      },
+      {
+        collection: "weight",
+        id: "bw-1",
+        data: {
+          id: "bw-1",
+          date: "2026-02-10",
+          weight: 180,
+        },
+        version: 7,
+        deleted: false,
+      },
+      {
+        collection: "settings",
+        id: "settings",
+        data: {
+          theme: "system",
+          restTimerDuration: 90,
+          areNotificationsEnabled: false,
+          unitPreferences: { weight: "kg", distance: "km" },
+          nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+        },
+        version: 8,
+        deleted: false,
+      },
+      {
+        collection: "exercises",
+        id: "custom-1",
+        data: {
+          id: "custom-1",
+          name: "Custom Fly",
+          muscleGroup: "chest",
+          isCustom: true,
+          isWeighted: false,
+          isTimeBased: false,
+        },
+        version: 9,
+        deleted: false,
+      },
+    ])
+
+    expect(await db.workoutSessions.get("w-1")).toBeTruthy()
+    expect((await db.activeSession.get("current"))?.workout.id).toBe("aw-1")
+    expect(await db.workoutTemplates.get("tpl-1")).toBeTruthy()
+    expect(await db.foods.get("food-1")).toBeTruthy()
+    expect(await db.nutritionLogs.get("2026-02-10")).toBeTruthy()
+    expect(await db.mealTemplates.get("mt-1")).toBeTruthy()
+    expect(await db.bodyWeight.get("bw-1")).toBeTruthy()
+    expect(await db.settings.get("settings")).toBeTruthy()
+    expect(await db.customExercises.get("custom-1")).toBeTruthy()
+
+    expect(await getRecordVersion("workouts", "w-1")).toBe(1)
+    expect(await getRecordVersion("activeSession", "current")).toBe(2)
+    expect(await getRecordVersion("templates", "tpl-1")).toBe(3)
+    expect(await getRecordVersion("foods", "food-1")).toBe(4)
+    expect(await getRecordVersion("nutrition", "2026-02-10")).toBe(5)
+    expect(await getRecordVersion("mealTemplates", "mt-1")).toBe(6)
+    expect(await getRecordVersion("weight", "bw-1")).toBe(7)
+    expect(await getRecordVersion("settings", "settings")).toBe(8)
+    expect(await getRecordVersion("exercises", "custom-1")).toBe(9)
+  })
+
   it("rebuilds workout exerciseIds from pulled workout payload", async () => {
     await applyPulledChanges([
       {
@@ -75,6 +222,44 @@ describe("applyPulledChanges integration", () => {
     expect(await getRecordVersion("workouts", "w1")).toBe(10)
   })
 
+  it("fails atomically for multi-change batches with invalid payloads", async () => {
+    await expect(
+      applyPulledChanges([
+        {
+          collection: "foods",
+          id: "food-valid",
+          data: {
+            id: "food-valid",
+            name: "Valid Food",
+            calories: 100,
+            protein: 10,
+            carbs: 10,
+            fat: 2,
+            fiber: 1,
+            sugar: 1,
+            servingSize: "100g",
+            isCustom: true,
+          },
+          version: 11,
+          deleted: false,
+        },
+        {
+          collection: "workouts",
+          id: "w-invalid",
+          data: {
+            foo: "bar",
+          },
+          version: 12,
+          deleted: false,
+        },
+      ])
+    ).rejects.toThrow("Invalid pulled record for workouts:w-invalid")
+
+    expect(await db.foods.get("food-valid")).toBeUndefined()
+    expect(await getRecordVersion("foods", "food-valid")).toBe(0)
+    expect(await getRecordVersion("workouts", "w-invalid")).toBe(0)
+  })
+
   it("deletes local records and clears versions for tombstone changes", async () => {
     await db.workoutSessions.put({
       id: "w-delete",
@@ -97,5 +282,76 @@ describe("applyPulledChanges integration", () => {
 
     expect(await db.workoutSessions.get("w-delete")).toBeUndefined()
     expect(await getRecordVersion("workouts", "w-delete")).toBe(0)
+  })
+
+  it("clears synced local tables and sync record versions", async () => {
+    await db.workoutSessions.put({
+      id: "w-clear",
+      name: "Clear",
+      date: "2026-02-10",
+      weightUnit: "kg",
+      exercises: [],
+    })
+    await db.activeSession.put({
+      id: "current",
+      startedAt: "2026-02-10T10:00:00.000Z",
+      workout: {
+        id: "aw-clear",
+        name: "Active",
+        date: "2026-02-10",
+        weightUnit: "kg",
+        exercises: [],
+      },
+    })
+    await db.workoutTemplates.put({ id: "tpl-clear", name: "Template", exercises: [] })
+    await db.foods.put({
+      id: "food-clear",
+      name: "Food",
+      calories: 100,
+      protein: 10,
+      carbs: 10,
+      fat: 2,
+      fiber: 1,
+      sugar: 1,
+      servingSize: "100g",
+      isCustom: true,
+    })
+    await db.nutritionLogs.put({ date: "2026-02-10", entries: [] })
+    await db.mealTemplates.put({ id: "mt-clear", name: "Meal", entries: [] })
+    await db.bodyWeight.put({ id: "bw-clear", date: "2026-02-10", weight: 180 })
+    await db.settings.put({
+      id: "settings",
+      theme: "system",
+      restTimerDuration: 90,
+      areNotificationsEnabled: false,
+      unitPreferences: { weight: "kg", distance: "km" },
+      nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+    })
+    await db.customExercises.put({
+      id: "ex-clear",
+      name: "Custom",
+      muscleGroup: "back",
+      isCustom: true,
+      isWeighted: true,
+      isTimeBased: false,
+    })
+
+    await setRecordVersion("workouts", "w-clear", 1)
+    await setRecordVersion("foods", "food-clear", 1)
+    await setLocalDataOwnerUserId("user-1")
+
+    await clearLocalSyncData()
+
+    expect(await db.workoutSessions.count()).toBe(0)
+    expect(await db.activeSession.count()).toBe(0)
+    expect(await db.workoutTemplates.count()).toBe(0)
+    expect(await db.foods.count()).toBe(0)
+    expect(await db.nutritionLogs.count()).toBe(0)
+    expect(await db.mealTemplates.count()).toBe(0)
+    expect(await db.bodyWeight.count()).toBe(0)
+    expect(await db.customExercises.count()).toBe(0)
+    expect(await db.settings.get("settings")).toBeUndefined()
+    expect(await db.syncRecordVersions.count()).toBe(0)
+    expect(await getLocalDataOwnerUserId()).toBeNull()
   })
 })
