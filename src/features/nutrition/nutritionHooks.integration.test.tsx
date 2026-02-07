@@ -5,12 +5,16 @@ import { clearDatabase } from "@/test/helpers/dbTestUtils"
 import { createQueryWrapper, createTestQueryClient } from "@/test/helpers/queryHookTestUtils"
 import { db } from "@/services/db"
 import {
+  useAddFood,
   useAddMealEntry,
   useApplyMealTemplate,
+  useDeleteMealTemplate,
   useDeleteFood,
   useRemoveMealEntry,
   useRemoveMealEntryGroup,
+  useSaveMealTemplate,
   useToggleFavoriteFood,
+  useUpdateMealTemplate,
   useUpdateMealEntry,
 } from "@/features/nutrition/mutations"
 import { achievementService } from "@/services/achievementService"
@@ -367,5 +371,80 @@ describe("nutrition hooks integration", () => {
         "Cannot delete food that is used in meal entries. Remove the entries first."
       )
     })
+  })
+
+  it("adds foods with generated or caller-provided ids", async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useAddFood(), { wrapper })
+
+    let generatedId = ""
+    await act(async () => {
+      const generated = await result.current.mutateAsync({
+        name: "Generated",
+        calories: 50,
+        protein: 1,
+        carbs: 10,
+        fat: 0,
+        fiber: 1,
+        sugar: 5,
+        servingSize: "100g",
+        isCustom: true,
+      })
+      generatedId = generated.id
+    })
+    expect(generatedId).toBeTruthy()
+    expect(await db.foods.get(generatedId)).toBeTruthy()
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        id: "canonical-food",
+        name: "Canonical",
+        calories: 120,
+        protein: 6,
+        carbs: 18,
+        fat: 2,
+        fiber: 3,
+        sugar: 2,
+        servingSize: "100g",
+        isCustom: false,
+      })
+    })
+    expect((await db.foods.get("canonical-food"))?.name).toBe("Canonical")
+  })
+
+  it("supports meal template save, update, and delete lifecycle", async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+
+    const saveHook = renderHook(() => useSaveMealTemplate(), { wrapper })
+    const updateHook = renderHook(() => useUpdateMealTemplate(), { wrapper })
+    const deleteHook = renderHook(() => useDeleteMealTemplate(), { wrapper })
+
+    let templateId = ""
+    await act(async () => {
+      templateId = await saveHook.result.current.mutateAsync({
+        name: "Work Lunch",
+        entries: [{ foodId: "food-1", quantity: 1, mealType: "lunch" }],
+      })
+    })
+
+    expect((await db.mealTemplates.get(templateId))?.name).toBe("Work Lunch")
+
+    await act(async () => {
+      await updateHook.result.current.mutateAsync({
+        id: templateId,
+        name: "Updated Lunch",
+        entries: [{ foodId: "food-2", quantity: 2, mealType: "dinner" }],
+      })
+    })
+
+    expect((await db.mealTemplates.get(templateId))?.entries[0]?.foodId).toBe("food-2")
+
+    await act(async () => {
+      await deleteHook.result.current.mutateAsync(templateId)
+    })
+
+    expect(await db.mealTemplates.get(templateId)).toBeUndefined()
   })
 })

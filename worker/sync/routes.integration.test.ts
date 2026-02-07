@@ -90,6 +90,13 @@ class FakePrepared {
         created_at: createdAt,
       })
 
+      if (this.db.insertWithoutLastRowId) {
+        return {
+          success: true,
+          meta: {},
+        }
+      }
+
       return {
         success: true,
         meta: {
@@ -150,6 +157,12 @@ class FakePrepared {
     if (sql.includes("FROM sync_events") && sql.includes("mutation_id = ?")) {
       const userId = this.readString(0)
       const mutationId = this.readString(1)
+
+      if (this.db.ignoreMutationLookupOnce.has(mutationId)) {
+        this.db.ignoreMutationLookupOnce.delete(mutationId)
+        return null
+      }
+
       const row = this.db.syncEvents.find(
         (event) => event.user_id === userId && event.mutation_id === mutationId
       )
@@ -256,6 +269,8 @@ class FakeD1 {
   syncStore: SyncStoreRow[] = []
   nextVersion = 0
   auditCount = 0
+  insertWithoutLastRowId = false
+  ignoreMutationLookupOnce = new Set<string>()
 
   prepare(sql: string) {
     return new FakePrepared(this, sql)
@@ -269,6 +284,14 @@ class FakeD1 {
     const version = row.version ?? this.nextVersion + 1
     this.nextVersion = Math.max(this.nextVersion, version)
     this.syncEvents.push({ ...row, version })
+  }
+
+  forceInsertRowIdFallback() {
+    this.insertWithoutLastRowId = true
+  }
+
+  forceOneLookupMissForMutation(mutationId: string) {
+    this.ignoreMutationLookupOnce.add(mutationId)
   }
 }
 
@@ -355,6 +378,14 @@ describe("sync routes integration", () => {
 
     expect(response.status).toBe(400)
     expect(body).toEqual({ error: "INVALID_REQUEST", message: "Invalid push payload" })
+  })
+
+  it("returns 400 for invalid pull payload", async () => {
+    const response = await requestSync(db, "/api/sync/pull", { cursor: { bad: true } })
+    const body = await readJson(response)
+
+    expect(response.status).toBe(400)
+    expect(body).toEqual({ error: "INVALID_REQUEST", message: "Invalid pull payload" })
   })
 
   it("accepts valid push changes and writes sync event/store", async () => {
@@ -478,6 +509,76 @@ describe("sync routes integration", () => {
 
     expect(db.syncEvents).toHaveLength(1)
     expect(db.syncStore[0]?.record_version).toBe(9)
+  })
+
+  it("falls back to querying inserted event version when row id metadata is missing", async () => {
+    db.forceInsertRowIdFallback()
+
+    const response = await requestSync(db, "/api/sync/push", {
+      changes: [
+        {
+          collection: "foods",
+          id: "food-9",
+          data: { id: "food-9", name: "Yogurt" },
+          baseVersion: 0,
+          mutationId: "m-rowid-fallback",
+        },
+      ],
+    })
+
+    const body = await readJson(response)
+    const acceptedChanges = readArray(body, "acceptedChanges")
+    expect(response.status).toBe(200)
+    expect(acceptedChanges[0]).toMatchObject({
+      collection: "foods",
+      id: "food-9",
+      version: 1,
+      mutationId: "m-rowid-fallback",
+    })
+  })
+
+  it("treats insert-time duplicate mutation conflicts as idempotent", async () => {
+    db.seedEvent({
+      version: 11,
+      user_id: "u1",
+      user_email: "u1@example.com",
+      collection: "foods",
+      id: "food-1",
+      data: JSON.stringify({ id: "food-1", name: "Rice" }),
+      deleted: 0,
+      base_version: 0,
+      mutation_id: "m-race",
+      device_id: "device-a",
+      created_at: Date.now(),
+    })
+    db.forceOneLookupMissForMutation("m-race")
+
+    const response = await requestSync(db, "/api/sync/push", {
+      changes: [
+        {
+          collection: "foods",
+          id: "food-1",
+          data: { id: "food-1", name: "Rice" },
+          baseVersion: 0,
+          mutationId: "m-race",
+        },
+      ],
+    })
+
+    const body = await readJson(response)
+    const accepted = readNumber(body, "accepted")
+    const conflicts = readArray(body, "conflicts")
+    const acceptedChanges = readArray(body, "acceptedChanges")
+
+    expect(response.status).toBe(200)
+    expect(accepted).toBe(1)
+    expect(conflicts).toEqual([])
+    expect(acceptedChanges[0]).toEqual({
+      collection: "foods",
+      id: "food-1",
+      version: 11,
+      mutationId: "m-race",
+    })
   })
 
   it("paginates pull responses and returns next cursor", async () => {
