@@ -6,13 +6,6 @@ import { achievements } from "@/data/achievements"
 import { toast } from "sonner"
 import { statsService } from "@/services/statsService"
 
-/**
- * Number of default workout templates provided by the app.
- * Used to calculate how many custom templates the user has created
- * (total templates - default templates = custom templates).
- */
-const DEFAULT_TEMPLATE_COUNT = 5
-
 const defaultStreaks: StreakData = {
   currentWorkoutStreak: 0,
   longestWorkoutStreak: 0,
@@ -83,7 +76,6 @@ export const achievementService = {
     const workoutsCount = await db.workoutSessions.count()
     const personalRecordsCount = await db.personalRecords.count()
     const templatesCount = await db.workoutTemplates.count()
-    const customTemplateCount = Math.max(0, templatesCount - DEFAULT_TEMPLATE_COUNT)
 
     // Use cached stats for volume (O(1) instead of O(N))
     const stats = await statsService.getStats()
@@ -168,7 +160,7 @@ export const achievementService = {
       ["pr-collector", personalRecordsCount >= 10],
       ["pr-master", personalRecordsCount >= 25],
       // Template achievements
-      ["template-creator", customTemplateCount >= 3],
+      ["template-creator", templatesCount >= 3],
       // Variety achievements
       ["full-body", muscleGroupsThisWeek.size >= 6],
     ])
@@ -181,9 +173,8 @@ export const achievementService = {
   async checkTemplateAchievements() {
     await this.ensureInitialized()
     const templatesCount = await db.workoutTemplates.count()
-    const customTemplateCount = Math.max(0, templatesCount - DEFAULT_TEMPLATE_COUNT)
 
-    await this.tryUnlock("template-creator", customTemplateCount >= 3)
+    await this.tryUnlock("template-creator", templatesCount >= 3)
   },
 
   /**

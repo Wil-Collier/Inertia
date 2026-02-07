@@ -4,6 +4,12 @@ import { withSyncHooksSuppressed } from "@/features/sync/dexieHooks"
 import { migrateBackupData, backupNeedsMigration, type DexieExportData } from "@/services/backupMigrations"
 import { z } from "zod"
 
+const APP_LOCAL_STORAGE_KEYS = [
+  "inertia-sync-auth",
+  "inertia-sync-store",
+  "kinetic-device-id",
+] as const
+
 /**
  * Schema for the raw Dexie export format.
  */
@@ -139,15 +145,15 @@ export async function importData(file: File): Promise<{ success: boolean; messag
 }
 
 /**
- * Clear all data from the database and localStorage.
+ * Clear all data from the database and app-owned localStorage keys.
  */
 export async function clearAllData(): Promise<void> {
   try {
     // Use the native deletion path (more reliable on Safari/iOS).
     await recoverDatabase()
 
-    // Clear localStorage (old data)
-    localStorage.clear()
+    // Clear only app-owned keys so we don't wipe unrelated origin data.
+    APP_LOCAL_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key))
 
     // Small delay to ensure Safari has fully committed the database state
     // Safari has known issues with IndexedDB operations not completing before page unload

@@ -13,8 +13,9 @@ export const queryClient = new QueryClient({
       retry: 1,
     },
     mutations: {
-      // Retry mutations once on failure
-      retry: 1,
+      // Mutations are not guaranteed idempotent (e.g. add/create flows), so
+      // automatic retries can duplicate records after partial success.
+      retry: 0,
     },
   },
 })
