@@ -142,8 +142,15 @@ async function authorizedRequest<T>(
       throw error
     }
 
+    let refreshed: RefreshResponse
     try {
-      const refreshed = await refreshAccessToken()
+      refreshed = await refreshAccessToken()
+    } catch (refreshError) {
+      useAuthStore.getState().clearAuth()
+      throw refreshError
+    }
+
+    try {
       return await requestJson(
         path,
         {
@@ -157,9 +164,11 @@ async function authorizedRequest<T>(
         },
         parser
       )
-    } catch {
-      useAuthStore.getState().clearAuth()
-      throw error
+    } catch (retryError) {
+      if (retryError instanceof SyncApiError && retryError.status === 401) {
+        useAuthStore.getState().clearAuth()
+      }
+      throw retryError
     }
   }
 }

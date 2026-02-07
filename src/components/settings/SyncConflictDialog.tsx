@@ -1,15 +1,20 @@
 import { AlertTriangle } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import type { InitialSyncStrategy } from "@/features/sync/types"
+import type { InitialSyncState, InitialSyncStrategy } from "@/features/sync/types"
 
 interface SyncConflictDialogProps {
   open: boolean
+  state: InitialSyncState | null
   onResolve: (strategy: InitialSyncStrategy) => void
   onOpenChange?: (open: boolean) => void
 }
 
-export function SyncConflictDialog({ open, onResolve, onOpenChange }: SyncConflictDialogProps) {
+export function SyncConflictDialog({ open, state, onResolve, onOpenChange }: SyncConflictDialogProps) {
+  const description = state?.localHasData && state?.cloudHasData
+    ? "This device already has local data, and the cloud has existing data. Choose how to resolve the initial sync."
+    : "This device has local data that does not match the signed-in cloud account. Choose how to resolve the initial sync."
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -20,10 +25,7 @@ export function SyncConflictDialog({ open, onResolve, onOpenChange }: SyncConfli
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 text-sm text-muted-foreground">
-          <p>
-            This device already has local data, and the cloud has existing data.
-            Choose how to resolve the initial sync.
-          </p>
+          <p>{description}</p>
           <div className="space-y-2">
             <Button className="w-full" onClick={() => onResolve("merge")}>
               Merge Cloud + Local

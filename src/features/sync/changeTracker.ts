@@ -6,6 +6,7 @@ import { SYNC_COLLECTIONS, type SyncCollection, type SyncCursor } from "@/featur
 
 const PULL_CURSOR_KEY = "sync.pullCursor"
 const LAST_SYNCED_AT_KEY = "sync.lastSyncedAtMs"
+const LOCAL_DATA_OWNER_USER_ID_KEY = "sync.localDataOwnerUserId"
 
 function parseJsonValue(value: string | number | boolean | undefined): unknown {
   if (typeof value !== "string") return null
@@ -163,6 +164,19 @@ export async function getLastSyncedAtMs(): Promise<number | null> {
 
 export async function setLastSyncedAtMs(timestamp: number): Promise<void> {
   await db.metadata.put({ key: LAST_SYNCED_AT_KEY, value: timestamp })
+}
+
+export async function getLocalDataOwnerUserId(): Promise<string | null> {
+  const record = await db.metadata.get(LOCAL_DATA_OWNER_USER_ID_KEY)
+  return typeof record?.value === "string" && record.value.length > 0 ? record.value : null
+}
+
+export async function setLocalDataOwnerUserId(userId: string): Promise<void> {
+  await db.metadata.put({ key: LOCAL_DATA_OWNER_USER_ID_KEY, value: userId })
+}
+
+export async function clearLocalDataOwnerUserId(): Promise<void> {
+  await db.metadata.delete(LOCAL_DATA_OWNER_USER_ID_KEY)
 }
 
 export async function getRecordVersion(collection: SyncCollection, id: string, transaction?: Transaction): Promise<number> {

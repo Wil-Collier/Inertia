@@ -3,7 +3,7 @@ import { handleSyncError } from "@/features/sync/engine/errors"
 import { ensureInitialSync, resolveInitialSyncStrategy } from "@/features/sync/engine/initialSyncCoordinator"
 import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
 import { pushPendingChangesInternal } from "@/features/sync/engine/pushPipeline"
-import { setLastSyncedAtMs, setPullCursor } from "@/features/sync/changeTracker"
+import { setLastSyncedAtMs, setLocalDataOwnerUserId, setPullCursor } from "@/features/sync/changeTracker"
 import type { InitialSyncStrategy } from "@/features/sync/types"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
 
@@ -17,8 +17,9 @@ export const SYNC_ENABLED = import.meta.env.VITE_ENABLE_SYNC !== "false"
 export async function syncNow(): Promise<void> {
   if (!SYNC_ENABLED) return
   const auth = useAuthStore.getState()
-  if (!auth.isAuthenticated || !auth.accessToken) return
+  if (!auth.isAuthenticated || !auth.accessToken || !auth.userId) return
   const accessToken = auth.accessToken
+  const userId = auth.userId
   if (!navigator.onLine) {
     useSyncStore.getState().setStatus("offline")
     return
@@ -35,7 +36,7 @@ export async function syncNow(): Promise<void> {
       syncStore.setConflicts([])
 
       try {
-        const canProceed = await ensureInitialSync(accessToken)
+        const canProceed = await ensureInitialSync(accessToken, userId)
         if (!canProceed) {
           syncStore.setStatus("idle")
           return
@@ -51,6 +52,7 @@ export async function syncNow(): Promise<void> {
 
         syncStore.setLastSyncedAtMs(pullResult.serverTimestampMs)
         await setLastSyncedAtMs(pullResult.serverTimestampMs)
+        await setLocalDataOwnerUserId(userId)
         syncStore.setStatus("success")
       } finally {
         syncInFlight = false
@@ -64,8 +66,9 @@ export async function syncNow(): Promise<void> {
 export async function pushPendingChanges(): Promise<void> {
   if (!SYNC_ENABLED) return
   const auth = useAuthStore.getState()
-  if (!auth.isAuthenticated || !auth.accessToken) return
+  if (!auth.isAuthenticated || !auth.accessToken || !auth.userId) return
   const accessToken = auth.accessToken
+  const userId = auth.userId
   if (!navigator.onLine) return
 
   if (syncInFlight) return
@@ -78,6 +81,7 @@ export async function pushPendingChanges(): Promise<void> {
 
   try {
     await pushPendingChangesInternal(accessToken, true)
+    await setLocalDataOwnerUserId(userId)
     syncStore.setStatus("success")
   } catch (error) {
     handleSyncError(error)
@@ -88,8 +92,9 @@ export async function pushPendingChanges(): Promise<void> {
 
 export async function resolveInitialSync(strategy: InitialSyncStrategy): Promise<void> {
   const auth = useAuthStore.getState()
-  if (!auth.isAuthenticated || !auth.accessToken) return
+  if (!auth.isAuthenticated || !auth.accessToken || !auth.userId) return
   const accessToken = auth.accessToken
+  const userId = auth.userId
 
   const syncStore = useSyncStore.getState()
   syncStore.setStatus("syncing")
@@ -97,7 +102,7 @@ export async function resolveInitialSync(strategy: InitialSyncStrategy): Promise
   syncStore.setConflicts([])
 
   try {
-    await resolveInitialSyncStrategy(accessToken, strategy)
+    await resolveInitialSyncStrategy(accessToken, userId, strategy)
     syncStore.setStatus("success")
   } catch (error) {
     handleSyncError(error)

@@ -143,6 +143,7 @@ export function SyncSettings() {
 
       <SyncConflictDialog
         open={!!sync.initialSyncState}
+        state={sync.initialSyncState}
         onResolve={(strategy) => void handleResolve(strategy)}
         onOpenChange={(open) => {
           if (!open && sync.initialSyncState) {

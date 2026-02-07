@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { toast } from "sonner"
 import { loginWithGoogle, logoutSession } from "@/features/sync/api"
-import { clearSyncMetadata } from "@/features/sync/changeTracker"
+import { clearSyncMetadata, setLocalDataOwnerUserId } from "@/features/sync/changeTracker"
 import { resolveInitialSync as resolveInitialSyncEngine, syncNow, SYNC_ENABLED } from "@/features/sync/syncEngine"
 import { useAuthStore, useSyncStore, clearAuthStorage } from "@/features/sync/store"
 import type { InitialSyncStrategy } from "@/features/sync/types"
@@ -20,6 +20,7 @@ export function useSync() {
     const response = await loginWithGoogle(idToken)
 
     if (auth.userId && auth.userId !== response.userId) {
+      await setLocalDataOwnerUserId(auth.userId)
       await clearSyncMetadata()
     }
 

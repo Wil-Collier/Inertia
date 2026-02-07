@@ -15,7 +15,7 @@ import { withSyncHooksSuppressed } from "@/features/sync/dexieHooks"
 import { rebuildLocalOnlyFields } from "@/features/sync/localRebuild"
 import { recalculateDerivedData } from "@/features/sync/derivedData"
 import { invalidateQueriesForCollections } from "@/features/sync/queryInvalidation"
-import { removeRecordVersion, setRecordVersion } from "@/features/sync/changeTracker"
+import { clearLocalDataOwnerUserId, removeRecordVersion, setRecordVersion } from "@/features/sync/changeTracker"
 
 type LocalRecord =
   | Workout
@@ -128,6 +128,7 @@ export async function clearLocalSyncData(): Promise<void> {
       }
     )
   })
+  await clearLocalDataOwnerUserId()
 }
 
 async function upsertLocalRecord(collection: SyncCollection, id: string, record: unknown): Promise<void> {

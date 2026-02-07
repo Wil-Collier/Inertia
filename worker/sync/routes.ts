@@ -43,6 +43,14 @@ function getLastRowId(result: unknown): number | null {
   return null
 }
 
+function isBaseVersionConflictError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return (
+    error.message.includes("idx_sync_events_user_record_base_version") ||
+    error.message.includes("sync_events.user_id, sync_events.collection, sync_events.id, sync_events.base_version")
+  )
+}
+
 function isSyncEventRow(value: unknown): value is SyncEventRow {
   if (!isRecord(value)) return false
   return (
@@ -119,33 +127,54 @@ syncRoutes.post("/push", async (c) => {
       return
     }
 
-    const insertResult = await c.env.DB
-      .prepare(`
-        INSERT INTO sync_events
-          (user_id, user_email, collection, id, data, deleted, base_version, mutation_id, device_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
-      .bind(
-        userId,
-        userEmail,
-        change.collection,
-        change.id,
-        dataJson,
-        deleted ? 1 : 0,
-        change.baseVersion,
-        change.mutationId,
-        deviceId,
-        now
-      )
-      .run()
+    let version: number | null = null
+    try {
+      const insertResult = await c.env.DB
+        .prepare(`
+          INSERT INTO sync_events
+            (user_id, user_email, collection, id, data, deleted, base_version, mutation_id, device_id, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        .bind(
+          userId,
+          userEmail,
+          change.collection,
+          change.id,
+          dataJson,
+          deleted ? 1 : 0,
+          change.baseVersion,
+          change.mutationId,
+          deviceId,
+          now
+        )
+        .run()
 
-    let version = getLastRowId(insertResult)
-    if (version === null) {
-      const insertedEvent = await c.env.DB
-        .prepare("SELECT version FROM sync_events WHERE user_id = ? AND mutation_id = ?")
-        .bind(userId, change.mutationId)
-        .first<{ version: number }>()
-      version = insertedEvent?.version ?? null
+      version = getLastRowId(insertResult)
+      if (version === null) {
+        const insertedEvent = await c.env.DB
+          .prepare("SELECT version FROM sync_events WHERE user_id = ? AND mutation_id = ?")
+          .bind(userId, change.mutationId)
+          .first<{ version: number }>()
+        version = insertedEvent?.version ?? null
+      }
+    } catch (error) {
+      if (!isBaseVersionConflictError(error)) {
+        throw error
+      }
+
+      const latest = await c.env.DB
+        .prepare("SELECT record_version FROM sync_store WHERE user_id = ? AND collection = ? AND id = ?")
+        .bind(userId, change.collection, change.id)
+        .first<SyncStoreRow>()
+
+      conflicts.push({
+        collection: change.collection,
+        id: change.id,
+        serverVersion: latest?.record_version ?? 0,
+        clientBaseVersion: change.baseVersion,
+        reason: "VERSION_MISMATCH",
+      })
+      return
     }
 
     if (version === null) {

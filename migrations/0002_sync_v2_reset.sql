@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS sync_events (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_events_user_mutation
   ON sync_events (user_id, mutation_id);
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_events_user_record_base_version
+  ON sync_events (user_id, collection, id, base_version);
+
 CREATE INDEX IF NOT EXISTS idx_sync_events_user_version
   ON sync_events (user_id, version);
 

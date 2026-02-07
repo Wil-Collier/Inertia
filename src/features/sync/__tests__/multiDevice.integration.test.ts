@@ -492,6 +492,51 @@ describe("multi-device sync integration", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
+  it("keeps auth state when retry fails with non-401 error", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+      if (url === "/api/sync/push") {
+        const auth = init?.headers ? new Headers(init.headers).get("Authorization") : null
+        if (auth === "Bearer old-token") {
+          return new Response(JSON.stringify({ error: "UNAUTHORIZED", message: "expired" }), { status: 401 })
+        }
+        return new Response(JSON.stringify({ error: "SERVER_ERROR", message: "temporary failure" }), { status: 500 })
+      }
+
+      if (url === "/api/auth/refresh") {
+        return new Response(
+          JSON.stringify({
+            accessToken: "new-token",
+            expiresAtMs: Date.now() + 60_000,
+          }),
+          { status: 200 }
+        )
+      }
+
+      return new Response(JSON.stringify({ error: "NOT_FOUND", message: "Not found" }), { status: 404 })
+    })
+
+    vi.stubGlobal("fetch", fetchMock)
+
+    const payload: PushRequest = {
+      changes: [
+        {
+          collection: "workouts",
+          id: "w1",
+          data: { name: "W1" },
+          baseVersion: 0,
+          mutationId: "m1",
+          deviceId: "d1",
+        },
+      ],
+    }
+
+    await expect(pushChanges("old-token", payload)).rejects.toThrow("temporary failure")
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(useAuthStore.getState().accessToken).toBe("new-token")
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
   it("allows refresh rotation race via previous-token grace window", () => {
     const session = new RefreshSession(30_000)
     const oldToken = session.getToken()
