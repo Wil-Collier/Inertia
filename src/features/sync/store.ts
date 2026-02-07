@@ -17,6 +17,7 @@ interface AuthState {
   expiresAtMs: number | null
   isAuthenticated: boolean
   setAuth: (payload: { accessToken: string; userId: string; email: string; expiresAtMs: number }) => void
+  setAccessToken: (payload: { accessToken: string; expiresAtMs: number }) => void
   clearAuth: () => void
 }
 
@@ -36,6 +37,13 @@ export const useAuthStore = create<AuthState>()(
           expiresAtMs: normalizeExpiresAtMs(expiresAtMs),
           isAuthenticated: true,
         }),
+      setAccessToken: ({ accessToken, expiresAtMs }) =>
+        set((state) => ({
+          ...state,
+          accessToken,
+          expiresAtMs: normalizeExpiresAtMs(expiresAtMs),
+          isAuthenticated: !!state.userId,
+        })),
       clearAuth: () =>
         set({
           accessToken: null,

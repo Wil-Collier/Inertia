@@ -27,8 +27,15 @@ export type SyncableTableName = keyof typeof TABLE_TO_COLLECTION
 export interface PendingChange {
   collection: SyncCollection
   id: string
-  updatedAt: number
-  deleted?: boolean
+  deleted: boolean
+  baseVersion: number
+  mutationId: string
+  enqueuedAt: number
+}
+
+export interface PendingChangeKey {
+  collection: SyncCollection
+  id: string
 }
 
 export type SyncStatus = "idle" | "syncing" | "success" | "error" | "offline"

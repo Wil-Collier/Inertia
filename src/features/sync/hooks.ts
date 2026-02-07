@@ -1,12 +1,10 @@
 import { useEffect } from "react"
 import { toast } from "sonner"
-import { loginWithGoogle } from "@/features/sync/api"
+import { loginWithGoogle, logoutSession } from "@/features/sync/api"
 import { clearSyncMetadata } from "@/features/sync/changeTracker"
 import { resolveInitialSync as resolveInitialSyncEngine, syncNow, SYNC_ENABLED } from "@/features/sync/syncEngine"
 import { useAuthStore, useSyncStore, clearAuthStorage } from "@/features/sync/store"
 import type { InitialSyncStrategy } from "@/features/sync/types"
-
-const REAUTH_BUFFER_MS = 7 * 24 * 60 * 60 * 1000
 
 export function useAuth() {
   return useAuthStore()
@@ -16,7 +14,7 @@ export function useSync() {
   const auth = useAuthStore()
   const sync = useSyncStore()
 
-  useTokenExpiryPrompt(auth.expiresAtMs, auth.clearAuth)
+  useTokenExpiryPrompt(auth.expiresAtMs)
 
   const signInWithGoogle = async (idToken: string) => {
     const response = await loginWithGoogle(idToken)
@@ -30,6 +28,12 @@ export function useSync() {
   }
 
   const signOut = async () => {
+    try {
+      await logoutSession()
+    } catch {
+      // Best effort logout; continue with local state reset.
+    }
+
     auth.clearAuth()
     clearAuthStorage()
     await clearSyncMetadata()
@@ -53,38 +57,35 @@ export function useSync() {
   }
 }
 
-function useTokenExpiryPrompt(expiresAtMs: number | null, clearAuth: () => void) {
+function useTokenExpiryPrompt(expiresAtMs: number | null) {
   useEffect(() => {
     if (!expiresAtMs) return
 
     const normalizedExpiresAtMs = expiresAtMs < 1_000_000_000_000 ? expiresAtMs * 1000 : expiresAtMs
-    const msUntilExpiry = normalizedExpiresAtMs - Date.now()
-
-    if (msUntilExpiry <= 0) {
-      clearAuth()
-      return
-    }
-
-    // Fix: setTimeout uses a 32-bit int, so max delay is ~24.8 days.
-    // If the token lasts longer than that (e.g. 90 days), setTimeout overflows
-    // and fires immediately. We simply don't schedule the auto-logout if it's too far out.
     const MAX_TIMEOUT_DELAY = 2147483647
-    if (msUntilExpiry > MAX_TIMEOUT_DELAY) {
-      return
+    const timeoutIds: number[] = []
+
+    const scheduleTimers = () => {
+      const msUntilExpiry = normalizedExpiresAtMs - Date.now()
+      if (msUntilExpiry <= 0) return
+
+      if (msUntilExpiry > MAX_TIMEOUT_DELAY) {
+        const checkAgainId = window.setTimeout(scheduleTimers, MAX_TIMEOUT_DELAY)
+        timeoutIds.push(checkAgainId)
+        return
+      }
+
+      const expiryTimeoutId = window.setTimeout(() => {
+        toast.info("Session expired. Sync will refresh on next request.")
+      }, msUntilExpiry)
+
+      timeoutIds.push(expiryTimeoutId)
     }
 
-    const promptDelay = Math.max(msUntilExpiry - REAUTH_BUFFER_MS, 0)
-    const promptTimeoutId = window.setTimeout(() => {
-      toast.info("Please sign in again to continue syncing")
-    }, promptDelay)
-
-    const expiryTimeoutId = window.setTimeout(() => {
-      clearAuth()
-    }, msUntilExpiry)
+    scheduleTimers()
 
     return () => {
-      window.clearTimeout(promptTimeoutId)
-      window.clearTimeout(expiryTimeoutId)
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId))
     }
-  }, [expiresAtMs, clearAuth])
+  }, [expiresAtMs])
 }

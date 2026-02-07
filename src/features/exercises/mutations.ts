@@ -19,7 +19,7 @@ export function useAddExercise() {
         description: exercise.description,
         createdAt: new Date().toISOString(),
       }
-      await db.transaction("rw", [db.customExercises, db.metadata], async () => {
+      await db.transaction("rw", [db.customExercises, db.syncPendingChanges, db.syncRecordVersions], async () => {
         await db.customExercises.add(newExercise)
       })
       return newExercise
@@ -45,7 +45,10 @@ export function useDeleteExercise() {
         throw new Error("Cannot delete built-in exercises")
       }
 
-      await db.transaction("rw", [db.workoutTemplates, db.customExercises, db.personalRecords, db.metadata], async () => {
+      await db.transaction(
+        "rw",
+        [db.workoutTemplates, db.customExercises, db.personalRecords, db.syncPendingChanges, db.syncRecordVersions],
+        async () => {
         // Check if exercise is used in any templates (inside the same transaction as delete)
         const templates = await db.workoutTemplates.toArray()
         const usedInTemplate = templates.find((t) =>
@@ -77,7 +80,7 @@ export function useUpdateExercise() {
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Exercise> }) => {
       let updatedExercise: Exercise | undefined
-      await db.transaction("rw", [db.customExercises, db.metadata], async () => {
+      await db.transaction("rw", [db.customExercises, db.syncPendingChanges, db.syncRecordVersions], async () => {
         await db.customExercises.update(id, updates)
         updatedExercise = await db.customExercises.get(id)
       })
@@ -93,4 +96,3 @@ export function useUpdateExercise() {
     }
   })
 }
-

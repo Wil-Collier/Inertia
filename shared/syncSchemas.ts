@@ -15,9 +15,7 @@ export const SyncCollectionSchema = z.enum(SYNC_COLLECTIONS)
 export type SyncCollection = z.infer<typeof SyncCollectionSchema>
 
 export const SyncCursorSchema = z.object({
-  updatedAt: z.number(),
-  collection: SyncCollectionSchema,
-  id: z.string(),
+  version: z.number().int().nonnegative(),
 })
 export type SyncCursor = z.infer<typeof SyncCursorSchema>
 
@@ -25,7 +23,8 @@ export const PushChangeSchema = z.object({
   collection: SyncCollectionSchema,
   id: z.string(),
   data: z.record(z.string(), z.any()).nullable(),
-  updatedAt: z.number(),
+  baseVersion: z.number().int().nonnegative(),
+  mutationId: z.string().min(1),
   deviceId: z.string().optional(),
 })
 export type PushChange = z.infer<typeof PushChangeSchema>
@@ -38,13 +37,23 @@ export type PushRequest = z.infer<typeof PushRequestSchema>
 export const PushConflictSchema = z.object({
   collection: SyncCollectionSchema,
   id: z.string(),
-  serverUpdatedAt: z.number(),
+  serverVersion: z.number().int().nonnegative(),
+  clientBaseVersion: z.number().int().nonnegative(),
   reason: z.string(),
 })
 export type PushConflict = z.infer<typeof PushConflictSchema>
 
+export const PushAcceptedChangeSchema = z.object({
+  collection: SyncCollectionSchema,
+  id: z.string(),
+  version: z.number().int().positive(),
+  mutationId: z.string().min(1),
+})
+export type PushAcceptedChange = z.infer<typeof PushAcceptedChangeSchema>
+
 export const PushResponseSchema = z.object({
   accepted: z.number().int().nonnegative(),
+  acceptedChanges: z.array(PushAcceptedChangeSchema),
   conflicts: z.array(PushConflictSchema),
 })
 export type PushResponse = z.infer<typeof PushResponseSchema>
@@ -62,7 +71,7 @@ export const PullChangeSchema = z.object({
   collection: SyncCollectionSchema,
   id: z.string(),
   data: z.record(z.string(), z.any()).nullable(),
-  updatedAt: z.number(),
+  version: z.number().int().positive(),
   deleted: z.boolean(),
 })
 export type PullChange = z.infer<typeof PullChangeSchema>
@@ -87,6 +96,17 @@ export const LoginResponseSchema = z.object({
   expiresAtMs: z.number(),
 })
 export type LoginResponse = z.infer<typeof LoginResponseSchema>
+
+export const RefreshResponseSchema = z.object({
+  accessToken: z.string(),
+  expiresAtMs: z.number(),
+})
+export type RefreshResponse = z.infer<typeof RefreshResponseSchema>
+
+export const LogoutResponseSchema = z.object({
+  success: z.literal(true),
+})
+export type LogoutResponse = z.infer<typeof LogoutResponseSchema>
 
 export const ErrorResponseSchema = z.object({
   error: z.string(),

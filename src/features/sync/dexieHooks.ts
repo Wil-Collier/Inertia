@@ -1,6 +1,11 @@
+import type { Transaction } from "dexie"
 import { db } from "@/services/db"
 import { TABLE_TO_COLLECTION, type SyncableTableName } from "@/features/sync/types"
-import { enqueueChangeInTransaction } from "@/features/sync/changeTracker"
+import {
+  enqueuePendingChange,
+  enqueuePendingChangeInTransaction,
+  getRecordVersion,
+} from "@/features/sync/changeTracker"
 
 let hooksRegistered = false
 let suppressionDepth = 0
@@ -26,15 +31,12 @@ export function registerSyncDexieHooks(): void {
       const id = resolveChangeId(tableName, primKey, obj)
       if (!id) return
 
-      return enqueueChangeInTransaction(
-        {
-          collection: TABLE_TO_COLLECTION[tableName],
-          id,
-          updatedAt: now,
-          deleted: false,
-        },
-        transaction
-      )
+      queuePendingChange({
+        collection: TABLE_TO_COLLECTION[tableName],
+        id,
+        deleted: false,
+        transaction,
+      })
     })
 
     table.hook("updating", (mods, primKey, obj, transaction) => {
@@ -48,38 +50,83 @@ export function registerSyncDexieHooks(): void {
       const id = resolveChangeId(tableName, primKey, obj)
       if (!id) return
 
-      const updatedMods = { ...modsRecord, updatedAt: now }
+      queuePendingChange({
+        collection: TABLE_TO_COLLECTION[tableName],
+        id,
+        deleted: false,
+        transaction,
+      })
 
-      return enqueueChangeInTransaction(
-        {
-          collection: TABLE_TO_COLLECTION[tableName],
-          id,
-          updatedAt: now,
-          deleted: false,
-        },
-        transaction
-      ).then(() => updatedMods)
+      return { ...modsRecord, updatedAt: now }
     })
 
     table.hook("deleting", (primKey, obj, transaction) => {
       if (areHooksSuppressed()) return
       if (!shouldTrackRecord(tableName, obj)) return
 
-      const now = Date.now()
       const id = resolveChangeId(tableName, primKey, obj)
       if (!id) return
 
-      return enqueueChangeInTransaction(
-        {
-          collection: TABLE_TO_COLLECTION[tableName],
-          id,
-          updatedAt: now,
-          deleted: true,
-        },
-        transaction
-      )
+      queuePendingChange({
+        collection: TABLE_TO_COLLECTION[tableName],
+        id,
+        deleted: true,
+        transaction,
+      })
     })
   })
+}
+
+type QueuePendingArgs = {
+  collection: (typeof TABLE_TO_COLLECTION)[SyncableTableName]
+  id: string
+  deleted: boolean
+  transaction: Transaction
+}
+
+function queuePendingChange(args: QueuePendingArgs): void {
+  if (transactionHasSyncStores(args.transaction)) {
+    void (async () => {
+      const baseVersion = await getRecordVersion(args.collection, args.id, args.transaction)
+      await enqueuePendingChangeInTransaction(
+        {
+          collection: args.collection,
+          id: args.id,
+          deleted: args.deleted,
+          baseVersion,
+          mutationId: crypto.randomUUID(),
+          enqueuedAt: Date.now(),
+        },
+        args.transaction
+      )
+    })().catch((error) => {
+      console.error("[Sync] Failed to enqueue pending change in transaction", error)
+    })
+    return
+  }
+
+  args.transaction.on("complete", () => {
+    void (async () => {
+      const baseVersion = await getRecordVersion(args.collection, args.id)
+      await enqueuePendingChange({
+        collection: args.collection,
+        id: args.id,
+        deleted: args.deleted,
+        baseVersion,
+        mutationId: crypto.randomUUID(),
+        enqueuedAt: Date.now(),
+      })
+    })().catch((error) => {
+      console.error("[Sync] Failed to enqueue pending change after commit", error)
+    })
+  })
+}
+
+function transactionHasSyncStores(transaction: Transaction): boolean {
+  return (
+    transaction.storeNames.includes("syncPendingChanges") &&
+    transaction.storeNames.includes("syncRecordVersions")
+  )
 }
 
 export async function withSyncHooksSuppressed<T>(fn: () => Promise<T>): Promise<T> {

@@ -43,6 +43,21 @@ export interface MetadataRecord {
   value: string | number | boolean
 }
 
+export interface SyncPendingChangeRecord {
+  collection: string
+  id: string
+  deleted: boolean
+  baseVersion: number
+  mutationId: string
+  enqueuedAt: number
+}
+
+export interface SyncRecordVersionRecord {
+  collection: string
+  id: string
+  version: number
+}
+
 // Extend Dexie to handle our DB
 export class TrainingAppDatabase extends Dexie {
   // Tables - customExercises stores ONLY user-created exercises
@@ -63,6 +78,8 @@ export class TrainingAppDatabase extends Dexie {
   activeSession!: Table<ActiveWorkoutSession & { id: string }>
   metadata!: Table<MetadataRecord>
   userStats!: Table<UserStats & { id: string }>
+  syncPendingChanges!: Table<SyncPendingChangeRecord, [string, string]>
+  syncRecordVersions!: Table<SyncRecordVersionRecord, [string, string]>
 
   constructor() {
     super("TrainingAppDB")
@@ -90,7 +107,9 @@ export class TrainingAppDatabase extends Dexie {
       restTimer: "id",
       activeSession: "id",
       metadata: "key",
-      userStats: "id"
+      userStats: "id",
+      syncPendingChanges: "[collection+id], collection, enqueuedAt",
+      syncRecordVersions: "[collection+id], collection, version",
     })
 
     // Initialize schema version in metadata on database ready
@@ -119,6 +138,8 @@ const REQUIRED_STORES = [
   "activeSession",
   "metadata",
   "userStats",
+  "syncPendingChanges",
+  "syncRecordVersions",
 ] as const
 
 const REQUIRED_INDEX_CHECKS = [
@@ -129,6 +150,8 @@ const REQUIRED_INDEX_CHECKS = [
   ["foods", ["name", "brand", "isFavorite", "isCustom"]],
   ["mealTemplates", ["name"]],
   ["bodyWeight", ["date"]],
+  ["syncPendingChanges", ["collection", "enqueuedAt"]],
+  ["syncRecordVersions", ["collection", "version"]],
 ] as const satisfies ReadonlyArray<readonly [string, readonly string[]]>
 
 async function getNativeSchemaIssues(): Promise<string[]> {
