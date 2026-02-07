@@ -29,7 +29,9 @@ export function useCreateWorkout() {
 
       const newWorkout: Workout = { ...workout, id, exerciseIds, weightUnit }
 
-      await db.workoutSessions.add(newWorkout)
+      await db.transaction("rw", [db.workoutSessions, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.workoutSessions.add(newWorkout)
+      })
       await statsService.addWorkout(newWorkout)
       await achievementService.updateStreaks()
       await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
@@ -169,7 +171,9 @@ export function useCreateTemplate() {
     mutationFn: async (template: Omit<WorkoutTemplate, "id">) => {
       const id = crypto.randomUUID()
       const newTemplate = { ...template, id }
-      await db.workoutTemplates.add(newTemplate)
+      await db.transaction("rw", [db.workoutTemplates, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.workoutTemplates.add(newTemplate)
+      })
 
       // Check template achievements (lightweight, doesn't load all workouts)
       await achievementService.checkTemplateAchievements()
@@ -192,7 +196,9 @@ export function useUpdateTemplate() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<WorkoutTemplate> }) => {
-      await db.workoutTemplates.update(id, updates)
+      await db.transaction("rw", [db.workoutTemplates, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.workoutTemplates.update(id, updates)
+      })
       return db.workoutTemplates.get(id)
     },
     onSuccess: (template, { id }) => {
@@ -212,7 +218,9 @@ export function useDeleteTemplate() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      await db.workoutTemplates.delete(id)
+      await db.transaction("rw", [db.workoutTemplates, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.workoutTemplates.delete(id)
+      })
 
       // Check template achievements (lightweight, doesn't load all workouts)
       await achievementService.checkTemplateAchievements()

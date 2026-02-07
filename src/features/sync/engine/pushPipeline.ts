@@ -187,6 +187,7 @@ async function buildPushChangesFromPending(pending: PendingChange[]): Promise<Pr
 async function buildFullSnapshot(): Promise<PushChange[]> {
   const [
     workouts,
+    activeSession,
     templates,
     foods,
     nutrition,
@@ -196,6 +197,7 @@ async function buildFullSnapshot(): Promise<PushChange[]> {
     exercises,
   ] = await Promise.all([
     db.workoutSessions.toArray(),
+    db.activeSession.get("current"),
     db.workoutTemplates.toArray(),
     db.foods.toArray(),
     db.nutritionLogs.toArray(),
@@ -224,6 +226,7 @@ async function buildFullSnapshot(): Promise<PushChange[]> {
 
   await Promise.all([
     ...workouts.map((workout) => pushRecord("workouts", workout.id, workout)),
+    ...(activeSession ? [pushRecord("activeSession", "current", activeSession)] : []),
     ...templates.map((template) => pushRecord("templates", template.id, template)),
     ...foods.map((food) => pushRecord("foods", food.id, food)),
     ...nutrition.map((log) => pushRecord("nutrition", log.date, log)),

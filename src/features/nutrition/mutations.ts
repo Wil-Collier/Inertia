@@ -230,7 +230,9 @@ export function useAddFood() {
       const id = food.id ?? crypto.randomUUID()
       const newFood: FoodItem = { ...food, id, isCustom: food.isCustom ?? true }
       // Upsert to avoid duplicates when the ID is canonical (e.g. barcode IDs).
-      await db.foods.put(newFood)
+      await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.foods.put(newFood)
+      })
       return newFood
     },
     onSuccess: () => {
@@ -270,7 +272,9 @@ export function useDeleteFood() {
         throw new Error("Cannot delete food that is used in meal entries. Remove the entries first.")
       }
 
-      await db.foods.delete(id)
+      await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.foods.delete(id)
+      })
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
@@ -290,10 +294,14 @@ export function useToggleFavoriteFood() {
       const existing = await db.foods.get(id)
       
       if (existing) {
-        await db.foods.update(id, { isFavorite })
+        await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+          await db.foods.update(id, { isFavorite })
+        })
       } else if (food) {
         // If food doesn't exist locally (e.g. from search), upsert it.
-        await db.foods.put({ ...food, isFavorite, isCustom: food.isCustom ?? false })
+        await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+          await db.foods.put({ ...food, isFavorite, isCustom: food.isCustom ?? false })
+        })
       }
     },
     onMutate: async ({ id, isFavorite }) => {
@@ -340,7 +348,9 @@ export function useSaveMealTemplate() {
   return useMutation({
     mutationFn: async ({ name, entries }: { name: string; entries: Omit<MealEntry, "id">[] }) => {
       const id = crypto.randomUUID()
-      await db.mealTemplates.add({ id, name, entries })
+      await db.transaction("rw", [db.mealTemplates, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.mealTemplates.add({ id, name, entries })
+      })
       return id
     },
     onSuccess: () => {
@@ -358,7 +368,9 @@ export function useUpdateMealTemplate() {
   
   return useMutation({
     mutationFn: async ({ id, name, entries }: { id: string; name: string; entries: Omit<MealEntry, "id">[] }) => {
-      await db.mealTemplates.update(id, { name, entries })
+      await db.transaction("rw", [db.mealTemplates, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.mealTemplates.update(id, { name, entries })
+      })
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })
@@ -375,7 +387,9 @@ export function useDeleteMealTemplate() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await db.mealTemplates.delete(id)
+      await db.transaction("rw", [db.mealTemplates, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.mealTemplates.delete(id)
+      })
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })

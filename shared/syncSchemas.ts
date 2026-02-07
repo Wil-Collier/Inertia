@@ -2,6 +2,7 @@ import { z } from "zod"
 
 export const SYNC_COLLECTIONS = [
   "workouts",
+  "activeSession",
   "templates",
   "foods",
   "nutrition",

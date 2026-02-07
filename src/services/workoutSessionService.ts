@@ -5,7 +5,9 @@ export const workoutSessionService = {
   async saveActiveSession(session: ActiveWorkoutSession) {
     try {
       // Ensure callers can't accidentally override the primary key
-      await db.activeSession.put({ ...session, id: "current" })
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.activeSession.put({ ...session, id: "current" })
+      })
     } catch (error) {
       console.error("Failed to save active session:", error)
       throw error
@@ -28,7 +30,9 @@ export const workoutSessionService = {
 
   async deleteActiveSession() {
     try {
-      await db.activeSession.delete("current")
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.activeSession.delete("current")
+      })
     } catch (error) {
       console.error("Failed to delete active session:", error)
       throw error

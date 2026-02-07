@@ -85,6 +85,7 @@ async function hasCloudData(accessToken: string): Promise<boolean> {
 async function hasLocalData(): Promise<boolean> {
   const [
     workouts,
+    activeSession,
     templates,
     foods,
     nutrition,
@@ -94,6 +95,7 @@ async function hasLocalData(): Promise<boolean> {
     settings,
   ] = await Promise.all([
     db.workoutSessions.count(),
+    db.activeSession.count(),
     db.workoutTemplates.count(),
     db.foods.count(),
     db.nutritionLogs.count(),
@@ -103,5 +105,5 @@ async function hasLocalData(): Promise<boolean> {
     db.settings.get("settings"),
   ])
 
-  return workouts + templates + foods + nutrition + mealTemplates + bodyWeight + exercises > 0 || !!settings
+  return workouts + activeSession + templates + foods + nutrition + mealTemplates + bodyWeight + exercises > 0 || !!settings
 }

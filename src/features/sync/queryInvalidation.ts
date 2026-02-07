@@ -4,6 +4,7 @@ import type { SyncCollection } from "@/features/sync/schemas"
 
 const COLLECTION_INVALIDATIONS: Record<SyncCollection, readonly unknown[]> = {
   workouts: queryKeys.workouts.all,
+  activeSession: queryKeys.activeSession.current,
   templates: queryKeys.templates.all,
   foods: queryKeys.foods.all,
   nutrition: queryKeys.nutrition.all,

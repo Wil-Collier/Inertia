@@ -19,6 +19,8 @@ type SyncEventRow = {
   data: string | null
   deleted: number
   mutation_id: string
+  device_id?: string | null
+  created_at?: number
 }
 
 type AcceptedChange = {
@@ -74,6 +76,50 @@ async function runSequentially<T>(items: T[], task: (item: T) => Promise<void>):
   await items.reduce((promise, item) => promise.then(() => task(item)), Promise.resolve())
 }
 
+async function upsertSyncStoreSnapshot(
+  db: Env["DB"],
+  event: {
+    userId: string
+    userEmail: string
+    collection: string
+    id: string
+    dataJson: string | null
+    deleted: boolean
+    version: number
+    updatedAtMs: number
+    mutationId: string
+    deviceId: string | null
+  }
+): Promise<void> {
+  await db
+    .prepare(`
+      INSERT INTO sync_store
+        (user_id, user_email, collection, id, data, deleted, record_version, updated_at, mutation_id, device_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, collection, id) DO UPDATE SET
+        user_email = excluded.user_email,
+        data = excluded.data,
+        deleted = excluded.deleted,
+        record_version = excluded.record_version,
+        updated_at = excluded.updated_at,
+        mutation_id = excluded.mutation_id,
+        device_id = excluded.device_id
+    `)
+    .bind(
+      event.userId,
+      event.userEmail,
+      event.collection,
+      event.id,
+      event.dataJson,
+      event.deleted ? 1 : 0,
+      event.version,
+      event.updatedAtMs,
+      event.mutationId,
+      event.deviceId
+    )
+    .run()
+}
+
 export const syncRoutes = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 syncRoutes.post("/push", async (c) => {
@@ -103,11 +149,26 @@ syncRoutes.post("/push", async (c) => {
     const deviceId = change.deviceId ?? null
 
     const existingEvent = await c.env.DB
-      .prepare("SELECT version, collection, id, mutation_id FROM sync_events WHERE user_id = ? AND mutation_id = ?")
+      .prepare(
+        "SELECT version, collection, id, data, deleted, mutation_id, device_id, created_at FROM sync_events WHERE user_id = ? AND mutation_id = ?"
+      )
       .bind(userId, change.mutationId)
-      .first<{ version: number; collection: string; id: string; mutation_id: string }>()
+      .first<SyncEventRow>()
 
     if (existingEvent) {
+      await upsertSyncStoreSnapshot(c.env.DB, {
+        userId,
+        userEmail,
+        collection: existingEvent.collection,
+        id: existingEvent.id,
+        dataJson: existingEvent.data,
+        deleted: existingEvent.deleted === 1,
+        version: existingEvent.version,
+        updatedAtMs: existingEvent.created_at ?? now,
+        mutationId: existingEvent.mutation_id,
+        deviceId: existingEvent.device_id ?? null,
+      })
+
       accepted += 1
       acceptedChanges.push({
         collection: existingEvent.collection,
@@ -168,13 +229,28 @@ syncRoutes.post("/push", async (c) => {
     } catch (error) {
       if (isMutationIdConflictError(error)) {
         const duplicateEvent = await c.env.DB
-          .prepare("SELECT version, collection, id, mutation_id FROM sync_events WHERE user_id = ? AND mutation_id = ?")
+          .prepare(
+            "SELECT version, collection, id, data, deleted, mutation_id, device_id, created_at FROM sync_events WHERE user_id = ? AND mutation_id = ?"
+          )
           .bind(userId, change.mutationId)
-          .first<{ version: number; collection: string; id: string; mutation_id: string }>()
+          .first<SyncEventRow>()
 
         if (!duplicateEvent) {
           throw error
         }
+
+        await upsertSyncStoreSnapshot(c.env.DB, {
+          userId,
+          userEmail,
+          collection: duplicateEvent.collection,
+          id: duplicateEvent.id,
+          dataJson: duplicateEvent.data,
+          deleted: duplicateEvent.deleted === 1,
+          version: duplicateEvent.version,
+          updatedAtMs: duplicateEvent.created_at ?? now,
+          mutationId: duplicateEvent.mutation_id,
+          deviceId: duplicateEvent.device_id ?? null,
+        })
 
         accepted += 1
         acceptedChanges.push({
@@ -209,33 +285,18 @@ syncRoutes.post("/push", async (c) => {
       throw new Error("Failed to resolve event version")
     }
 
-    await c.env.DB
-      .prepare(`
-        INSERT INTO sync_store
-          (user_id, user_email, collection, id, data, deleted, record_version, updated_at, mutation_id, device_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(user_id, collection, id) DO UPDATE SET
-          user_email = excluded.user_email,
-          data = excluded.data,
-          deleted = excluded.deleted,
-          record_version = excluded.record_version,
-          updated_at = excluded.updated_at,
-          mutation_id = excluded.mutation_id,
-          device_id = excluded.device_id
-      `)
-      .bind(
-        userId,
-        userEmail,
-        change.collection,
-        change.id,
-        dataJson,
-        deleted ? 1 : 0,
-        version,
-        now,
-        change.mutationId,
-        deviceId
-      )
-      .run()
+    await upsertSyncStoreSnapshot(c.env.DB, {
+      userId,
+      userEmail,
+      collection: change.collection,
+      id: change.id,
+      dataJson,
+      deleted,
+      version,
+      updatedAtMs: now,
+      mutationId: change.mutationId,
+      deviceId,
+    })
 
     accepted += 1
     acceptedChanges.push({

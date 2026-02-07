@@ -125,7 +125,9 @@ export const activeSessionService = {
         templateId,
       }
 
-      await db.activeSession.put({ id: "current", ...session })
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.activeSession.put({ id: "current", ...session })
+      })
       return session
     } catch (error) {
       console.error("Failed to start workout:", error)
@@ -181,7 +183,9 @@ export const activeSessionService = {
 
   async cancelWorkout() {
     try {
-      await db.activeSession.delete("current")
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.activeSession.delete("current")
+      })
     } catch (error) {
       console.error("Failed to cancel workout:", error)
       toast.error("Failed to cancel workout")
@@ -191,7 +195,9 @@ export const activeSessionService = {
 
   async updateWorkoutName(name: string) {
     try {
-      await db.activeSession.update("current", { "workout.name": name })
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.activeSession.update("current", { "workout.name": name })
+      })
     } catch (error) {
       console.error("Failed to update workout name:", error)
       toast.error("Failed to update workout name")
@@ -201,7 +207,7 @@ export const activeSessionService = {
 
   async addExercise(exerciseId: string) {
     try {
-      await db.transaction("rw", db.activeSession, async () => {
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const session = await db.activeSession.get("current")
         if (!session) return
 
@@ -223,7 +229,7 @@ export const activeSessionService = {
 
   async removeExercise(workoutExerciseId: string) {
     try {
-      await db.transaction("rw", db.activeSession, async () => {
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const session = await db.activeSession.get("current")
         if (!session) return
 
@@ -239,7 +245,7 @@ export const activeSessionService = {
 
   async reorderExercises(exerciseIds: string[]) {
     try {
-      await db.transaction("rw", db.activeSession, async () => {
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const session = await db.activeSession.get("current")
         if (!session) return
 
@@ -267,7 +273,7 @@ export const activeSessionService = {
 
   async updateExerciseNotes(workoutExerciseId: string, notes: string) {
     try {
-      await db.transaction("rw", db.activeSession, async () => {
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const session = await db.activeSession.get("current")
         if (!session) return
 
@@ -286,7 +292,7 @@ export const activeSessionService = {
 
   async addSet(workoutExerciseId: string) {
     try {
-      await db.transaction("rw", db.activeSession, async () => {
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const session = await db.activeSession.get("current")
         if (!session) return
 
@@ -312,7 +318,7 @@ export const activeSessionService = {
 
   async updateSet(workoutExerciseId: string, setId: string, updates: Partial<WorkoutSet>) {
     try {
-      await db.transaction("rw", db.activeSession, async () => {
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const session = await db.activeSession.get("current")
         if (!session) return
 
@@ -334,7 +340,7 @@ export const activeSessionService = {
 
   async removeSet(workoutExerciseId: string, setId: string) {
     try {
-      await db.transaction("rw", db.activeSession, async () => {
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const session = await db.activeSession.get("current")
         if (!session) return
 
@@ -353,7 +359,7 @@ export const activeSessionService = {
 
   async toggleSetComplete(workoutExerciseId: string, setId: string) {
     try {
-      await db.transaction("rw", db.activeSession, async () => {
+      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const session = await db.activeSession.get("current")
         if (!session) return
 

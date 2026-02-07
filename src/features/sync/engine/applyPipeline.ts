@@ -1,5 +1,6 @@
 import { db } from "@/services/db"
 import type {
+  ActiveWorkoutSession,
   DailyNutrition,
   Exercise,
   FoodItem,
@@ -19,6 +20,7 @@ import { clearLocalDataOwnerUserId, removeRecordVersion, setRecordVersion } from
 
 type LocalRecord =
   | Workout
+  | (ActiveWorkoutSession & { id: string })
   | WorkoutTemplate
   | FoodItem
   | DailyNutrition
@@ -40,6 +42,7 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
       "rw",
       [
         db.workoutSessions,
+        db.activeSession,
         db.workoutTemplates,
         db.foods,
         db.nutritionLogs,
@@ -85,6 +88,8 @@ export async function getLocalRecord(collection: SyncCollection, id: string): Pr
   switch (collection) {
     case "workouts":
       return (await db.workoutSessions.get(id)) ?? null
+    case "activeSession":
+      return (await db.activeSession.get(id)) ?? null
     case "templates":
       return (await db.workoutTemplates.get(id)) ?? null
     case "foods":
@@ -110,6 +115,7 @@ export async function clearLocalSyncData(): Promise<void> {
       "rw",
       [
         db.workoutSessions,
+        db.activeSession,
         db.workoutTemplates,
         db.foods,
         db.nutritionLogs,
@@ -121,6 +127,7 @@ export async function clearLocalSyncData(): Promise<void> {
       ],
       async () => {
         await db.workoutSessions.clear()
+        await db.activeSession.clear()
         await db.workoutTemplates.clear()
         await db.foods.clear()
         await db.nutritionLogs.clear()
@@ -140,6 +147,10 @@ async function upsertLocalRecord(collection: SyncCollection, id: string, record:
     case "workouts":
       if (!isWorkout(record)) return false
       await db.workoutSessions.put(record)
+      return true
+    case "activeSession":
+      if (!isActiveWorkoutSession(record)) return false
+      await db.activeSession.put({ id, ...record })
       return true
     case "templates":
       if (!isWorkoutTemplate(record)) return false
@@ -178,6 +189,9 @@ async function deleteLocalRecord(collection: SyncCollection, id: string): Promis
   switch (collection) {
     case "workouts":
       await db.workoutSessions.delete(id)
+      return
+    case "activeSession":
+      await db.activeSession.delete(id)
       return
     case "templates":
       await db.workoutTemplates.delete(id)
@@ -236,6 +250,13 @@ function isWorkoutTemplate(record: unknown): record is WorkoutTemplate {
   if (!isRecord(record)) return false
   if (!hasString(record, "id") || !hasString(record, "name")) return false
   return Array.isArray(record.exercises)
+}
+
+function isActiveWorkoutSession(record: unknown): record is ActiveWorkoutSession {
+  if (!isRecord(record)) return false
+  if (!hasString(record, "startedAt")) return false
+  if (!isWorkout(record.workout)) return false
+  return record.templateId === undefined || typeof record.templateId === "string"
 }
 
 function isFoodItem(record: unknown): record is FoodItem {

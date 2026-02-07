@@ -7,6 +7,7 @@ import type { PushChange, PushRequest } from "@/features/sync/schemas"
 
 type SyncCollection =
   | "workouts"
+  | "activeSession"
   | "templates"
   | "foods"
   | "nutrition"
@@ -422,6 +423,33 @@ describe("multi-device sync integration", () => {
     await deviceA.sync(server)
     await deviceB.sync(server)
     expect(await deviceB.readRecord("templates", "t1")).toBeNull()
+  })
+
+  it("syncs active session state across devices", async () => {
+    await deviceA.putRecord("activeSession", "current", {
+      workout: {
+        id: "w-active",
+        name: "In Progress",
+        date: "2026-01-01",
+        exercises: [],
+        weightUnit: "kg",
+      },
+      startedAt: "2026-01-01T10:00:00.000Z",
+    })
+
+    await deviceA.sync(server)
+    await deviceB.sync(server)
+
+    expect(await deviceB.readRecord("activeSession", "current")).toEqual({
+      workout: {
+        id: "w-active",
+        name: "In Progress",
+        date: "2026-01-01",
+        exercises: [],
+        weightUnit: "kg",
+      },
+      startedAt: "2026-01-01T10:00:00.000Z",
+    })
   })
 
   it("converges queued offline changes on reconnect", async () => {

@@ -2,6 +2,7 @@ import type { SyncCollection } from "../../../shared/syncSchemas"
 
 export const TABLE_TO_COLLECTION = {
   workoutSessions: "workouts",
+  activeSession: "activeSession",
   workoutTemplates: "templates",
   foods: "foods",
   nutritionLogs: "nutrition",
@@ -13,6 +14,7 @@ export const TABLE_TO_COLLECTION = {
 
 export const COLLECTION_TO_TABLE = {
   workouts: "workoutSessions",
+  activeSession: "activeSession",
   templates: "workoutTemplates",
   foods: "foods",
   nutrition: "nutritionLogs",

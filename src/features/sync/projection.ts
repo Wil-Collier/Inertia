@@ -14,6 +14,10 @@ export function toCloudRecord(collection: SyncCollection, record: unknown): Clou
       const { exerciseIds: _exerciseIds, ...rest } = record
       return rest
     }
+    case "activeSession": {
+      const { id: _id, ...rest } = record
+      return rest
+    }
     case "templates":
       return record
     case "foods": {
@@ -57,6 +61,8 @@ export function fromCloudRecord(
         exerciseIds,
       }
     }
+    case "activeSession":
+      return data
     case "templates":
       return data
     case "foods":
