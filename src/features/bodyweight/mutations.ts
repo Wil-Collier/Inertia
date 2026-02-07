@@ -11,7 +11,9 @@ export function useAddWeightEntry() {
     mutationFn: async (entry: Omit<WeightEntry, "id">) => {
       const id = crypto.randomUUID()
       const newEntry = { ...entry, id }
-      await db.bodyWeight.add(newEntry)
+      await db.transaction("rw", [db.bodyWeight, db.metadata], async () => {
+        await db.bodyWeight.add(newEntry)
+      })
       return newEntry
     },
     onSuccess: () => {
@@ -29,7 +31,9 @@ export function useDeleteWeightEntry() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await db.bodyWeight.delete(id)
+      await db.transaction("rw", [db.bodyWeight, db.metadata], async () => {
+        await db.bodyWeight.delete(id)
+      })
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.bodyWeight.all })

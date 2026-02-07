@@ -145,7 +145,7 @@ export const activeSessionService = {
         exerciseIds: session.workout.exercises.map((e) => e.exerciseId),
       }
 
-      await db.transaction("rw", [db.workoutSessions, db.activeSession, db.personalRecords, db.userStats], async () => {
+      await db.transaction("rw", [db.workoutSessions, db.activeSession, db.personalRecords, db.userStats, db.metadata], async () => {
         await db.workoutSessions.add(completedWorkout)
         await db.activeSession.delete("current")
 

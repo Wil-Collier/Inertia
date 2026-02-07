@@ -37,6 +37,7 @@ import { useAuthStore, useSyncStore } from "@/features/sync/store"
 const MAX_PUSH_BATCH = 200
 const MAX_RETRIES = 3
 const RETRY_DELAYS_MS = [1000, 5000, 15000]
+const MAX_CLOCK_SKEW_MS = 60 * 60 * 1000
 
 let syncInFlight = false
 
@@ -83,9 +84,9 @@ export async function syncNow(): Promise<void> {
         const pullResult = await pullAllChanges(accessToken)
 
         if (pullResult.changes.length > 0) {
-          await applyChanges(pullResult.changes)
+          await applyChanges(pullResult.changes, pullResult.serverTimestampMs)
           await rebuildLocalOnlyFields(pullResult.affectedCollections)
-          await recalculateDerivedData()
+          await recalculateDerivedData(pullResult.affectedCollections)
           invalidateQueriesForCollections(pullResult.affectedCollections)
         }
 
@@ -144,9 +145,9 @@ export async function resolveInitialSync(strategy: InitialSyncStrategy): Promise
       await clearLocalSyncData()
       const pullResult = await pullAllChanges(accessToken)
       if (pullResult.changes.length > 0) {
-        await applyChanges(pullResult.changes)
+        await applyChanges(pullResult.changes, pullResult.serverTimestampMs)
         await rebuildLocalOnlyFields(pullResult.affectedCollections)
-        await recalculateDerivedData()
+        await recalculateDerivedData(pullResult.affectedCollections)
         invalidateQueriesForCollections(pullResult.affectedCollections)
       }
       if (pullResult.cursor) {
@@ -160,9 +161,9 @@ export async function resolveInitialSync(strategy: InitialSyncStrategy): Promise
       await pushFullSnapshot(accessToken)
       const pullResult = await pullAllChanges(accessToken)
       if (pullResult.changes.length > 0) {
-        await applyChanges(pullResult.changes)
+        await applyChanges(pullResult.changes, pullResult.serverTimestampMs)
         await rebuildLocalOnlyFields(pullResult.affectedCollections)
-        await recalculateDerivedData()
+        await recalculateDerivedData(pullResult.affectedCollections)
         invalidateQueriesForCollections(pullResult.affectedCollections)
       }
       if (pullResult.cursor) {
@@ -176,9 +177,9 @@ export async function resolveInitialSync(strategy: InitialSyncStrategy): Promise
       await overwriteCloudWithLocal(accessToken)
       const pullResult = await pullAllChanges(accessToken)
       if (pullResult.changes.length > 0) {
-        await applyChanges(pullResult.changes)
+        await applyChanges(pullResult.changes, pullResult.serverTimestampMs)
         await rebuildLocalOnlyFields(pullResult.affectedCollections)
-        await recalculateDerivedData()
+        await recalculateDerivedData(pullResult.affectedCollections)
         invalidateQueriesForCollections(pullResult.affectedCollections)
       }
       if (pullResult.cursor) {
@@ -227,7 +228,7 @@ async function ensureInitialSync(): Promise<boolean> {
     await pushFullSnapshot(accessToken)
     const pullResult = await pullAllChanges(accessToken)
     if (pullResult.changes.length > 0) {
-      await applyChanges(pullResult.changes)
+      await applyChanges(pullResult.changes, pullResult.serverTimestampMs)
       await rebuildLocalOnlyFields(pullResult.affectedCollections)
       await recalculateDerivedData()
       invalidateQueriesForCollections(pullResult.affectedCollections)
@@ -243,7 +244,7 @@ async function ensureInitialSync(): Promise<boolean> {
   if (!localHasData && cloudHasData) {
     const pullResult = await pullAllChanges(accessToken)
     if (pullResult.changes.length > 0) {
-      await applyChanges(pullResult.changes)
+      await applyChanges(pullResult.changes, pullResult.serverTimestampMs)
       await rebuildLocalOnlyFields(pullResult.affectedCollections)
       await recalculateDerivedData()
       invalidateQueriesForCollections(pullResult.affectedCollections)
@@ -274,6 +275,7 @@ async function hasLocalData(): Promise<boolean> {
     mealTemplates,
     bodyWeight,
     exercises,
+    settings,
   ] = await Promise.all([
     db.workoutSessions.count(),
     db.workoutTemplates.count(),
@@ -282,9 +284,10 @@ async function hasLocalData(): Promise<boolean> {
     db.mealTemplates.count(),
     db.bodyWeight.count(),
     db.customExercises.count(),
+    db.settings.get("settings"),
   ])
 
-  return workouts + templates + foods + nutrition + mealTemplates + bodyWeight + exercises > 0
+  return workouts + templates + foods + nutrition + mealTemplates + bodyWeight + exercises > 0 || !!settings
 }
 
 async function pushPendingChangesInternal(accessToken: string, updateStatus: boolean): Promise<void> {
@@ -511,7 +514,7 @@ async function pullAllChanges(
   }
 }
 
-async function applyChanges(changes: PullChange[]): Promise<void> {
+async function applyChanges(changes: PullChange[], serverTimestampMs: number): Promise<void> {
   if (changes.length === 0) return
 
   await withSyncHooksSuppressed(async () => {
@@ -529,20 +532,20 @@ async function applyChanges(changes: PullChange[]): Promise<void> {
       ],
       async () => {
         await runSequentially(changes, async (change) => {
-          if (change.collection === "nutrition") {
-            await applyNutritionChange(change)
-            return
-          }
-
           const localRecord = await getLocalRecord(change.collection, change.id)
           const localUpdatedAt = getUpdatedAt(localRecord)
-          const isNewer = change.updatedAt > localUpdatedAt
+          const localClockAhead = localUpdatedAt > serverTimestampMs + MAX_CLOCK_SKEW_MS
+          const compareUpdatedAt = localClockAhead ? 0 : localUpdatedAt
+          const isNewer = change.updatedAt > compareUpdatedAt
 
           if (!localRecord || isNewer) {
             if (change.deleted) {
               await deleteLocalRecord(change.collection, change.id)
             } else if (change.data) {
               const local = fromCloudRecord(change.collection, change.data)
+              if (isRecord(local)) {
+                local.updatedAt = change.updatedAt
+              }
               await upsertLocalRecord(change.collection, change.id, local)
             }
           }
@@ -550,36 +553,6 @@ async function applyChanges(changes: PullChange[]): Promise<void> {
       }
     )
   })
-}
-
-async function applyNutritionChange(change: PullChange): Promise<void> {
-  if (change.deleted) {
-    await deleteLocalRecord("nutrition", change.id)
-    return
-  }
-
-  if (!change.data) return
-
-  const localRecord = await db.nutritionLogs.get(change.id)
-  const remote = fromCloudRecord("nutrition", change.data)
-  if (!isDailyNutrition(remote)) return
-  const merged = mergeDailyNutrition(localRecord ?? null, remote)
-  await db.nutritionLogs.put(merged)
-}
-
-function mergeDailyNutrition(local: DailyNutrition | null, remote: DailyNutrition): DailyNutrition {
-  if (!local) return remote
-
-  const byId = new Map(local.entries.map((entry) => [entry.id, entry]))
-  for (const entry of remote.entries) {
-    byId.set(entry.id, entry)
-  }
-
-  return {
-    ...remote,
-    entries: Array.from(byId.values()),
-    updatedAt: Math.max(local.updatedAt ?? 0, remote.updatedAt ?? 0),
-  }
 }
 
 async function getLocalRecord(collection: SyncCollection, id: string): Promise<LocalRecord | null> {

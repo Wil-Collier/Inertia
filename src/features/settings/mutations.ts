@@ -14,7 +14,7 @@ export function useUpdateSettings() {
   
   return useMutation({
     mutationFn: async (updates: Partial<UserSettings>) => {
-      return await db.transaction("rw", db.settings, async () => {
+      return await db.transaction("rw", [db.settings, db.metadata], async () => {
         const existing = await db.settings.get("settings")
 
         const newSettings: UserSettings & { id: string } = { 
