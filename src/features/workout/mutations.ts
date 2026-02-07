@@ -66,7 +66,9 @@ export function useUpdateWorkout() {
         db.personalRecords,
         db.customExercises,
         db.nutritionLogs,
-        db.settings
+        db.settings,
+        db.syncPendingChanges,
+        db.syncRecordVersions
       ], async () => {
         // Get the old workout for stats delta calculation
         const oldWorkout = await db.workoutSessions.get(id)
@@ -124,7 +126,9 @@ export function useDeleteWorkout() {
         db.personalRecords,
         db.customExercises,
         db.nutritionLogs,
-        db.settings
+        db.settings,
+        db.syncPendingChanges,
+        db.syncRecordVersions
       ], async () => {
         // Get workout before deletion for stats update
         const workout = await db.workoutSessions.get(id)

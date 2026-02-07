@@ -9,6 +9,9 @@ import { Hono } from "hono"
 import { logger } from "hono/logger"
 import type { Env } from "./env"
 import { nutrition } from "./nutrition/routes"
+import { authRoutes } from "./auth/routes"
+import { syncRoutes } from "./sync/routes"
+import { authMiddleware } from "./middleware/auth"
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>()
@@ -18,6 +21,13 @@ app.use("*", logger())
 
 // Mount nutrition routes
 app.route("/api/nutrition", nutrition)
+
+// Auth routes (no auth required)
+app.route("/api/auth", authRoutes)
+
+// Sync routes (auth required)
+app.use("/api/sync/*", authMiddleware)
+app.route("/api/sync", syncRoutes)
 
 // Health check endpoint
 app.get("/api/health", (c) => {

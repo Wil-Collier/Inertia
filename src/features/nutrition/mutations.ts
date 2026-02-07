@@ -13,7 +13,7 @@ import { achievementService } from "@/services/achievementService"
  * Handles single or multiple entry removal.
  */
 async function removeEntriesFromLog(date: string, filterFn: (entry: MealEntry) => boolean) {
-  await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
+  await db.transaction("rw", [db.nutritionLogs, db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
     const existing = await db.nutritionLogs.get(date)
     if (!existing) return
 
@@ -68,7 +68,7 @@ export function useAddMealEntry() {
         mealType,
       }
       
-      await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
+      await db.transaction("rw", [db.nutritionLogs, db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const existing = await db.nutritionLogs.get(date)
         
         if (existing) {
@@ -115,7 +115,7 @@ export function useUpdateMealEntry() {
       entryId: string; 
       updates: Partial<MealEntry> 
     }) => {
-      await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
+      await db.transaction("rw", [db.nutritionLogs, db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const existing = await db.nutritionLogs.get(date)
         if (!existing) throw new Error("Log not found")
 
@@ -414,11 +414,11 @@ export function useApplyMealTemplate() {
         templateName: template.name
       }))
       
-      await db.transaction("rw", [db.nutritionLogs, db.foods], async () => {
+      await db.transaction("rw", [db.nutritionLogs, db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const existing = await db.nutritionLogs.get(date)
         if (existing) {
           await db.nutritionLogs.update(date, {
-            entries: [...existing.entries, ...newEntries]
+            entries: [...existing.entries, ...newEntries],
           })
         } else {
           await db.nutritionLogs.add({ date, entries: newEntries })

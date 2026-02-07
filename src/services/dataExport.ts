@@ -1,4 +1,6 @@
 import { exportDatabase, importDatabase, CURRENT_SCHEMA_VERSION, recoverDatabase } from "@/services/db"
+import { resetSyncState } from "@/features/sync/reset"
+import { withSyncHooksSuppressed } from "@/features/sync/dexieHooks"
 import { migrateBackupData, backupNeedsMigration, type DexieExportData } from "@/services/backupMigrations"
 import { z } from "zod"
 
@@ -121,7 +123,11 @@ export async function importData(file: File): Promise<{ success: boolean; messag
       type: "application/json",
     })
 
-    await importDatabase(importBlob)
+    await withSyncHooksSuppressed(async () => {
+      await importDatabase(importBlob)
+    })
+
+    await resetSyncState()
 
     // Caller should reload to reinitialize stores with imported data.
     return { success: true, message: "Data imported successfully", shouldReload: true }
