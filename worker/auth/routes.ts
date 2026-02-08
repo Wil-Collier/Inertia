@@ -271,12 +271,14 @@ function isTrustedOrigin(c: { req: { header: (name: string) => string | undefine
     .map((origin) => normalizeOrigin(origin.trim()))
     .filter((origin): origin is string => origin !== null)
 
-  const allowedOrigins =
-    configuredOrigins && configuredOrigins.length > 0
-      ? new Set(configuredOrigins)
-      : new Set([new URL(c.req.url).origin])
+  if (configuredOrigins && configuredOrigins.length > 0) {
+    return configuredOrigins.includes(requestOrigin)
+  }
 
-  return allowedOrigins.has(requestOrigin)
+  // Fail closed in production when APP_ORIGINS is not configured.
+  // Localhost fallback is retained for local development and tests.
+  const apiOrigin = normalizeOrigin(c.req.url)
+  return apiOrigin !== null && isLocalhostOrigin(apiOrigin) && isLocalhostOrigin(requestOrigin)
 }
 
 function getRequestOrigin(originHeader?: string, refererHeader?: string): string | null {
@@ -293,5 +295,14 @@ function normalizeOrigin(urlLike: string | undefined): string | null {
     return new URL(urlLike).origin
   } catch {
     return null
+  }
+}
+
+function isLocalhostOrigin(origin: string): boolean {
+  try {
+    const hostname = new URL(origin).hostname
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1"
+  } catch {
+    return false
   }
 }

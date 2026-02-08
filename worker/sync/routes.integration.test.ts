@@ -332,6 +332,49 @@ async function requestSync(db: FakeD1, path: string, body: unknown) {
   )
 }
 
+async function requestRawSync(db: FakeD1, path: string, body: BodyInit, headers: Record<string, string>) {
+  const token = await createToken()
+  return await app.request(
+    path,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...headers,
+      },
+      body,
+    },
+    createEnv(db)
+  )
+}
+
+async function requestStreamSyncWithoutContentLength(
+  db: FakeD1,
+  path: string,
+  bodyText: string
+): Promise<Response> {
+  const token = await createToken()
+  const bytes = new TextEncoder().encode(bodyText)
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(bytes)
+      controller.close()
+    },
+  })
+  const requestInit: RequestInit = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: stream,
+  }
+  Reflect.set(requestInit, "duplex", "half")
+  const request = new Request(`http://localhost${path}`, requestInit)
+
+  return await app.request(request, {}, createEnv(db))
+}
+
 function readJson(response: Response): Promise<unknown> {
   return response.json()
 }
@@ -386,6 +429,65 @@ describe("sync routes integration", () => {
 
     expect(response.status).toBe(400)
     expect(body).toEqual({ error: "INVALID_REQUEST", message: "Invalid pull payload" })
+  })
+
+  it("returns 413 for oversized push payload when content-length exceeds limit", async () => {
+    const oversizedPush = JSON.stringify({
+      changes: [
+        {
+          collection: "foods",
+          id: "food-oversized",
+          data: { note: "x".repeat(1024 * 1024) },
+          baseVersion: 0,
+          mutationId: "m-oversized-1",
+        },
+      ],
+    })
+
+    const response = await requestRawSync(db, "/api/sync/push", oversizedPush, {
+      "Content-Type": "application/json",
+      "Content-Length": String(oversizedPush.length),
+    })
+    const body = await readJson(response)
+
+    expect(response.status).toBe(413)
+    expect(body).toEqual({ error: "PAYLOAD_TOO_LARGE", message: "Push payload exceeds size limit" })
+  })
+
+  it("returns 413 for oversized push payload without content-length header", async () => {
+    const oversizedPush = JSON.stringify({
+      changes: [
+        {
+          collection: "foods",
+          id: "food-oversized-stream",
+          data: { note: "x".repeat(1024 * 1024) },
+          baseVersion: 0,
+          mutationId: "m-oversized-2",
+        },
+      ],
+    })
+
+    const response = await requestStreamSyncWithoutContentLength(db, "/api/sync/push", oversizedPush)
+    const body = await readJson(response)
+
+    expect(response.status).toBe(413)
+    expect(body).toEqual({ error: "PAYLOAD_TOO_LARGE", message: "Push payload exceeds size limit" })
+  })
+
+  it("returns 413 for oversized pull payload", async () => {
+    const oversizedPull = JSON.stringify({
+      cursor: { version: 0 },
+      padding: "x".repeat(70 * 1024),
+    })
+
+    const response = await requestRawSync(db, "/api/sync/pull", oversizedPull, {
+      "Content-Type": "application/json",
+      "Content-Length": String(oversizedPull.length),
+    })
+    const body = await readJson(response)
+
+    expect(response.status).toBe(413)
+    expect(body).toEqual({ error: "PAYLOAD_TOO_LARGE", message: "Pull payload exceeds size limit" })
   })
 
   it("accepts valid push changes and writes sync event/store", async () => {

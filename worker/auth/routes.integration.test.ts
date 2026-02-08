@@ -209,6 +209,25 @@ describe("authRoutes integration", () => {
     expect(response.status).toBe(403)
   })
 
+  it("fails closed for non-local origins when APP_ORIGINS is not configured", async () => {
+    const response = await authRoutes.request(
+      "https://api.example.com/login",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "https://app.example.com" },
+        body: JSON.stringify({ idToken: "google-token" }),
+      },
+      {
+        DB: db,
+        JWT_SECRET: "secret",
+        GOOGLE_CLIENT_ID: "google-client",
+      }
+    )
+
+    expect(response.status).toBe(403)
+    expect(verifyGoogleIdTokenMock).not.toHaveBeenCalled()
+  })
+
   it("allows previous refresh token during grace window then rejects after expiry", async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-02-08T00:00:00.000Z"))

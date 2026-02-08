@@ -1,4 +1,5 @@
 import { Hono } from "hono"
+import type { Context } from "hono"
 import type { Env } from "../env"
 import { PullRequestSchema, PushRequestSchema } from "../../shared/syncSchemas"
 import { logAudit } from "../lib/db"
@@ -29,6 +30,18 @@ type AcceptedChange = {
   version: number
   mutationId: string
 }
+
+type SyncContext = Context<{ Bindings: Env; Variables: Variables }>
+
+type ParsedJsonBody =
+  | {
+      success: true
+      body: unknown
+    }
+  | {
+      success: false
+      response: Response
+    }
 
 const MAX_PUSH_REQUEST_BYTES = 1024 * 1024
 const MAX_PULL_REQUEST_BYTES = 64 * 1024
@@ -86,6 +99,49 @@ function getContentLength(headerValue: string | undefined): number | null {
   return parsed
 }
 
+async function parseJsonBodyWithLimit(c: SyncContext, maxBytes: number, sizeLimitMessage: string): Promise<ParsedJsonBody> {
+  const contentLength = getContentLength(c.req.header("Content-Length"))
+  if (contentLength !== null && contentLength > maxBytes) {
+    return {
+      success: false,
+      response: c.json({ error: "PAYLOAD_TOO_LARGE", message: sizeLimitMessage }, 413),
+    }
+  }
+
+  let bodyBytes: ArrayBuffer
+  try {
+    bodyBytes = await c.req.raw.arrayBuffer()
+  } catch {
+    return {
+      success: false,
+      response: c.json({ error: "INVALID_REQUEST", message: "Invalid JSON payload" }, 400),
+    }
+  }
+
+  if (bodyBytes.byteLength > maxBytes) {
+    return {
+      success: false,
+      response: c.json({ error: "PAYLOAD_TOO_LARGE", message: sizeLimitMessage }, 413),
+    }
+  }
+
+  let parsedBody: unknown
+  try {
+    const textBody = new TextDecoder().decode(bodyBytes)
+    parsedBody = JSON.parse(textBody)
+  } catch {
+    return {
+      success: false,
+      response: c.json({ error: "INVALID_REQUEST", message: "Invalid JSON payload" }, 400),
+    }
+  }
+
+  return {
+    success: true,
+    body: parsedBody,
+  }
+}
+
 async function upsertSyncStoreSnapshot(
   db: Env["DB"],
   event: {
@@ -133,19 +189,10 @@ async function upsertSyncStoreSnapshot(
 export const syncRoutes = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 syncRoutes.post("/push", async (c) => {
-  const contentLength = getContentLength(c.req.header("Content-Length"))
-  if (contentLength !== null && contentLength > MAX_PUSH_REQUEST_BYTES) {
-    return c.json({ error: "PAYLOAD_TOO_LARGE", message: "Push payload exceeds size limit" }, 413)
-  }
+  const bodyResult = await parseJsonBodyWithLimit(c, MAX_PUSH_REQUEST_BYTES, "Push payload exceeds size limit")
+  if (!bodyResult.success) return bodyResult.response
 
-  let body: unknown
-  try {
-    body = await c.req.json()
-  } catch {
-    return c.json({ error: "INVALID_REQUEST", message: "Invalid JSON payload" }, 400)
-  }
-
-  const parsed = PushRequestSchema.safeParse(body)
+  const parsed = PushRequestSchema.safeParse(bodyResult.body)
   if (!parsed.success) {
     return c.json({ error: "INVALID_REQUEST", message: "Invalid push payload" }, 400)
   }
@@ -354,19 +401,10 @@ syncRoutes.post("/push", async (c) => {
 })
 
 syncRoutes.post("/pull", async (c) => {
-  const contentLength = getContentLength(c.req.header("Content-Length"))
-  if (contentLength !== null && contentLength > MAX_PULL_REQUEST_BYTES) {
-    return c.json({ error: "PAYLOAD_TOO_LARGE", message: "Pull payload exceeds size limit" }, 413)
-  }
+  const bodyResult = await parseJsonBodyWithLimit(c, MAX_PULL_REQUEST_BYTES, "Pull payload exceeds size limit")
+  if (!bodyResult.success) return bodyResult.response
 
-  let body: unknown
-  try {
-    body = await c.req.json()
-  } catch {
-    return c.json({ error: "INVALID_REQUEST", message: "Invalid JSON payload" }, 400)
-  }
-
-  const parsed = PullRequestSchema.safeParse(body)
+  const parsed = PullRequestSchema.safeParse(bodyResult.body)
   if (!parsed.success) {
     return c.json({ error: "INVALID_REQUEST", message: "Invalid pull payload" }, 400)
   }
