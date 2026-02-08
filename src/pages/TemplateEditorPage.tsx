@@ -287,13 +287,13 @@ export function TemplateEditorPage() {
 
       {/* Add Food Sheet */}
       <Sheet open={showAddSheet} onOpenChange={setShowAddSheet}>
-        <SheetContent side="bottom" className="h-[85vh]">
+        <SheetContent side="bottom" className="h-[80vh]">
           <SheetHeader>
-            <SheetTitle>Add to Template</SheetTitle>
+            <SheetTitle className="uppercase tracking-tight">Add to Template</SheetTitle>
           </SheetHeader>
           
           <FoodSearch
-            className="mt-4 px-4"
+            className="mt-4 px-4 flex flex-col h-[calc(80vh-100px)]"
             activeTab={activeTab}
             onTabChange={setActiveTab}
             searchQuery={searchQuery}

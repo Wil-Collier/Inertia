@@ -90,6 +90,7 @@ export function ExercisePickerSheet({
   addedExerciseIds = [],
 }: ExercisePickerSheetProps) {
   const { data: allExercises = [], isLoading } = useExercises()
+  const addedExerciseIdSet = useMemo(() => new Set(addedExerciseIds), [addedExerciseIds])
 
   const [selectedMuscleGroup, setSelectedMuscleGroup] =
     useState<MuscleGroup | null>(null)
@@ -283,7 +284,7 @@ export function ExercisePickerSheet({
                                 <ExerciseListItem
                                   key={exercise.id}
                                   exercise={exercise}
-                                  isAdded={addedExerciseIds.includes(exercise.id)}
+                                  isAdded={addedExerciseIdSet.has(exercise.id)}
                                   onSelect={handleSelect}
                                   onEdit={handleEdit}
                                 />

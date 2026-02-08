@@ -23,13 +23,18 @@ async function loadExerciseInstructions(exerciseId: string): Promise<ExerciseIns
 }
 
 // Hook to load instructions asynchronously
-function useExerciseInstructions(exerciseId: string | undefined) {
+function useExerciseInstructions(exerciseId: string | undefined, isEnabled: boolean) {
   const [instructions, setInstructions] = useState<ExerciseInstruction | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (!exerciseId) {
       setInstructions(undefined)
+      setIsLoading(false)
+      return
+    }
+
+    if (!isEnabled) {
       return
     }
 
@@ -47,7 +52,7 @@ function useExerciseInstructions(exerciseId: string | undefined) {
     return () => {
       cancelled = true
     }
-  }, [exerciseId])
+  }, [exerciseId, isEnabled])
 
   return { instructions, isLoading }
 }
@@ -59,7 +64,7 @@ interface ExerciseInfoSheetProps {
 }
 
 export function ExerciseInfoSheet({ exercise, isOpen, onOpenChange }: ExerciseInfoSheetProps) {
-  const { instructions, isLoading } = useExerciseInstructions(exercise?.id)
+  const { instructions, isLoading } = useExerciseInstructions(exercise?.id, isOpen)
 
   if (!exercise) return null
 
@@ -141,6 +146,7 @@ export function ExerciseInfoButton({
   className?: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [hasOpened, setHasOpened] = useState(false)
 
   return (
     <>
@@ -150,13 +156,14 @@ export function ExerciseInfoButton({
         className={className}
         onClick={(e) => {
           e.stopPropagation()
+          setHasOpened(true)
           setIsOpen(true)
         }}
         title="Exercise info"
       >
         <Info className="h-4 w-4" />
       </Button>
-      <ExerciseInfoSheet exercise={exercise} isOpen={isOpen} onOpenChange={setIsOpen} />
+      {hasOpened && <ExerciseInfoSheet exercise={exercise} isOpen={isOpen} onOpenChange={setIsOpen} />}
     </>
   )
 }
