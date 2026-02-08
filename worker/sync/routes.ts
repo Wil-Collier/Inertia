@@ -88,6 +88,26 @@ function isSyncEventRow(value: unknown): value is SyncEventRow {
   )
 }
 
+function toSyncEventRow(value: unknown): SyncEventRow | null {
+  if (!isSyncEventRow(value)) return null
+  return value
+}
+
+function getRowVersion(value: unknown): number | null {
+  if (!isRecord(value)) return null
+  return typeof value.version === "number" ? value.version : null
+}
+
+function getPageCursor(rows: unknown[]): { version: number } | null {
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    const version = getRowVersion(rows[index])
+    if (version !== null) {
+      return { version }
+    }
+  }
+  return null
+}
+
 async function runSequentially<T>(items: T[], task: (item: T) => Promise<void>): Promise<void> {
   await items.reduce((promise, item) => promise.then(() => task(item)), Promise.resolve())
 }
@@ -187,6 +207,7 @@ async function upsertSyncStoreSnapshot(
 }
 
 export const syncRoutes = new Hono<{ Bindings: Env; Variables: Variables }>()
+const textEncoder = new TextEncoder()
 
 syncRoutes.post("/push", async (c) => {
   const bodyResult = await parseJsonBodyWithLimit(c, MAX_PUSH_REQUEST_BYTES, "Push payload exceeds size limit")
@@ -220,7 +241,7 @@ syncRoutes.post("/push", async (c) => {
     const deviceId = change.deviceId ?? null
 
     // Reject oversized records
-    if (dataJson && dataJson.length > MAX_RECORD_SIZE_BYTES) {
+    if (dataJson && textEncoder.encode(dataJson).byteLength > MAX_RECORD_SIZE_BYTES) {
       conflicts.push({
         collection: change.collection,
         id: change.id,
@@ -431,11 +452,10 @@ syncRoutes.post("/pull", async (c) => {
   params.push(limit + 1)
 
   const result = await c.env.DB.prepare(sql).bind(...params).all()
-  const rawResults = Array.isArray(result.results) ? result.results : []
-  const rows = rawResults.filter(isSyncEventRow)
-
-  const hasMore = rows.length > limit
-  const page = hasMore ? rows.slice(0, limit) : rows
+  const rawResults: unknown[] = Array.isArray(result.results) ? result.results : []
+  const hasMore = rawResults.length > limit
+  const rawPage = hasMore ? rawResults.slice(0, limit) : rawResults
+  const page = rawPage.map(toSyncEventRow).filter((row): row is SyncEventRow => row !== null)
 
   const changes = page.map((row) => {
     let data: Record<string, unknown> | null = null
@@ -459,8 +479,7 @@ syncRoutes.post("/pull", async (c) => {
     }
   })
 
-  const last = page[page.length - 1]
-  const nextCursor = last ? { version: last.version } : null
+  const nextCursor = getPageCursor(rawPage)
 
   await logAudit(c.env.DB, {
     userId,

@@ -4,6 +4,8 @@
  */
 
 import type { FoodItem } from "@/lib/types"
+import { refreshAccessToken } from "@/features/sync/api"
+import { useAuthStore } from "@/features/sync/store"
 
 export interface NutritionSearchResponse {
   items: FoodItem[]
@@ -47,13 +49,14 @@ const REQUEST_TIMEOUT_MS = 15000
 
 async function fetchWithTimeout(
   url: string,
+  init?: RequestInit,
   timeoutMs: number = REQUEST_TIMEOUT_MS
 ): Promise<Response> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
-    const response = await fetch(url, { signal: controller.signal })
+    const response = await fetch(url, { ...init, signal: controller.signal })
     clearTimeout(timeoutId)
     return response
   } catch (error) {
@@ -83,6 +86,58 @@ function getErrorMessage(data: unknown, fallback: string): string {
   return fallback
 }
 
+async function resolveAccessToken(): Promise<string> {
+  const token = useAuthStore.getState().accessToken
+  if (token) {
+    return token
+  }
+
+  try {
+    const refreshed = await refreshAccessToken()
+    return refreshed.accessToken
+  } catch (error) {
+    useAuthStore.getState().clearAuth()
+    throw new NutritionApiError(
+      "http",
+      error instanceof Error ? error.message : "Session expired. Please sign in again.",
+      { status: 401, cause: error }
+    )
+  }
+}
+
+function buildAuthorizedRequestInit(accessToken: string): RequestInit {
+  return {
+    credentials: "include",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  }
+}
+
+async function fetchAuthorized(url: string): Promise<Response> {
+  const accessToken = await resolveAccessToken()
+  const response = await fetchWithTimeout(url, buildAuthorizedRequestInit(accessToken))
+  if (response.status !== 401) {
+    return response
+  }
+
+  try {
+    const refreshed = await refreshAccessToken()
+    const retryResponse = await fetchWithTimeout(url, buildAuthorizedRequestInit(refreshed.accessToken))
+    if (retryResponse.status === 401) {
+      useAuthStore.getState().clearAuth()
+    }
+    return retryResponse
+  } catch (error) {
+    useAuthStore.getState().clearAuth()
+    throw new NutritionApiError(
+      "http",
+      error instanceof Error ? error.message : "Session expired. Please sign in again.",
+      { status: 401, cause: error }
+    )
+  }
+}
+
 /**
  * Search for foods using the backend API.
  * The backend routes to the configured provider.
@@ -102,7 +157,7 @@ export async function searchFoods(
     limit: limit.toString(),
   })
 
-  const response = await fetchWithTimeout(`/api/nutrition/search?${params.toString()}`)
+  const response = await fetchAuthorized(`/api/nutrition/search?${params.toString()}`)
 
   if (!response.ok) {
     const data: unknown = await response.json().catch(() => ({}))
@@ -133,7 +188,7 @@ export async function getProductByBarcode(
 
   const params = new URLSearchParams({ code: barcode })
 
-  const response = await fetchWithTimeout(`/api/nutrition/barcode?${params.toString()}`)
+  const response = await fetchAuthorized(`/api/nutrition/barcode?${params.toString()}`)
 
   if (response.status === 404) {
     return null

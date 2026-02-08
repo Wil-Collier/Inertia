@@ -28,6 +28,8 @@ class SyncApiError extends Error {
   }
 }
 
+let refreshInFlight: Promise<RefreshResponse> | null = null
+
 async function requestJson<T>(
   path: string,
   options: RequestInit,
@@ -71,23 +73,35 @@ export async function loginWithGoogle(idToken: string): Promise<LoginResponse> {
 }
 
 export async function refreshAccessToken(): Promise<RefreshResponse> {
-  const refreshed = await requestJson(
-    "/api/auth/refresh",
-    {
-      method: "POST",
-      credentials: "include",
-    },
-    (data) => RefreshResponseSchema.parse(data)
-  )
+  if (refreshInFlight) {
+    return await refreshInFlight
+  }
 
-  useAuthStore.getState().setAccessToken({
-    accessToken: refreshed.accessToken,
-    userId: refreshed.userId,
-    email: refreshed.email,
-    expiresAtMs: refreshed.expiresAtMs,
-  })
+  refreshInFlight = (async () => {
+    const refreshed = await requestJson(
+      "/api/auth/refresh",
+      {
+        method: "POST",
+        credentials: "include",
+      },
+      (data) => RefreshResponseSchema.parse(data)
+    )
 
-  return refreshed
+    useAuthStore.getState().setAccessToken({
+      accessToken: refreshed.accessToken,
+      userId: refreshed.userId,
+      email: refreshed.email,
+      expiresAtMs: refreshed.expiresAtMs,
+    })
+
+    return refreshed
+  })()
+
+  try {
+    return await refreshInFlight
+  } finally {
+    refreshInFlight = null
+  }
 }
 
 export async function restoreSession(): Promise<boolean> {

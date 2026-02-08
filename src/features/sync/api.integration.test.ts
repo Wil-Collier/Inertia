@@ -142,4 +142,80 @@ describe("sync API integration", () => {
     await expect(pullChanges("old-token", payload)).rejects.toThrow("expired")
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
   })
+
+  it("uses a single refresh request for concurrent 401 responses", async () => {
+    setAuthState()
+
+    const pushPayload: PushRequest = {
+      changes: [
+        {
+          collection: "workouts",
+          id: "w1",
+          data: { id: "w1", name: "Workout" },
+          baseVersion: 0,
+          mutationId: "m1",
+          deviceId: "d1",
+        },
+      ],
+    }
+    const pullPayload: PullRequest = { cursor: { version: 0 }, limit: 10 }
+
+    let refreshCalls = 0
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+      const auth = init?.headers ? new Headers(init.headers).get("Authorization") : null
+
+      if ((url === "/api/sync/push" || url === "/api/sync/pull") && auth === "Bearer old-token") {
+        return new Response(JSON.stringify({ error: "UNAUTHORIZED", message: "expired" }), { status: 401 })
+      }
+
+      if (url === "/api/auth/refresh") {
+        refreshCalls += 1
+        return new Response(
+          JSON.stringify({
+            accessToken: "new-token",
+            userId: "u1",
+            email: "u1@example.com",
+            expiresAtMs: Date.now() + 120_000,
+          }),
+          { status: 200 }
+        )
+      }
+
+      if (url === "/api/sync/push" && auth === "Bearer new-token") {
+        return new Response(
+          JSON.stringify({
+            accepted: 1,
+            acceptedChanges: [{ collection: "workouts", id: "w1", version: 1, mutationId: "m1" }],
+            conflicts: [],
+          }),
+          { status: 200 }
+        )
+      }
+
+      if (url === "/api/sync/pull" && auth === "Bearer new-token") {
+        return new Response(
+          JSON.stringify({
+            changes: [],
+            nextCursor: { version: 0 },
+            serverTimestampMs: Date.now(),
+            hasMore: false,
+          }),
+          { status: 200 }
+        )
+      }
+
+      return new Response(JSON.stringify({ error: "NOT_FOUND", message: "unknown" }), { status: 404 })
+    })
+
+    vi.stubGlobal("fetch", fetchMock)
+
+    await Promise.all([
+      pushChanges("old-token", pushPayload),
+      pullChanges("old-token", pullPayload),
+    ])
+
+    expect(refreshCalls).toBe(1)
+    expect(useAuthStore.getState().accessToken).toBe("new-token")
+  })
 })

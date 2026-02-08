@@ -225,8 +225,6 @@ class FakePrepared {
     const rows = this.db.syncEvents
       .filter((event) => event.user_id === userId && event.version > cursorVersion)
       .filter((event) => (collections ? collections.includes(event.collection) : true))
-      .toSorted((a, b) => a.version - b.version)
-      .slice(0, limit)
       .map((event) => ({
         version: event.version,
         collection: event.collection,
@@ -235,7 +233,34 @@ class FakePrepared {
         deleted: event.deleted,
       }))
 
-    return { results: rows }
+    const rawRows = this.db.rawPullRows
+      .filter((value) => {
+        if (!isRecord(value)) return true
+        const rowUserId = value.user_id
+        if (typeof rowUserId !== "string" || rowUserId.length === 0) return true
+        return rowUserId === userId
+      })
+      .filter((value) => {
+        if (!isRecord(value)) return true
+        const version = value.version
+        return typeof version !== "number" || version > cursorVersion
+      })
+      .filter((value) => {
+        if (!collections || collections.length === 0) return true
+        if (!isRecord(value)) return true
+        const collection = value.collection
+        return typeof collection !== "string" || collections.includes(collection)
+      })
+
+    const sorted = [...rows, ...rawRows]
+      .toSorted((a, b) => {
+        const aVersion = isRecord(a) && typeof a.version === "number" ? a.version : 0
+        const bVersion = isRecord(b) && typeof b.version === "number" ? b.version : 0
+        return aVersion - bVersion
+      })
+      .slice(0, limit)
+
+    return { results: sorted }
   }
 
   private readString(index: number): string {
@@ -266,6 +291,7 @@ class FakePrepared {
 
 class FakeD1 {
   syncEvents: SyncEvent[] = []
+  rawPullRows: unknown[] = []
   syncStore: SyncStoreRow[] = []
   nextVersion = 0
   auditCount = 0
@@ -284,6 +310,10 @@ class FakeD1 {
     const version = row.version ?? this.nextVersion + 1
     this.nextVersion = Math.max(this.nextVersion, version)
     this.syncEvents.push({ ...row, version })
+  }
+
+  seedRawPullRow(row: unknown) {
+    this.rawPullRows.push(row)
   }
 
   forceInsertRowIdFallback() {
@@ -568,6 +598,38 @@ describe("sync routes integration", () => {
     ])
   })
 
+  it("rejects records that exceed byte-size limits for multibyte JSON payloads", async () => {
+    const oversizedData = "😀".repeat(150_000)
+
+    const response = await requestSync(db, "/api/sync/push", {
+      changes: [
+        {
+          collection: "foods",
+          id: "food-too-large",
+          data: { note: oversizedData },
+          baseVersion: 0,
+          mutationId: "m-too-large",
+        },
+      ],
+    })
+
+    const body = await readJson(response)
+    const accepted = readNumber(body, "accepted")
+    const conflicts = readArray(body, "conflicts")
+
+    expect(response.status).toBe(200)
+    expect(accepted).toBe(0)
+    expect(conflicts).toEqual([
+      {
+        collection: "foods",
+        id: "food-too-large",
+        serverVersion: 0,
+        clientBaseVersion: 0,
+        reason: "RECORD_TOO_LARGE",
+      },
+    ])
+  })
+
   it("treats duplicate mutationId as idempotent", async () => {
     db.seedEvent({
       version: 9,
@@ -790,5 +852,84 @@ describe("sync routes integration", () => {
     ])
     expect(hasMore).toBe(false)
     expect(nextCursor).toEqual({ version: 4 })
+  })
+
+  it("continues pagination when malformed rows are present in the pull window", async () => {
+    db.seedEvent({
+      version: 1,
+      user_id: "u1",
+      user_email: "u1@example.com",
+      collection: "foods",
+      id: "food-1",
+      data: JSON.stringify({ id: "food-1", name: "Rice" }),
+      deleted: 0,
+      base_version: 0,
+      mutation_id: "m-good-1",
+      device_id: null,
+      created_at: Date.now(),
+    })
+    db.seedRawPullRow({
+      user_id: "u1",
+      version: 2,
+      collection: "foods",
+      id: "food-bad",
+      data: 123,
+      deleted: 0,
+    })
+    db.seedEvent({
+      version: 3,
+      user_id: "u1",
+      user_email: "u1@example.com",
+      collection: "foods",
+      id: "food-3",
+      data: JSON.stringify({ id: "food-3", name: "Beans" }),
+      deleted: 0,
+      base_version: 0,
+      mutation_id: "m-good-3",
+      device_id: null,
+      created_at: Date.now(),
+    })
+
+    const firstResponse = await requestSync(db, "/api/sync/pull", {
+      cursor: { version: 0 },
+      limit: 2,
+    })
+    const firstBody = await readJson(firstResponse)
+    const firstChanges = readArray(firstBody, "changes")
+    const firstNextCursor = readObject(firstBody, "nextCursor")
+    const firstHasMore = isRecord(firstBody) ? firstBody.hasMore : undefined
+
+    expect(firstResponse.status).toBe(200)
+    expect(firstHasMore).toBe(true)
+    expect(firstChanges).toEqual([
+      {
+        collection: "foods",
+        id: "food-1",
+        data: { id: "food-1", name: "Rice" },
+        version: 1,
+        deleted: false,
+      },
+    ])
+    expect(firstNextCursor).toEqual({ version: 2 })
+
+    const secondResponse = await requestSync(db, "/api/sync/pull", {
+      cursor: { version: 2 },
+      limit: 2,
+    })
+    const secondBody = await readJson(secondResponse)
+    const secondChanges = readArray(secondBody, "changes")
+    const secondHasMore = isRecord(secondBody) ? secondBody.hasMore : undefined
+
+    expect(secondResponse.status).toBe(200)
+    expect(secondHasMore).toBe(false)
+    expect(secondChanges).toEqual([
+      {
+        collection: "foods",
+        id: "food-3",
+        data: { id: "food-3", name: "Beans" },
+        version: 3,
+        deleted: false,
+      },
+    ])
   })
 })
