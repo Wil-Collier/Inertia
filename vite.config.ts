@@ -44,6 +44,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // SECURITY: Only cache public, non-user-specific API responses.
+        // Never add /api/sync/* or /api/auth/* to runtimeCaching as these
+        // contain user-specific data that must not be shared across sessions
+        // or leak between users on shared devices.
         runtimeCaching: [
           {
             urlPattern: /^\/api\/nutrition\/.*/i,
