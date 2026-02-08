@@ -201,6 +201,17 @@
         50% { transform: translateX(-1px) scaleX(1.05); opacity: 1; }
     }
     --animate-kinetic-idle: kinetic-idle 3s ease-in-out infinite;
+
+    @keyframes sheet-slide-in-bottom {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+    @keyframes sheet-slide-out-bottom {
+        from { transform: translateY(0); }
+        to { transform: translateY(100%); }
+    }
+    --animate-sheet-slide-in-bottom: sheet-slide-in-bottom 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    --animate-sheet-slide-out-bottom: sheet-slide-out-bottom 0.25s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @layer base {
