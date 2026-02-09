@@ -10,6 +10,7 @@ interface UseRestTimerOptions {
 
 interface UseRestTimerReturn {
   isRunning: boolean
+  isPaused: boolean
   timeRemaining: number
   duration: number
   start: (customDuration?: number) => void
@@ -46,6 +47,12 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
   useEffect(() => {
     areNotificationsEnabledRef.current = areNotificationsEnabled
   }, [areNotificationsEnabled])
+
+  useEffect(() => {
+    if (!timer.isRunning) {
+      setConfiguredDuration(defaultDuration)
+    }
+  }, [defaultDuration, timer.isRunning])
 
   // Set up interval for ticking the timer
   useEffect(() => {
@@ -112,6 +119,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
   
   // Timer is considered "running" for UI purposes if it's active (even if paused)
   const isRunning = timer.isRunning && timeRemaining > 0
+  const isPaused = timer.isPaused
 
   // Format time as MM:SS
   const formattedTime = `${Math.floor(timeRemaining / 60)
@@ -123,6 +131,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
 
   return {
     isRunning,
+    isPaused,
     timeRemaining,
     duration,
     start,

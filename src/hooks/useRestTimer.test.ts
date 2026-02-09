@@ -72,4 +72,27 @@ describe("useRestTimer", () => {
     expect(onComplete.mock.calls.length).toBeGreaterThan(0)
     expect(showRestTimerNotificationMock).not.toHaveBeenCalled()
   })
+
+  it("updates default duration when idle and uses the latest value on start", () => {
+    const { result, rerender } = renderHook(
+      ({ defaultDuration }) => useRestTimer({ defaultDuration }),
+      { initialProps: { defaultDuration: 90 } }
+    )
+
+    act(() => {
+      result.current.start()
+    })
+    expect(useRestTimerStore.getState().timer.duration).toBe(90)
+
+    act(() => {
+      result.current.reset()
+    })
+
+    rerender({ defaultDuration: 120 })
+
+    act(() => {
+      result.current.start()
+    })
+    expect(useRestTimerStore.getState().timer.duration).toBe(120)
+  })
 })

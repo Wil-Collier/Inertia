@@ -37,13 +37,17 @@ function RestTimerBannerInner({ defaultDuration }: RestTimerBannerProps) {
           </span>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={timer.pause}>
-            Pause
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={timer.isPaused ? timer.resume : timer.pause}
+          >
+            {timer.isPaused ? "Resume" : "Pause"}
           </Button>
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => timer.start(timer.duration + 30)}
+            onClick={() => timer.start(timer.timeRemaining + 30)}
           >
             +30s
           </Button>
@@ -63,5 +67,4 @@ function RestTimerBannerInner({ defaultDuration }: RestTimerBannerProps) {
 }
 
 export const RestTimerBanner = memo(RestTimerBannerInner)
-
 

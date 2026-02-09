@@ -23,6 +23,17 @@ function deferToBackground(callback: () => void) {
  */
 async function updatePersonalRecords(workout: Workout): Promise<void> {
   const exercisesToUpdate: { exerciseId: string, pr: { exerciseId: string, weight: number, reps: number, date: string, workoutId: string } }[] = []
+  const bestByExerciseId = new Map<
+    string,
+    {
+      exerciseId: string
+      weight: number
+      reps: number
+      date: string
+      workoutId: string
+      e1rm: number
+    }
+  >()
   
   // 1. Fetch all existing PRs in parallel
   const exerciseIds = workout.exercises.map(e => e.exerciseId)
@@ -46,21 +57,35 @@ async function updatePersonalRecords(workout: Workout): Promise<void> {
       }
     }
 
-    const existingPR = existingPRMap.get(exercise.exerciseId)
+    const currentBest = bestByExerciseId.get(exercise.exerciseId)
+    if (!currentBest || bestE1RM > currentBest.e1rm) {
+      bestByExerciseId.set(exercise.exerciseId, {
+        exerciseId: exercise.exerciseId,
+        weight: bestSet.weight,
+        reps: bestSet.reps,
+        date: workout.date,
+        workoutId: workout.id,
+        e1rm: bestE1RM,
+      })
+    }
+  }
+
+  for (const best of bestByExerciseId.values()) {
+    const existingPR = existingPRMap.get(best.exerciseId)
     const existingE1RM = existingPR
       ? calculateOneRepMax(existingPR.weight, existingPR.reps)
       : 0
 
     // Queue update if this is a new record
-    if (bestE1RM > existingE1RM) {
+    if (best.e1rm > existingE1RM) {
       exercisesToUpdate.push({
-        exerciseId: exercise.exerciseId,
+        exerciseId: best.exerciseId,
         pr: {
-          exerciseId: exercise.exerciseId,
-          weight: bestSet.weight,
-          reps: bestSet.reps,
-          date: workout.date,
-          workoutId: workout.id,
+          exerciseId: best.exerciseId,
+          weight: best.weight,
+          reps: best.reps,
+          date: best.date,
+          workoutId: best.workoutId,
         }
       })
     }
@@ -240,14 +265,20 @@ export const activeSessionService = {
         if (!session) return
 
         const exercisesById = new Map(session.workout.exercises.map(e => [e.id, e]))
+        const seenExerciseIds = new Set<string>()
+        const uniqueExerciseIds = exerciseIds.filter((id) => {
+          if (seenExerciseIds.has(id)) return false
+          seenExerciseIds.add(id)
+          return true
+        })
 
         // Build reordered list, filtering out any missing exercises
-        const reorderedExercises = exerciseIds
+        const reorderedExercises = uniqueExerciseIds
           .map(id => exercisesById.get(id))
           .filter((exercise): exercise is NonNullable<typeof exercise> => exercise !== undefined)
 
         // Preserve any exercises that weren't in the provided list (safety measure)
-        const reorderedIds = new Set(exerciseIds)
+        const reorderedIds = new Set(uniqueExerciseIds)
         const preservedExercises = session.workout.exercises.filter(e => !reorderedIds.has(e.id))
 
         session.workout.exercises = [...reorderedExercises, ...preservedExercises]

@@ -168,4 +168,47 @@ describe("sync orchestrator", () => {
     expect(resolveInitialSyncStrategyMock).toHaveBeenCalledWith("token", "user-1", "merge")
     expect(useSyncStore.getState().status).toBe("success")
   })
+
+  it("short-circuits resolveInitialSync when auth state is incomplete", async () => {
+    useAuthStore.setState({
+      accessToken: null,
+      userId: null,
+      email: null,
+      expiresAtMs: null,
+      isAuthenticated: false,
+    })
+
+    const { resolveInitialSync } = await loadOrchestrator()
+    await resolveInitialSync("merge")
+
+    expect(resolveInitialSyncStrategyMock).not.toHaveBeenCalled()
+  })
+
+  it("does not push pending changes while offline", async () => {
+    setOnline(false)
+    const { pushPendingChanges } = await loadOrchestrator()
+
+    await pushPendingChanges()
+
+    expect(pushPendingChangesInternalMock).not.toHaveBeenCalled()
+    expect(useSyncStore.getState().status).toBe("idle")
+  })
+
+  it("routes pushPendingChanges failures through the error handler", async () => {
+    setOnline(true)
+    pushPendingChangesInternalMock.mockRejectedValue(new Error("push failed"))
+    handleSyncErrorMock.mockImplementation((error: unknown) => {
+      const message = error instanceof Error ? error.message : "Sync failed"
+      const store = useSyncStore.getState()
+      store.setLastError(message)
+      store.setStatus("error")
+    })
+
+    const { pushPendingChanges } = await loadOrchestrator()
+    await pushPendingChanges()
+
+    expect(handleSyncErrorMock).toHaveBeenCalledTimes(1)
+    expect(useSyncStore.getState().status).toBe("error")
+    expect(useSyncStore.getState().lastError).toBe("push failed")
+  })
 })

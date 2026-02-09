@@ -171,6 +171,35 @@ describe("activeSessionService integration", () => {
     expect(await db.personalRecords.get("row")).toBeUndefined()
   })
 
+  it("stores the best PR when duplicate exercise blocks exist in one workout", async () => {
+    vi.spyOn(achievementService, "updateStreaks").mockResolvedValue()
+    vi.spyOn(achievementService, "checkWorkoutAchievements").mockResolvedValue()
+
+    await activeSessionService.startWorkout("Duplicate Exercise PR")
+    const session = await db.activeSession.get("current")
+    if (!session) throw new Error("expected active session")
+
+    session.workout.exercises = [
+      {
+        id: "wex-bench-1",
+        exerciseId: "bench",
+        sets: [{ id: "set-high", reps: 4, weight: 245, isCompleted: true }],
+      },
+      {
+        id: "wex-bench-2",
+        exerciseId: "bench",
+        sets: [{ id: "set-low", reps: 10, weight: 135, isCompleted: true }],
+      },
+    ]
+
+    await db.activeSession.put(session)
+
+    await activeSessionService.finishWorkout()
+    await flushAsyncTasks()
+
+    expect(await db.personalRecords.get("bench")).toMatchObject({ weight: 245, reps: 4 })
+  })
+
   it("returns null when finish is requested without an active session", async () => {
     await expect(activeSessionService.finishWorkout()).resolves.toBeNull()
   })
@@ -188,6 +217,24 @@ describe("activeSessionService integration", () => {
     await db.activeSession.put(session)
 
     await activeSessionService.reorderExercises(["e3", "e1"])
+
+    const reordered = await db.activeSession.get("current")
+    expect(reordered?.workout.exercises.map((exercise) => exercise.id)).toEqual(["e3", "e1", "e2"])
+  })
+
+  it("deduplicates repeated reorder ids while preserving stable order", async () => {
+    await activeSessionService.startWorkout("Reorder Duplicates")
+    const session = await db.activeSession.get("current")
+    if (!session) throw new Error("expected active session")
+
+    session.workout.exercises = [
+      { id: "e1", exerciseId: "bench", sets: [] },
+      { id: "e2", exerciseId: "squat", sets: [] },
+      { id: "e3", exerciseId: "row", sets: [] },
+    ]
+    await db.activeSession.put(session)
+
+    await activeSessionService.reorderExercises(["e3", "e3", "e1"])
 
     const reordered = await db.activeSession.get("current")
     expect(reordered?.workout.exercises.map((exercise) => exercise.id)).toEqual(["e3", "e1", "e2"])

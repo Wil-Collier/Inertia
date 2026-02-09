@@ -37,7 +37,9 @@ export function Dashboard() {
   const calorieGoal = nutritionGoals?.calories ?? 2000
   const currentCalories = totals?.calories ?? 0
   const caloriesRemaining = Math.max(0, calorieGoal - currentCalories)
-  const calorieProgress = Math.min(100, (currentCalories / calorieGoal) * 100)
+  const calorieProgress = calorieGoal > 0
+    ? Math.min(100, (currentCalories / calorieGoal) * 100)
+    : 0
 
   // For WeeklyConsistency, we need ALL workout dates and logged nutrition dates.
   const { data: workoutDates = [] } = useWorkoutDates()

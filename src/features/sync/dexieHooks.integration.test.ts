@@ -43,6 +43,30 @@ describe("sync Dexie hooks integration", () => {
     })
   })
 
+  it("enqueues creates after commit when writes omit sync tracking tables", async () => {
+    await db.foods.put({
+      id: "food-outside",
+      name: "Bread",
+      calories: 120,
+      protein: 4,
+      carbs: 23,
+      fat: 1,
+      fiber: 2,
+      sugar: 2,
+      servingSize: "1 slice",
+      isCustom: true,
+    })
+
+    await flushAsyncTasks()
+
+    expect(await db.syncPendingChanges.get(["foods", "food-outside"])).toMatchObject({
+      collection: "foods",
+      id: "food-outside",
+      deleted: false,
+      baseVersion: 0,
+    })
+  })
+
   it("uses record versions as baseVersion for updates", async () => {
     await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
       await db.foods.put({
@@ -122,6 +146,35 @@ describe("sync Dexie hooks integration", () => {
 
     await flushAsyncTasks()
     expect(await db.syncPendingChanges.get(["workouts", "w1"])).toBeUndefined()
+  })
+
+  it("tracks workout updates when exercises change materially", async () => {
+    await db.transaction("rw", [db.workoutSessions, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.workoutSessions.put({
+        id: "w2",
+        name: "Workout",
+        date: "2026-02-08",
+        weightUnit: "kg",
+        exercises: [{ id: "we1", exerciseId: "bench", sets: [{ id: "set1", reps: 5, weight: 100, isCompleted: false }] }],
+        exerciseIds: ["bench"],
+      })
+    })
+
+    await flushAsyncTasks()
+    await db.syncPendingChanges.clear()
+
+    await db.transaction("rw", [db.workoutSessions, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.workoutSessions.update("w2", {
+        exercises: [{ id: "we1", exerciseId: "bench", sets: [{ id: "set1", reps: 6, weight: 100, isCompleted: false }] }],
+      })
+    })
+
+    await flushAsyncTasks()
+    expect(await db.syncPendingChanges.get(["workouts", "w2"])).toMatchObject({
+      collection: "workouts",
+      id: "w2",
+      deleted: false,
+    })
   })
 
   it("tracks deletes as tombstones", async () => {
