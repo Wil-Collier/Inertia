@@ -1,13 +1,25 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import userEvent from "@testing-library/user-event"
+import { cleanup, screen, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
+import { db } from "@/services/db"
+import { activeSessionService } from "@/features/workout/services/activeSessionService"
 import { ActiveWorkout } from "@/pages/ActiveWorkout"
-import type { ActiveWorkoutSession, Exercise, Workout, WorkoutTemplate } from "@/lib/types"
+import { createSettings } from "@/test/factories/settingsFactory"
+import {
+  createActiveWorkoutSession,
+  createWorkout,
+  createWorkoutExercise,
+  createWorkoutSet,
+} from "@/test/factories/workoutFactory"
+import { renderAppRoute } from "@/test/helpers/renderAppRoute"
+import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
+import { seedTestState } from "@/test/helpers/seedTestState"
 
 interface HeaderProps {
   title: string
   onBack?: () => void
+  rightAction?: ReactNode
   bottomContent?: ReactNode
 }
 
@@ -16,49 +28,33 @@ interface ExercisePickerSheetProps {
   onSelect: (exerciseId: string) => void
 }
 
-const activeWorkoutState = vi.hoisted(() => ({
-  navigate: vi.fn(),
-  activeSession: null as ActiveWorkoutSession | null,
-  isLoading: false,
-  finishWorkout: vi.fn(),
-  cancelWorkout: vi.fn(),
-  addExercise: vi.fn(),
-  removeExercise: vi.fn(),
-  addSet: vi.fn(),
-  updateSet: vi.fn(),
-  removeSet: vi.fn(),
-  toggleSetComplete: vi.fn(),
-  updateExerciseNotes: vi.fn(),
-  createTemplateMutateAsync: vi.fn(),
-  templates: [] as WorkoutTemplate[],
-  exercisesById: new Map<string, Exercise>(),
-  hasChanges: false,
+const activeWorkoutTestState = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   unlockAudio: vi.fn(),
   playDingSound: vi.fn(),
-  timerStart: vi.fn(),
-}))
-
-vi.mock("@tanstack/react-router", () => ({
-  useNavigate: () => activeWorkoutState.navigate,
-  Navigate: ({ to }: { to: string }) => <div data-testid="navigate">{to}</div>,
 }))
 
 vi.mock("sonner", () => ({
   toast: {
-    success: (...args: unknown[]) => activeWorkoutState.toastSuccess(...args),
-    error: (...args: unknown[]) => activeWorkoutState.toastError(...args),
+    success: (...args: unknown[]) => activeWorkoutTestState.toastSuccess(...args),
+    error: (...args: unknown[]) => activeWorkoutTestState.toastError(...args),
   },
 }))
 
+vi.mock("@/lib/audio", () => ({
+  unlockAudio: (...args: unknown[]) => activeWorkoutTestState.unlockAudio(...args),
+  playDingSound: (...args: unknown[]) => activeWorkoutTestState.playDingSound(...args),
+}))
+
 vi.mock("@/components/layout/Header", () => ({
-  Header: ({ title, onBack, bottomContent }: HeaderProps) => (
+  Header: ({ title, onBack, rightAction, bottomContent }: HeaderProps) => (
     <div>
       <h1>{title}</h1>
       <button type="button" onClick={onBack}>
         Back
       </button>
+      {rightAction}
       {bottomContent}
     </div>
   ),
@@ -79,109 +75,20 @@ vi.mock("@/components/workout/WorkoutExerciseCard", () => ({
 vi.mock("@/components/ExercisePickerSheet", () => ({
   ExercisePickerSheet: ({ isOpen, onSelect }: ExercisePickerSheetProps) =>
     isOpen ? (
-      <button type="button" onClick={() => onSelect("bench")}>
+      <button type="button" onClick={() => onSelect("barbell-bench-press")}>
         Select Bench
       </button>
     ) : null,
 }))
 
-vi.mock("@/features/workout/hooks/useActiveSession", () => ({
-  useActiveSession: () => ({
-    data: activeWorkoutState.activeSession,
-    isLoading: activeWorkoutState.isLoading,
-  }),
-  useActiveSessionActions: () => ({
-    finishWorkout: activeWorkoutState.finishWorkout,
-    cancelWorkout: activeWorkoutState.cancelWorkout,
-    addExercise: activeWorkoutState.addExercise,
-    removeExercise: activeWorkoutState.removeExercise,
-    addSet: activeWorkoutState.addSet,
-    updateSet: activeWorkoutState.updateSet,
-    removeSet: activeWorkoutState.removeSet,
-    toggleSetComplete: activeWorkoutState.toggleSetComplete,
-    updateExerciseNotes: activeWorkoutState.updateExerciseNotes,
-  }),
-}))
-
-vi.mock("@/features/workout/queries", () => ({
-  useTemplates: () => ({ data: activeWorkoutState.templates }),
-}))
-
-vi.mock("@/features/workout/mutations", () => ({
-  useCreateTemplate: () => ({ mutateAsync: activeWorkoutState.createTemplateMutateAsync }),
-}))
-
-vi.mock("@/features/exercises/queries", () => ({
-  useExercisesByIds: () => ({ data: activeWorkoutState.exercisesById }),
-}))
-
-vi.mock("@/features/settings/queries", () => ({
-  useSettings: () => ({
-    data: {
-      restTimerDuration: 90,
-    },
-  }),
-}))
-
-vi.mock("@/hooks/useRestTimer", () => ({
-  useRestTimerControls: () => ({
-    start: activeWorkoutState.timerStart,
-    reset: vi.fn(),
-    setDuration: vi.fn(),
-  }),
-}))
-
-vi.mock("@/hooks/useCountdownTimer", () => ({
-  useCountdownTimer: () => ({
-    activeSetId: null,
-    formattedTime: "00:00",
-    isRunning: false,
-    start: vi.fn(),
-    pause: vi.fn(),
-    resume: vi.fn(),
-  }),
-}))
-
-vi.mock("@/hooks/useWeightUnit", () => ({
-  useWeightUnit: () => ({
-    unitLabel: "kg",
-  }),
-}))
-
-vi.mock("@/hooks/useWorkoutChanges", () => ({
-  useWorkoutChanges: () => ({
-    hasChanges: () => activeWorkoutState.hasChanges,
-  }),
-}))
-
-vi.mock("@/lib/audio", () => ({
-  unlockAudio: (...args: unknown[]) => activeWorkoutState.unlockAudio(...args),
-  playDingSound: (...args: unknown[]) => activeWorkoutState.playDingSound(...args),
-}))
-
-function createWorkout(overrides: Partial<Workout> = {}): Workout {
-  return {
-    id: "workout-1",
-    name: "Session",
-    date: "2026-02-09",
-    weightUnit: "kg",
-    exercises: [
-      {
-        id: "exercise-1",
-        exerciseId: "bench",
-        sets: [{ id: "set-1", reps: 5, weight: 225, isCompleted: true }],
-      },
+async function renderActiveWorkoutRoute() {
+  return await renderAppRoute({
+    initialPath: "/workout/active",
+    routes: [
+      { path: "/workout/active", component: ActiveWorkout },
+      { path: "/workout", component: () => <h1>Workout Home</h1> },
     ],
-    ...overrides,
-  }
-}
-
-function createActiveSession(overrides: Partial<ActiveWorkoutSession> = {}): ActiveWorkoutSession {
-  return {
-    workout: createWorkout(),
-    startedAt: "2026-02-09T10:00:00.000Z",
-    ...overrides,
-  }
+  })
 }
 
 describe("ActiveWorkout", () => {
@@ -189,47 +96,134 @@ describe("ActiveWorkout", () => {
     cleanup()
   })
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
-    activeWorkoutState.activeSession = createActiveSession()
-    activeWorkoutState.isLoading = false
-    activeWorkoutState.finishWorkout.mockResolvedValue(createWorkout())
-    activeWorkoutState.cancelWorkout.mockResolvedValue(undefined)
-    activeWorkoutState.addExercise.mockResolvedValue(undefined)
-    activeWorkoutState.createTemplateMutateAsync.mockResolvedValue({ id: "template-1" })
-    activeWorkoutState.hasChanges = false
+    await resetTestRuntime()
   })
 
-  it("cancels immediately on back when there are no unsaved changes", async () => {
+  it("cancels immediately on back when no meaningful changes exist", async () => {
     const user = userEvent.setup()
 
-    render(<ActiveWorkout />)
+    await seedTestState({
+      settings: createSettings(),
+      activeSession: createActiveWorkoutSession({
+        workout: createWorkout({
+          id: "workout-back-no-changes",
+          name: "Session",
+          date: "2026-02-09",
+          exercises: [],
+          exerciseIds: [],
+        }),
+      }),
+    })
+
+    const { router } = await renderActiveWorkoutRoute()
+    await screen.findByRole("button", { name: "Back" })
 
     await user.click(screen.getByRole("button", { name: "Back" }))
 
     await waitFor(() => {
-      expect(activeWorkoutState.cancelWorkout).toHaveBeenCalledTimes(1)
-      expect(activeWorkoutState.navigate).toHaveBeenCalledWith({ to: "/workout" })
+      expect(router.state.location.pathname).toBe("/workout")
     })
+
+    expect(await db.activeSession.get("current")).toBeUndefined()
     expect(screen.queryByText("Cancel Workout?")).toBeNull()
   })
 
-  it("opens cancel confirmation on back when unsaved changes exist", async () => {
+  it("opens confirmation dialog and stays on page when unsaved changes exist", async () => {
     const user = userEvent.setup()
-    activeWorkoutState.hasChanges = true
 
-    render(<ActiveWorkout />)
+    await seedTestState({
+      settings: createSettings(),
+      activeSession: createActiveWorkoutSession({
+        workout: createWorkout({
+          id: "workout-back-has-changes",
+          name: "Session",
+          date: "2026-02-09",
+          exercises: [
+            createWorkoutExercise({
+              id: "wex-1",
+              exerciseId: "barbell-bench-press",
+              sets: [createWorkoutSet({ id: "set-1", reps: 0, weight: 0, isCompleted: false })],
+            }),
+          ],
+        }),
+      }),
+    })
+
+    const { router } = await renderActiveWorkoutRoute()
+    await screen.findByRole("button", { name: "Back" })
 
     await user.click(screen.getByRole("button", { name: "Back" }))
 
     expect(await screen.findByText("Cancel Workout?")).toBeTruthy()
-    expect(activeWorkoutState.cancelWorkout).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole("button", { name: "Keep Working" }))
+
+    expect(screen.queryByText("Cancel Workout?")).toBeNull()
+    expect(router.state.location.pathname).toBe("/workout/active")
+    expect(await db.activeSession.get("current")).toBeTruthy()
   })
 
-  it("finishes and creates template when save-as-template is enabled", async () => {
+  it("cancels workout from confirmation dialog when discard is selected", async () => {
     const user = userEvent.setup()
 
-    render(<ActiveWorkout />)
+    await seedTestState({
+      settings: createSettings(),
+      activeSession: createActiveWorkoutSession({
+        workout: createWorkout({
+          id: "workout-discard",
+          name: "Session",
+          date: "2026-02-09",
+          exercises: [
+            createWorkoutExercise({
+              id: "wex-1",
+              exerciseId: "barbell-bench-press",
+              sets: [createWorkoutSet({ id: "set-1", reps: 8, weight: 135, isCompleted: true })],
+            }),
+          ],
+        }),
+      }),
+    })
+
+    const { router } = await renderActiveWorkoutRoute()
+    await screen.findByRole("button", { name: "Back" })
+
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    await user.click(screen.getByRole("button", { name: "Discard" }))
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/workout")
+    })
+
+    expect(await db.activeSession.get("current")).toBeUndefined()
+  })
+
+  it("finishes workout and creates template when save-as-template is enabled", async () => {
+    const user = userEvent.setup()
+
+    await seedTestState({
+      settings: createSettings(),
+      activeSession: createActiveWorkoutSession({
+        workout: createWorkout({
+          id: "workout-finish-template",
+          name: "Template Session",
+          date: "2026-02-09",
+          exercises: [
+            createWorkoutExercise({
+              id: "wex-1",
+              exerciseId: "barbell-bench-press",
+              sets: [
+                createWorkoutSet({ id: "set-1", reps: 5, weight: 225, isCompleted: true }),
+              ],
+            }),
+          ],
+        }),
+      }),
+    })
+
+    const { router } = await renderActiveWorkoutRoute()
+    await screen.findByRole("button", { name: "Finish Workout" })
 
     await user.click(screen.getByRole("button", { name: "Finish Workout" }))
     await user.click(await screen.findByRole("checkbox"))
@@ -237,32 +231,42 @@ describe("ActiveWorkout", () => {
     await user.click(screen.getByRole("button", { name: "Finish" }))
 
     await waitFor(() => {
-      expect(activeWorkoutState.createTemplateMutateAsync).toHaveBeenCalledWith({
-        name: "Power Builder",
-        exercises: [
-          {
-            exerciseId: "bench",
-            targetSets: 1,
-            targetReps: 5,
-            targetWeight: 225,
-          },
-        ],
-      })
-      expect(activeWorkoutState.navigate).toHaveBeenCalledWith({ to: "/workout" })
+      expect(router.state.location.pathname).toBe("/workout")
     })
+
+    const templates = await db.workoutTemplates.toArray()
+    expect(templates).toHaveLength(1)
+    expect(templates[0]?.name).toBe("Power Builder")
   })
 
-  it("shows an error toast when add exercise fails", async () => {
+  it("shows add-exercise error when adding fails", async () => {
     const user = userEvent.setup()
-    activeWorkoutState.addExercise.mockRejectedValueOnce(new Error("failed"))
+    const addExerciseSpy = vi
+      .spyOn(activeSessionService, "addExercise")
+      .mockRejectedValueOnce(new Error("add failed"))
 
-    render(<ActiveWorkout />)
+    await seedTestState({
+      settings: createSettings(),
+      activeSession: createActiveWorkoutSession({
+        workout: createWorkout({
+          id: "workout-add-error",
+          name: "Add Exercise Error",
+          date: "2026-02-09",
+          exercises: [],
+          exerciseIds: [],
+        }),
+      }),
+    })
+
+    await renderActiveWorkoutRoute()
+    await screen.findByRole("button", { name: "Add Exercise" })
 
     await user.click(screen.getByRole("button", { name: "Add Exercise" }))
     await user.click(screen.getByRole("button", { name: "Select Bench" }))
 
     await waitFor(() => {
-      expect(activeWorkoutState.toastError).toHaveBeenCalledWith("Failed to add exercise")
+      expect(addExerciseSpy).toHaveBeenCalledWith("barbell-bench-press")
+      expect(activeWorkoutTestState.toastError).toHaveBeenCalledWith("Failed to add exercise")
     })
   })
 })

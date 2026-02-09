@@ -44,6 +44,6 @@ describe("WorkoutSettings", () => {
       />
     )
 
-    expect(screen.getByText("Notifications blocked. Please enable in browser settings.")).toBeTruthy()
+    expect(screen.queryByText("Notifications blocked. Please enable in browser settings.")).not.toBeNull()
   })
 })

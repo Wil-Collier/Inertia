@@ -1,33 +1,17 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { ReactNode } from "react"
+import { cleanup, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import { db } from "@/services/db"
+import { activeSessionService } from "@/features/workout/services/activeSessionService"
 import { WorkoutPage } from "@/pages/WorkoutPage"
-import type { Exercise, WorkoutTemplate } from "@/lib/types"
-
-interface LinkProps {
-  children?: ReactNode
-}
-
-interface NavigateProps {
-  to: string
-}
+import { createSettings } from "@/test/factories/settingsFactory"
+import { createWorkoutTemplate } from "@/test/factories/workoutFactory"
+import { renderAppRoute } from "@/test/helpers/renderAppRoute"
+import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
+import { seedTestState } from "@/test/helpers/seedTestState"
 
 const workoutPageState = vi.hoisted(() => ({
-  navigate: vi.fn(),
-  startWorkout: vi.fn(),
-  activeSession: null as unknown,
-  templates: [] as WorkoutTemplate[],
-  workoutDates: [] as string[],
-  workouts: [] as Array<{ id: string; name: string; date: string; duration?: number }>,
-  exercisesById: new Map<string, Exercise>(),
   toastError: vi.fn(),
-}))
-
-vi.mock("@tanstack/react-router", () => ({
-  useNavigate: () => workoutPageState.navigate,
-  Link: ({ children }: LinkProps) => <div>{children}</div>,
-  Navigate: ({ to }: NavigateProps) => <div data-testid="navigate">{to}</div>,
 }))
 
 vi.mock("sonner", () => ({
@@ -36,126 +20,172 @@ vi.mock("sonner", () => ({
   },
 }))
 
-vi.mock("@/components/layout/Header", () => ({
-  Header: ({ title, rightAction }: { title: string; rightAction?: ReactNode }) => (
-    <div>
-      <h1>{title}</h1>
-      {rightAction}
-    </div>
-  ),
-}))
-
-vi.mock("@/features/workout/hooks/useActiveSession", () => ({
-  useActiveSession: () => ({ data: workoutPageState.activeSession }),
-  useActiveSessionActions: () => ({ startWorkout: workoutPageState.startWorkout }),
-}))
-
-vi.mock("@/features/workout/queries", () => ({
-  useTemplates: () => ({ data: workoutPageState.templates }),
-  useWorkoutDates: () => ({ data: workoutPageState.workoutDates }),
-  useWorkoutStats: () => ({ data: { workouts: workoutPageState.workouts } }),
-}))
-
-vi.mock("@/features/exercises/queries", () => ({
-  useExercisesByIds: () => ({ data: workoutPageState.exercisesById }),
-}))
+async function renderWorkoutRoute(initialPath = "/workout") {
+  return await renderAppRoute({
+    initialPath,
+    routes: [
+      { path: "/workout", component: WorkoutPage },
+      { path: "/workout/active", component: () => <h1>Active Workout Page</h1> },
+      { path: "/workout/history", component: () => <h1>Workout History</h1> },
+      { path: "/workout/templates", component: () => <h1>Workout Templates</h1> },
+    ],
+  })
+}
 
 describe("WorkoutPage", () => {
   afterEach(() => {
     cleanup()
   })
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
-    workoutPageState.activeSession = null
-    workoutPageState.templates = []
-    workoutPageState.workoutDates = []
-    workoutPageState.workouts = []
-    workoutPageState.exercisesById = new Map()
+    await resetTestRuntime()
+    await seedTestState({
+      settings: createSettings(),
+    })
   })
 
-  it("redirects to active workout when a session already exists", () => {
-    workoutPageState.activeSession = { id: "active-session" }
+  it("redirects to active workout when a session already exists", async () => {
+    await activeSessionService.startWorkout("Existing Session")
 
-    render(<WorkoutPage />)
+    const { router } = await renderWorkoutRoute()
 
-    expect(screen.getByTestId("navigate").textContent).toBe("/workout/active")
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/workout/active")
+    })
+    expect(screen.getByText("Active Workout Page")).toBeTruthy()
   })
 
   it("starts a blank workout with trimmed name and navigates", async () => {
     const user = userEvent.setup()
-    workoutPageState.startWorkout.mockResolvedValue(undefined)
+    const { router } = await renderWorkoutRoute()
 
-    render(<WorkoutPage />)
-
-    await user.click(screen.getByText("Empty Workout"))
+    await user.click(await screen.findByText("Empty Workout"))
     await user.type(screen.getByRole("textbox"), "  Push Day  ")
     await user.click(screen.getByRole("button", { name: "Let's Go" }))
 
     await waitFor(() => {
-      expect(workoutPageState.startWorkout).toHaveBeenCalledWith({ name: "Push Day" })
-      expect(workoutPageState.navigate).toHaveBeenCalledWith({ to: "/workout/active" })
+      expect(router.state.location.pathname).toBe("/workout/active")
     })
+
+    const session = await db.activeSession.get("current")
+    expect(session?.workout.name).toBe("Push Day")
   })
 
   it("uses default workout name when submitted empty via Enter", async () => {
     const user = userEvent.setup()
-    workoutPageState.startWorkout.mockResolvedValue(undefined)
+    const { router } = await renderWorkoutRoute()
 
-    render(<WorkoutPage />)
-
-    await user.click(screen.getByText("Empty Workout"))
+    await user.click(await screen.findByText("Empty Workout"))
     await user.keyboard("{Enter}")
 
     await waitFor(() => {
-      expect(workoutPageState.startWorkout).toHaveBeenCalledTimes(1)
+      expect(router.state.location.pathname).toBe("/workout/active")
     })
 
-    const payload = workoutPageState.startWorkout.mock.calls[0]?.[0]
-    expect(payload).toBeTruthy()
-    expect(payload.name).toMatch(/Workout$/)
-    expect(payload.name.trim().length).toBeGreaterThan("Workout".length)
+    const session = await db.activeSession.get("current")
+    expect(session).toBeTruthy()
+    expect(session?.workout.name).toMatch(/Workout$/)
+    expect(session?.workout.name.trim().length ?? 0).toBeGreaterThan("Workout".length)
   })
 
-  it("starts template workouts with template id and surfaces start failures", async () => {
+  it("surfaces an error toast when starting an empty workout fails", async () => {
     const user = userEvent.setup()
-    workoutPageState.templates = [
-      {
-        id: "template-1",
-        name: "Leg Builder",
-        exercises: [{ exerciseId: "back-squat", targetSets: 3, targetReps: 8, targetWeight: 225 }],
-      },
-    ]
-    workoutPageState.exercisesById = new Map([
-      [
-        "back-squat",
+    vi.spyOn(activeSessionService, "startWorkout").mockRejectedValueOnce(new Error("failed to start"))
+
+    const { router } = await renderWorkoutRoute()
+
+    await user.click(await screen.findByText("Empty Workout"))
+    await user.click(screen.getByRole("button", { name: "Let's Go" }))
+
+    await waitFor(() => {
+      expect(workoutPageState.toastError).toHaveBeenCalledWith("Failed to start workout. Please try again.")
+    })
+    expect(router.state.location.pathname).toBe("/workout")
+    expect(await db.activeSession.get("current")).toBeUndefined()
+  })
+
+  it("starts template workouts with template id and navigates", async () => {
+    const user = userEvent.setup()
+    const template = createWorkoutTemplate({
+      id: "template-1",
+      name: "Leg Builder",
+      exercises: [
         {
-          id: "back-squat",
-          name: "Back Squat",
-          muscleGroup: "legs",
-          isCustom: false,
-          isWeighted: true,
-          isTimeBased: false,
+          exerciseId: "custom-back-squat",
+          targetSets: 3,
+          targetReps: 8,
+          targetWeight: 225,
         },
       ],
-    ])
-    workoutPageState.startWorkout.mockResolvedValue(undefined)
-
-    render(<WorkoutPage />)
-
-    await user.click(screen.getByText("Leg Builder"))
-    await waitFor(() => {
-      expect(workoutPageState.startWorkout).toHaveBeenCalledWith({
-        name: "Leg Builder",
-        templateId: "template-1",
-      })
-      expect(workoutPageState.navigate).toHaveBeenCalledWith({ to: "/workout/active" })
     })
 
-    workoutPageState.startWorkout.mockRejectedValueOnce(new Error("failed"))
-    await user.click(screen.getByText("Leg Builder"))
-    await waitFor(() => {
-      expect(workoutPageState.toastError).toHaveBeenCalledWith("Failed to start template workout. Please try again.")
+    await seedTestState({
+      templates: [template],
     })
+
+    await db.customExercises.put({
+      id: "custom-back-squat",
+      name: "Back Squat",
+      muscleGroup: "legs",
+      isWeighted: true,
+      isTimeBased: false,
+      isCustom: true,
+    })
+
+    const { router } = await renderWorkoutRoute()
+
+    await user.click(await screen.findByText("Leg Builder"))
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/workout/active")
+    })
+
+    const started = await db.activeSession.get("current")
+    expect(started?.templateId).toBe("template-1")
+    expect(started?.workout.name).toBe("Leg Builder")
+
+  })
+
+  it("surfaces a toast when starting a template workout fails", async () => {
+    const user = userEvent.setup()
+    const template = createWorkoutTemplate({
+      id: "template-1",
+      name: "Leg Builder",
+      exercises: [
+        {
+          exerciseId: "custom-back-squat",
+          targetSets: 3,
+          targetReps: 8,
+          targetWeight: 225,
+        },
+      ],
+    })
+
+    await seedTestState({
+      templates: [template],
+    })
+
+    await db.customExercises.put({
+      id: "custom-back-squat",
+      name: "Back Squat",
+      muscleGroup: "legs",
+      isWeighted: true,
+      isTimeBased: false,
+      isCustom: true,
+    })
+
+    vi.spyOn(activeSessionService, "startWorkout").mockRejectedValueOnce(new Error("failed"))
+
+    const { router } = await renderWorkoutRoute()
+    await user.click(await screen.findByText("Leg Builder"))
+
+    await waitFor(() => {
+      expect(workoutPageState.toastError).toHaveBeenCalledWith(
+        "Failed to start template workout. Please try again."
+      )
+    })
+    expect(router.state.location.pathname).toBe("/workout")
+    expect(await db.activeSession.get("current")).toBeUndefined()
   })
 })

@@ -22,6 +22,7 @@ pnpm dev --host           # Dev server with network access
 pnpm build                # Production build (tsc -b && vite build)
 pnpm lint                 # Oxlint with type-checking
 pnpm vitest run           # Run all tests once
+pnpm coverage             # Run tests with coverage report
 pnpm vitest run src/features/sync/__tests__/engine.test.ts  # Run a single test file
 pnpm vitest --watch       # Watch mode
 pnpm deploy              # Build + deploy to Cloudflare Workers
@@ -210,10 +211,58 @@ Use `toSorted()` / `toReversed()` instead of mutating `.sort()` / `.reverse()`.
 ## Testing
 
 - **Framework:** Vitest with jsdom environment.
-- **Setup:** `src/test/setup.ts` imports `fake-indexeddb/auto` for IndexedDB mocking.
+- **Setup:** `src/test/setup.ts` configures `fake-indexeddb/auto` and MSW server handlers.
 - **File patterns:** `src/**/*.test.ts`, `src/**/*.spec.ts`, `src/**/*.integration.test.ts`.
 - **Run single test:** `pnpm vitest run path/to/file.test.ts`
 - **Run with filter:** `pnpm vitest run -t "test name pattern"`
+
+### Testing Methodology (Behavior-First, Mock-Last)
+
+- Prefer behavior tests over implementation tests:
+  - Assert user-observable outcomes (rendered state, navigation, toasts, persisted DB changes).
+  - Avoid testing hook internals, private function call order, or component implementation details.
+- Prefer seeded integration tests for pages and feature flows:
+  - Use real React Query + Dexie + Router behavior via `src/test/helpers/renderAppRoute.tsx`.
+  - Seed runtime state with `src/test/helpers/seedTestState.ts`.
+  - Reset runtime between tests with `src/test/helpers/resetTestRuntime.ts`.
+- Use deterministic factories for test data:
+  - Prefer `src/test/factories/*` helpers over inline object literals.
+  - Keep IDs deterministic unless a test explicitly requires randomness.
+
+### Mocking Policy (Strict)
+
+- Do not mock internal feature hooks by default (`@/features/*/queries`, `@/features/*/mutations`) in integration-style tests.
+- Mock only true external boundaries:
+  - Network boundaries via MSW (`src/test/msw/server.ts`, `src/test/msw/handlers.ts`)
+  - Browser/hardware APIs not available in jsdom (camera/scanner, notifications, audio, etc.)
+- If a mock is used for non-boundary code, document why it is unavoidable in test comments.
+
+### Fail-First and Defect-Driven Fixes
+
+- For behavior changes and bug work, use fail-first workflow:
+  1. Add or update a test that fails on current behavior.
+  2. Implement the minimal production fix.
+  3. Verify the new test and surrounding suite pass.
+- When a migrated test exposes a real defect, fix production code in the same change set rather than weakening assertions.
+
+### Test Quality Criteria
+
+- Every test should verify at least one meaningful behavior outcome.
+- Avoid snapshot-only tests and coverage-only assertions with no behavior signal.
+- Prefer assertions on stable outcomes:
+  - Route path/state
+  - Persisted records in Dexie
+  - Visible UI state and actionable controls
+- Keep tests resilient:
+  - Avoid brittle selectors tied to incidental markup.
+  - Prefer role/label/text queries based on user interaction.
+
+### Test Validation Gates
+
+- For any non-trivial test change:
+  1. `pnpm vitest run <changed test files>`
+  2. `pnpm vitest run`
+  3. `pnpm build && pnpm lint`
 
 ## Key Dependencies
 

@@ -43,11 +43,11 @@ describe("RestTimerBanner", () => {
       vi.advanceTimersByTime(20_000)
     })
 
-    expect(screen.getByText("00:40")).toBeTruthy()
+    expect(screen.queryByText("00:40")).not.toBeNull()
 
     fireEvent.click(screen.getByRole("button", { name: "+30s" }))
 
-    expect(screen.getByText("01:10")).toBeTruthy()
+    expect(screen.queryByText("01:10")).not.toBeNull()
   })
 
   it("toggles pause and resume while keeping paused time stable", () => {
@@ -58,7 +58,7 @@ describe("RestTimerBanner", () => {
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Pause" }))
-    expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Resume" })).not.toBeNull()
 
     const pausedTimerText = screen.getByText(/\d\d:\d\d/).textContent
     act(() => {
@@ -67,7 +67,7 @@ describe("RestTimerBanner", () => {
     expect(screen.getByText(/\d\d:\d\d/).textContent).toBe(pausedTimerText)
 
     fireEvent.click(screen.getByRole("button", { name: "Resume" }))
-    expect(screen.getByRole("button", { name: "Pause" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Pause" })).not.toBeNull()
 
     act(() => {
       vi.advanceTimersByTime(1_200)

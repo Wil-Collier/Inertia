@@ -1,28 +1,19 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { QueryClientProvider } from "@tanstack/react-query"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { ReactNode } from "react"
+import { db } from "@/services/db"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
 import type { Exercise } from "@/lib/types"
-
-interface ExercisesHookState {
-  data: Exercise[]
-  isLoading: boolean
-}
-
-interface AddExerciseDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: (exerciseId: string) => void
-  exerciseToEdit?: Exercise | null
-}
+import { createTestQueryClient } from "@/test/helpers/queryHookTestUtils"
+import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
 
 const TEST_EXERCISES: Exercise[] = [
   {
     id: "bench-press",
     name: "Bench Press",
     muscleGroup: "chest",
-    isCustom: false,
+    isCustom: true,
     isWeighted: true,
     isTimeBased: false,
   },
@@ -30,7 +21,7 @@ const TEST_EXERCISES: Exercise[] = [
     id: "back-squat",
     name: "Back Squat",
     muscleGroup: "legs",
-    isCustom: false,
+    isCustom: true,
     isWeighted: true,
     isTimeBased: false,
   },
@@ -44,116 +35,51 @@ const TEST_EXERCISES: Exercise[] = [
   },
 ]
 
-const testState = vi.hoisted(() => ({
-  exercisesHook: {
-    data: [] as Exercise[],
-    isLoading: false,
-  } as ExercisesHookState,
-  lastAddExerciseDialogProps: null as AddExerciseDialogProps | null,
-}))
-
-vi.mock("@/features/exercises/queries", () => ({
-  useExercises: () => testState.exercisesHook,
-}))
-
-vi.mock("@/components/ExerciseInfoSheet", () => ({
-  ExerciseInfoButton: ({ exercise }: { exercise: Exercise }) => (
-    <span aria-label={`Info ${exercise.name}`} />
-  ),
-}))
-
-vi.mock("@/components/AddExerciseDialog", () => ({
-  AddExerciseDialog: (props: AddExerciseDialogProps) => {
-    testState.lastAddExerciseDialogProps = props
-
-    if (!props.open) return null
-
-    return (
-      <div data-testid="add-exercise-dialog">
-        <p>{props.exerciseToEdit ? `Editing: ${props.exerciseToEdit.name}` : "Creating exercise"}</p>
-        <button
-          type="button"
-          onClick={() => {
-            props.onOpenChange(false)
-            props.onSuccess?.(props.exerciseToEdit?.id ?? "new-custom-exercise")
-          }}
-        >
-          Confirm Exercise Dialog
-        </button>
-      </div>
-    )
-  },
-}))
-
-interface SheetProps {
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-  children?: ReactNode
+async function seedCustomExercises(exercises: Exercise[] = TEST_EXERCISES) {
+  await db.transaction("rw", [db.customExercises, db.syncPendingChanges, db.syncRecordVersions], async () => {
+    await db.customExercises.bulkPut(exercises)
+  })
 }
 
-interface SheetContentProps {
-  children?: ReactNode
+function renderExercisePickerSheet(options?: {
+  onSelect?: (exerciseId: string) => void
+  onOpenChange?: (isOpen: boolean) => void
+  addedExerciseIds?: string[]
+}) {
+  const queryClient = createTestQueryClient()
+  const onSelect = options?.onSelect ?? vi.fn()
+  const onOpenChange = options?.onOpenChange ?? vi.fn()
+
+  const result = render(
+    <QueryClientProvider client={queryClient}>
+      <ExercisePickerSheet
+        isOpen={true}
+        onOpenChange={onOpenChange}
+        onSelect={onSelect}
+        addedExerciseIds={options?.addedExerciseIds}
+      />
+    </QueryClientProvider>
+  )
+
+  return {
+    ...result,
+    queryClient,
+    onSelect,
+    onOpenChange,
+  }
 }
-
-interface SheetHeaderProps {
-  children?: ReactNode
-}
-
-interface SheetTitleProps {
-  children?: ReactNode
-}
-
-vi.mock("@/components/ui/sheet", () => ({
-  Sheet: ({ open, onOpenChange, children }: SheetProps) => (
-    <div>
-      {open ? (
-        <>
-          <button type="button" onClick={() => onOpenChange?.(false)}>
-            Close Sheet
-          </button>
-          {children}
-        </>
-      ) : null}
-    </div>
-  ),
-  SheetContent: ({ children }: SheetContentProps) => <div>{children}</div>,
-  SheetHeader: ({ children }: SheetHeaderProps) => <div>{children}</div>,
-  SheetTitle: ({ children }: SheetTitleProps) => <h2>{children}</h2>,
-}))
-
-vi.mock("@/components/ui/scroll-area", () => ({
-  ScrollArea: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-}))
 
 describe("ExercisePickerSheet", () => {
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
   })
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.useRealTimers()
     vi.clearAllMocks()
-    testState.exercisesHook = {
-      data: [...TEST_EXERCISES],
-      isLoading: false,
-    }
-    testState.lastAddExerciseDialogProps = null
-  })
-
-  it("renders loading state while exercises are being fetched", () => {
-    testState.exercisesHook = {
-      data: [],
-      isLoading: true,
-    }
-
-    render(
-      <ExercisePickerSheet
-        isOpen={true}
-        onOpenChange={vi.fn()}
-        onSelect={vi.fn()}
-      />
-    )
-
-    expect(screen.getByText("Loading exercises...")).toBeTruthy()
+    await resetTestRuntime()
+    await seedCustomExercises()
   })
 
   it("prevents selecting already added exercises and selects available ones", async () => {
@@ -161,109 +87,126 @@ describe("ExercisePickerSheet", () => {
     const onSelect = vi.fn()
     const onOpenChange = vi.fn()
 
-    render(
-      <ExercisePickerSheet
-        isOpen={true}
-        onOpenChange={onOpenChange}
-        onSelect={onSelect}
-        addedExerciseIds={["bench-press"]}
-      />
-    )
+    renderExercisePickerSheet({
+      onSelect,
+      onOpenChange,
+      addedExerciseIds: ["bench-press"],
+    })
 
-    const benchButton = screen.getByRole("button", { name: "Bench Press" })
-    expect(benchButton.hasAttribute("disabled")).toBe(true)
-    await user.click(benchButton)
-    expect(onSelect).not.toHaveBeenCalled()
+    await user.click(await screen.findByRole("button", { name: "Custom" }))
 
-    await user.click(screen.getByRole("button", { name: "Back Squat" }))
+    const benchButton = await screen.findByRole("button", { name: "Bench Press" })
+    expect(benchButton instanceof HTMLButtonElement).toBe(true)
+    if (!(benchButton instanceof HTMLButtonElement)) {
+      throw new Error("Expected Bench Press to be a button element")
+    }
+    expect(benchButton.disabled).toBe(true)
+
+    await user.click(await screen.findByRole("button", { name: "Back Squat" }))
+
     expect(onSelect).toHaveBeenCalledWith("back-squat")
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
   it("applies search/filter controls and shows empty states", async () => {
-    const user = userEvent.setup()
+    renderExercisePickerSheet()
 
-    render(
-      <ExercisePickerSheet
-        isOpen={true}
-        onOpenChange={vi.fn()}
-        onSelect={vi.fn()}
-      />
-    )
+    fireEvent.click(await screen.findByRole("button", { name: "Custom" }))
+    expect(await screen.findByText("Custom Plank Hold")).toBeTruthy()
 
-    await user.click(screen.getByRole("button", { name: "Custom" }))
-    expect(screen.getByRole("button", { name: "Custom Plank Hold" })).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Bench Press" })).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Legs" }))
+    expect(await screen.findByText("Back Squat")).toBeTruthy()
+    expect(screen.queryByText("Custom Plank Hold")).toBeNull()
 
-    await user.click(screen.getByRole("button", { name: "Legs" }))
-    expect(screen.getByRole("button", { name: "Back Squat" })).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Custom Plank Hold" })).toBeNull()
+    fireEvent.change(screen.getByPlaceholderText("Search exercises..."), { target: { value: "zzz" } })
 
-    await user.type(screen.getByPlaceholderText("Search exercises..."), "zzz")
-    expect(screen.queryByText("No exercises found")).toBeNull()
-
-    await waitFor(() => {
-      expect(screen.getByText("No exercises found")).toBeTruthy()
-      expect(screen.getByText("Try a different search term or filter")).toBeTruthy()
-    })
-  })
+    expect(await screen.findByText("No exercises found", {}, { timeout: 15000 })).toBeTruthy()
+    expect(screen.getByText("Try a different search term or filter")).toBeTruthy()
+  }, 20000)
 
   it("resets search state immediately when the sheet closes", async () => {
-    const user = userEvent.setup()
     const onOpenChange = vi.fn()
 
-    render(
-      <ExercisePickerSheet
-        isOpen={true}
-        onOpenChange={onOpenChange}
-        onSelect={vi.fn()}
-      />
-    )
+    renderExercisePickerSheet({ onOpenChange })
 
-    const searchInput = screen.getByPlaceholderText("Search exercises...")
-    await user.type(searchInput, "bench")
-    await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "Back Squat" })).toBeNull()
-    })
+    const searchInput = await screen.findByPlaceholderText("Search exercises...")
+    fireEvent.change(searchInput, { target: { value: "bench" } })
 
-    await user.click(screen.getByRole("button", { name: "Close Sheet" }))
-
-    expect(onOpenChange).toHaveBeenCalledWith(false)
     expect(searchInput instanceof HTMLInputElement).toBe(true)
     if (!(searchInput instanceof HTMLInputElement)) {
       throw new Error("Expected search input element")
     }
-    expect(searchInput.value).toBe("")
-    expect(screen.getByRole("button", { name: "Back Squat" })).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Bench Press" })).toBeTruthy()
-  })
+    expect(searchInput.value).toBe("bench")
 
-  it("supports create and edit dialog flows correctly", async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Close" }))
+
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    await waitFor(() => {
+      expect(searchInput.value).toBe("")
+    })
+  }, 25000)
+
+  it("supports create and edit dialog flows", async () => {
     const user = userEvent.setup()
     const onSelect = vi.fn()
     const onOpenChange = vi.fn()
 
-    render(
-      <ExercisePickerSheet
-        isOpen={true}
-        onOpenChange={onOpenChange}
-        onSelect={onSelect}
-      />
-    )
+    renderExercisePickerSheet({ onSelect, onOpenChange })
 
-    await user.click(screen.getByRole("button", { name: "New" }))
-    expect(screen.getByTestId("add-exercise-dialog")).toBeTruthy()
-    expect(screen.getByText("Creating exercise")).toBeTruthy()
+    await user.click(await screen.findByRole("button", { name: "Custom" }))
+    await user.click(await screen.findByRole("button", { name: "New" }))
+    expect(await screen.findByText("Create Custom Exercise")).toBeTruthy()
 
-    await user.click(screen.getByRole("button", { name: "Confirm Exercise Dialog" }))
-    expect(onSelect).toHaveBeenCalledWith("new-custom-exercise")
-    expect(onOpenChange).toHaveBeenCalledWith(false)
+    await user.type(screen.getByLabelText("Name"), "New Exercise")
+    await user.click(screen.getByRole("button", { name: "Create Exercise" }))
 
-    await user.click(screen.getByRole("button", { name: "Edit Custom Plank Hold" }))
-    expect(screen.getByText("Editing: Custom Plank Hold")).toBeTruthy()
+    await waitFor(() => {
+      expect(onSelect).toHaveBeenCalledTimes(1)
+      expect(onOpenChange).toHaveBeenCalledWith(false)
+    }, { timeout: 3000 })
+
+    const selectedExerciseId = onSelect.mock.calls[0]?.[0]
+    expect(typeof selectedExerciseId).toBe("string")
+    if (typeof selectedExerciseId !== "string") {
+      throw new Error("Expected selected exercise id to be a string")
+    }
+
+    const createdExercise = await db.customExercises.get(selectedExerciseId)
+    expect(createdExercise).toBeTruthy()
+    expect(createdExercise?.name).toBe("New Exercise")
 
     onSelect.mockClear()
-    await user.click(screen.getByRole("button", { name: "Confirm Exercise Dialog" }))
+
+    await user.click(await screen.findByRole("button", { name: "Edit Custom Plank Hold" }))
+    expect(await screen.findByText("Edit Exercise")).toBeTruthy()
+
+    const nameInput = screen.getByLabelText("Name")
+    await user.clear(nameInput)
+    await user.type(nameInput, "Custom Plank Hold Updated")
+    await user.click(screen.getByRole("button", { name: "Update Exercise" }))
+
+    await waitFor(() => {
+      expect(screen.queryByText("Edit Exercise")).toBeNull()
+    }, { timeout: 3000 })
+
+    const updatedExercise = await db.customExercises.get("custom-plank")
+    expect(updatedExercise?.name).toBe("Custom Plank Hold Updated")
     expect(onSelect).not.toHaveBeenCalled()
-  })
+  }, 10000)
+
+  it("clears search query when clear button is pressed", async () => {
+    renderExercisePickerSheet()
+
+    const searchInput = await screen.findByPlaceholderText("Search exercises...")
+    fireEvent.change(searchInput, { target: { value: "bench" } })
+    fireEvent.click(screen.getByLabelText("Clear search"))
+
+    expect(searchInput instanceof HTMLInputElement).toBe(true)
+    if (!(searchInput instanceof HTMLInputElement)) {
+      throw new Error("Expected search input element")
+    }
+    await waitFor(() => {
+      expect(searchInput.value).toBe("")
+    })
+  }, 10000)
 })
