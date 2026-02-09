@@ -6,7 +6,7 @@ import { defineConfig } from "vitest/config"
 import { VitePWA } from "vite-plugin-pwa"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import { cloudflare } from "@cloudflare/vite-plugin"
-import { matchNutritionApi } from "./src/lib/workboxRuntime"
+
 
 const isVitest = process.env.VITEST === "true"
 
@@ -52,7 +52,7 @@ export default (defineConfig as any)({
         // or leak between users on shared devices.
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => matchNutritionApi(url),
+            urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith("/api/nutrition/"),
             handler: "NetworkFirst",
             options: {
               cacheName: "nutrition-api-cache",
