@@ -38,32 +38,32 @@ export function ScrollPicker({
 
   const handleScroll = () => {
     if (disabled || !scrollRef.current) return
-    
+
     // Simple debounce/snap logic
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current)
-    
+
     timeoutRef.current = setTimeout(() => {
       if (!scrollRef.current) return
-      
+
       const scrollTop = scrollRef.current.scrollTop
       const newIndex = Math.round(scrollTop / itemHeight)
       const snappedScrollTop = newIndex * itemHeight
-      
+
       if (scrollTop !== snappedScrollTop) {
         scrollRef.current.scrollTo({
           top: snappedScrollTop,
           behavior: "smooth"
         })
       }
-      
+
       if (options[newIndex] !== undefined && options[newIndex] !== value) {
         onChange(options[newIndex])
       }
-    }, 150)
+    }, 50)
   }
 
   return (
-    <div 
+    <div
       className={cn(
         "relative overflow-hidden bg-background/50 rounded-md border border-input",
         "before:absolute before:top-0 before:left-0 before:right-0 before:h-12 before:bg-gradient-to-b before:from-background before:to-transparent before:z-10 before:pointer-events-none",
@@ -74,20 +74,20 @@ export function ScrollPicker({
       style={{ height: `${height}px` }}
     >
       {/* Selection Highlight */}
-      <div 
+      <div
         className="absolute left-2 right-2 border-y border-primary/30 bg-primary/5 pointer-events-none z-0"
-        style={{ 
-          height: `${itemHeight}px`, 
-          top: `${(height - itemHeight) / 2}px` 
-        }} 
+        style={{
+          height: `${itemHeight}px`,
+          top: `${(height - itemHeight) / 2}px`
+        }}
       />
 
       {/* Scrollable List */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="h-full overflow-y-auto snap-y snap-mandatory px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden relative z-0"
-        style={{ 
+        className="h-full overflow-y-auto overflow-x-hidden snap-y snap-mandatory px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden relative z-0 touch-pan-y"
+        style={{
           paddingTop: `${(height - itemHeight) / 2}px`,
           paddingBottom: `${(height - itemHeight) / 2}px`
         }}
