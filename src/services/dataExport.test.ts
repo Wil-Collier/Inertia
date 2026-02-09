@@ -4,6 +4,8 @@ const exportDatabaseMock = vi.fn()
 const importDatabaseMock = vi.fn()
 const recoverDatabaseMock = vi.fn()
 const resetSyncStateMock = vi.fn()
+const backupNeedsMigrationMock = vi.fn()
+const migrateBackupDataMock = vi.fn()
 
 vi.mock("@/services/db", () => ({
   exportDatabase: (...args: unknown[]) => exportDatabaseMock(...args),
@@ -21,8 +23,8 @@ vi.mock("@/features/sync/dexieHooks", () => ({
 }))
 
 vi.mock("@/services/backupMigrations", () => ({
-  backupNeedsMigration: vi.fn().mockReturnValue(false),
-  migrateBackupData: vi.fn((data: unknown) => data),
+  backupNeedsMigration: (...args: unknown[]) => backupNeedsMigrationMock(...args),
+  migrateBackupData: (...args: unknown[]) => migrateBackupDataMock(...args),
 }))
 
 import { clearAllData, downloadExport, importData } from "@/services/dataExport"
@@ -46,6 +48,8 @@ describe("dataExport service", () => {
     importDatabaseMock.mockReset().mockResolvedValue(undefined)
     recoverDatabaseMock.mockReset().mockResolvedValue(undefined)
     resetSyncStateMock.mockReset().mockResolvedValue(undefined)
+    backupNeedsMigrationMock.mockReset().mockReturnValue(false)
+    migrateBackupDataMock.mockReset().mockImplementation((data: unknown) => data)
     localStorage.clear()
   })
 
@@ -84,6 +88,75 @@ describe("dataExport service", () => {
     expect(resetSyncStateMock).toHaveBeenCalled()
   })
 
+  it("migrates legacy-schema backups before import", async () => {
+    backupNeedsMigrationMock.mockReturnValue(true)
+    migrateBackupDataMock.mockReturnValue({
+      formatName: "dexie",
+      formatVersion: 2,
+      data: {
+        databaseName: "TrainingAppDB",
+        databaseVersion: 1,
+        tables: [],
+        data: [],
+      },
+    })
+
+    const wrapped = {
+      exportVersion: 1,
+      schemaVersion: 0,
+      exportedAt: "2026-02-08T00:00:00.000Z",
+      data: {
+        formatName: "dexie",
+        formatVersion: 1,
+        data: {
+          databaseName: "TrainingAppDB",
+          databaseVersion: 1,
+          tables: [],
+          data: [],
+        },
+      },
+    }
+
+    const result = await importData(createBackupFile(JSON.stringify(wrapped)))
+
+    expect(result.success).toBe(true)
+    expect(backupNeedsMigrationMock).toHaveBeenCalledWith(0)
+    expect(migrateBackupDataMock).toHaveBeenCalledWith(wrapped.data, 0)
+    expect(importDatabaseMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("returns a validation error for non-Inertia JSON backups", async () => {
+    const file = createBackupFile(JSON.stringify({ random: "shape" }), "invalid.json")
+    const result = await importData(file)
+
+    expect(result.success).toBe(false)
+    expect(result.message).toContain("Invalid backup file format")
+  })
+
+  it("returns failure when import persistence throws", async () => {
+    importDatabaseMock.mockRejectedValueOnce(new Error("import failed"))
+
+    const wrapped = {
+      exportVersion: 1,
+      schemaVersion: 1,
+      exportedAt: "2026-02-08T00:00:00.000Z",
+      data: {
+        formatName: "dexie",
+        formatVersion: 1,
+        data: {
+          databaseName: "TrainingAppDB",
+          databaseVersion: 1,
+          tables: [],
+          data: [],
+        },
+      },
+    }
+
+    const result = await importData(createBackupFile(JSON.stringify(wrapped)))
+
+    expect(result).toEqual({ success: false, message: "import failed" })
+  })
+
   it("downloads wrapped export metadata", async () => {
     const rawDexie = {
       formatName: "dexie",
@@ -119,6 +192,12 @@ describe("dataExport service", () => {
     expect(revokeSpy).toHaveBeenCalledWith("blob:test")
   })
 
+  it("throws a user-facing error when export fails", async () => {
+    exportDatabaseMock.mockRejectedValueOnce(new Error("export failed"))
+
+    await expect(downloadExport()).rejects.toThrow("Failed to export data. Please try again.")
+  })
+
   it("clears app-owned localStorage keys during full data clear", async () => {
     localStorage.setItem("inertia-sync-auth", "1")
     localStorage.setItem("inertia-sync-store", "2")
@@ -141,5 +220,14 @@ describe("dataExport service", () => {
     expect(reloadSpy).toHaveBeenCalled()
 
     vi.useRealTimers()
+  })
+
+  it("rethrows recover failures during full clear and does not reload", async () => {
+    const reloadSpy = vi.fn()
+    recoverDatabaseMock.mockRejectedValueOnce(new Error("recover failed"))
+    vi.stubGlobal("location", { reload: reloadSpy })
+
+    await expect(clearAllData()).rejects.toThrow("recover failed")
+    expect(reloadSpy).not.toHaveBeenCalled()
   })
 })

@@ -11,17 +11,6 @@ interface HeaderProps {
   bottomContent?: ReactNode
 }
 
-interface FinishDialogProps {
-  open: boolean
-  onSaveAsTemplateChange: (checked: boolean) => void
-  onTemplateNameChange: (name: string) => void
-  onFinish: () => void
-}
-
-interface CancelDialogProps {
-  open: boolean
-}
-
 interface ExercisePickerSheetProps {
   isOpen: boolean
   onSelect: (exerciseId: string) => void
@@ -85,33 +74,6 @@ vi.mock("@/components/workout/WorkoutProgressSummary", () => ({
 
 vi.mock("@/components/workout/WorkoutExerciseCard", () => ({
   WorkoutExerciseCard: () => <div>Workout Exercise Card</div>,
-}))
-
-vi.mock("@/components/workout/FinishWorkoutDialog", () => ({
-  FinishWorkoutDialog: ({
-    open,
-    onSaveAsTemplateChange,
-    onTemplateNameChange,
-    onFinish,
-  }: FinishDialogProps) =>
-    open ? (
-      <div>
-        <p>Finish dialog</p>
-        <button type="button" onClick={() => onSaveAsTemplateChange(true)}>
-          Enable Save Template
-        </button>
-        <button type="button" onClick={() => onTemplateNameChange("  Power Builder  ")}>
-          Set Template Name
-        </button>
-        <button type="button" onClick={onFinish}>
-          Confirm Finish
-        </button>
-      </div>
-    ) : null,
-}))
-
-vi.mock("@/components/workout/CancelWorkoutDialog", () => ({
-  CancelWorkoutDialog: ({ open }: CancelDialogProps) => (open ? <div>Cancel dialog</div> : null),
 }))
 
 vi.mock("@/components/ExercisePickerSheet", () => ({
@@ -249,7 +211,7 @@ describe("ActiveWorkout", () => {
       expect(activeWorkoutState.cancelWorkout).toHaveBeenCalledTimes(1)
       expect(activeWorkoutState.navigate).toHaveBeenCalledWith({ to: "/workout" })
     })
-    expect(screen.queryByText("Cancel dialog")).toBeNull()
+    expect(screen.queryByText("Cancel Workout?")).toBeNull()
   })
 
   it("opens cancel confirmation on back when unsaved changes exist", async () => {
@@ -260,7 +222,7 @@ describe("ActiveWorkout", () => {
 
     await user.click(screen.getByRole("button", { name: "Back" }))
 
-    expect(screen.getByText("Cancel dialog")).toBeTruthy()
+    expect(await screen.findByText("Cancel Workout?")).toBeTruthy()
     expect(activeWorkoutState.cancelWorkout).not.toHaveBeenCalled()
   })
 
@@ -270,9 +232,9 @@ describe("ActiveWorkout", () => {
     render(<ActiveWorkout />)
 
     await user.click(screen.getByRole("button", { name: "Finish Workout" }))
-    await user.click(screen.getByRole("button", { name: "Enable Save Template" }))
-    await user.click(screen.getByRole("button", { name: "Set Template Name" }))
-    await user.click(screen.getByRole("button", { name: "Confirm Finish" }))
+    await user.click(await screen.findByRole("checkbox"))
+    await user.type(screen.getByPlaceholderText("Template name"), "  Power Builder  ")
+    await user.click(screen.getByRole("button", { name: "Finish" }))
 
     await waitFor(() => {
       expect(activeWorkoutState.createTemplateMutateAsync).toHaveBeenCalledWith({

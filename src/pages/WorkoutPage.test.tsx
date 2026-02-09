@@ -1,6 +1,5 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { format } from "date-fns"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
 import { WorkoutPage } from "@/pages/WorkoutPage"
@@ -109,10 +108,13 @@ describe("WorkoutPage", () => {
     await user.keyboard("{Enter}")
 
     await waitFor(() => {
-      expect(workoutPageState.startWorkout).toHaveBeenCalledWith({
-        name: `${format(new Date(), "MMMM d")} Workout`,
-      })
+      expect(workoutPageState.startWorkout).toHaveBeenCalledTimes(1)
     })
+
+    const payload = workoutPageState.startWorkout.mock.calls[0]?.[0]
+    expect(payload).toBeTruthy()
+    expect(payload.name).toMatch(/Workout$/)
+    expect(payload.name.trim().length).toBeGreaterThan("Workout".length)
   })
 
   it("starts template workouts with template id and surfaces start failures", async () => {

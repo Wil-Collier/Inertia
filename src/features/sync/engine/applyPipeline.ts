@@ -29,6 +29,8 @@ type LocalRecord =
   | (UserSettings & { id: string })
   | Exercise
 
+const SETTINGS_SINGLETON_ID = "settings"
+
 export async function applyPulledChanges(changes: PullChange[]): Promise<Set<SyncCollection>> {
   const affectedCollections = new Set<SyncCollection>()
   changes.forEach((change) => affectedCollections.add(change.collection))
@@ -54,9 +56,11 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
       ],
       async (transaction) => {
         await runSequentially(changes, async (change) => {
+          const localId = resolveLocalId(change.collection, change.id)
+
           if (change.deleted) {
-            await deleteLocalRecord(change.collection, change.id)
-            await removeRecordVersion(change.collection, change.id, transaction)
+            await deleteLocalRecord(change.collection, localId)
+            await removeRecordVersion(change.collection, localId, transaction)
             return
           }
 
@@ -66,12 +70,12 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
             local.updatedAt = Date.now()
           }
 
-          const applied = await upsertLocalRecord(change.collection, change.id, local)
+          const applied = await upsertLocalRecord(change.collection, localId, local)
           if (!applied) {
             throw new Error(`Invalid pulled record for ${change.collection}:${change.id}`)
           }
 
-          await setRecordVersion(change.collection, change.id, change.version, transaction)
+          await setRecordVersion(change.collection, localId, change.version, transaction)
         })
       }
     )
@@ -221,6 +225,11 @@ async function deleteLocalRecord(collection: SyncCollection, id: string): Promis
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
+}
+
+function resolveLocalId(collection: SyncCollection, incomingId: string): string {
+  if (collection === "settings") return SETTINGS_SINGLETON_ID
+  return incomingId
 }
 
 async function runSequentially<T>(items: T[], task: (item: T) => Promise<void>): Promise<void> {

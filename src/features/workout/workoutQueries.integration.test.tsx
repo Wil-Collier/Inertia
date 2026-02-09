@@ -9,6 +9,7 @@ import {
   useProgressStats,
   useTemplate,
   useWorkout,
+  useWorkoutStats,
   useWorkoutDates,
   useWorkouts,
   useWorkoutsByExercise,
@@ -35,6 +36,17 @@ describe("workout query hooks integration", () => {
       throw new TypeError("Expected error object")
     }
     expect(result.current.error.message).toBe("Workout missing-id not found")
+  })
+
+  it("keeps workout detail query idle when id is empty", async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+
+    const { result } = renderHook(() => useWorkout(""), { wrapper })
+
+    expect(result.current.fetchStatus).toBe("idle")
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toBeNull()
   })
 
   it("returns workouts with newest-first ordering and limit", async () => {
@@ -129,6 +141,17 @@ describe("workout query hooks integration", () => {
       throw new TypeError("Expected Error")
     }
     expect(result.current.error.message).toBe("Template missing-template not found")
+  })
+
+  it("keeps template detail query idle when id is empty", async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+
+    const { result } = renderHook(() => useTemplate(""), { wrapper })
+
+    expect(result.current.fetchStatus).toBe("idle")
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toBeNull()
   })
 
   it("deduplicates workout dates from index keys", async () => {
@@ -232,6 +255,35 @@ describe("workout query hooks integration", () => {
       last30Days: 1,
       prsCount: 2,
     })
+  })
+
+  it("returns workout stats scoped to the requested date range", async () => {
+    await db.workoutSessions.bulkPut([
+      { id: "w-before", name: "Before", date: "2026-01-30", weightUnit: "kg", exercises: [] },
+      { id: "w-in-1", name: "Inside 1", date: "2026-02-02", weightUnit: "kg", exercises: [] },
+      { id: "w-in-2", name: "Inside 2", date: "2026-02-05", weightUnit: "kg", exercises: [] },
+      { id: "w-after", name: "After", date: "2026-02-10", weightUnit: "kg", exercises: [] },
+    ])
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useWorkoutStats("2026-02-01", "2026-02-06"), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data?.workouts.map((workout) => workout.id).toSorted()).toEqual(["w-in-1", "w-in-2"])
+  })
+
+  it("keeps workout stats query idle when either bound is missing", async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useWorkoutStats("", "2026-02-06"), { wrapper })
+
+    expect(result.current.fetchStatus).toBe("idle")
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toBeNull()
   })
 
   it("builds exercise history from completed sets only", async () => {

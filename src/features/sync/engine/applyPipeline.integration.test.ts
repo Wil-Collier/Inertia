@@ -284,6 +284,32 @@ describe("applyPulledChanges integration", () => {
     expect(await getRecordVersion("workouts", "w-delete")).toBe(0)
   })
 
+  it("canonicalizes settings to singleton id even when server sends a different record id", async () => {
+    await applyPulledChanges([
+      {
+        collection: "settings",
+        id: "server-settings-1",
+        data: {
+          theme: "system",
+          restTimerDuration: 120,
+          areNotificationsEnabled: true,
+          unitPreferences: { weight: "lbs", distance: "mi" },
+          nutritionGoals: { calories: 2500, protein: 180, carbs: 300, fat: 80, fiber: 35, sugar: 60 },
+        },
+        version: 21,
+        deleted: false,
+      },
+    ])
+
+    expect(await db.settings.get("settings")).toMatchObject({
+      restTimerDuration: 120,
+      unitPreferences: { weight: "lbs", distance: "mi" },
+    })
+    expect(await db.settings.get("server-settings-1")).toBeUndefined()
+    expect(await getRecordVersion("settings", "settings")).toBe(21)
+    expect(await getRecordVersion("settings", "server-settings-1")).toBe(0)
+  })
+
   it("clears synced local tables and sync record versions", async () => {
     await db.workoutSessions.put({
       id: "w-clear",

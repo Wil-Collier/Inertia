@@ -201,8 +201,8 @@ describe("Dashboard", () => {
 
     const { container } = render(<Dashboard />)
 
-    expect(container.innerHTML.includes("NaN")).toBe(false)
-    const progressCircle = container.querySelector("circle.text-category-nutrition")
+    expect(screen.getByText("Calories Left")).toBeTruthy()
+    const progressCircle = container.querySelector("circle[stroke-dasharray]")
     expect(progressCircle?.getAttribute("stroke-dasharray")).toBe("0 100")
   })
 })

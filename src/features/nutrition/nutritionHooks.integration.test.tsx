@@ -18,14 +18,16 @@ import {
   useUpdateMealEntry,
 } from "@/features/nutrition/mutations"
 import { achievementService } from "@/services/achievementService"
+import { queryKeys } from "@/lib/queryKeys"
 
 let updateStreaksSpy: MockInstance<() => Promise<void>>
 let checkNutritionAchievementsSpy: MockInstance<() => Promise<void>>
+const toastError = vi.fn()
 
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
-    error: vi.fn(),
+    error: (...args: unknown[]) => toastError(...args),
     info: vi.fn(),
   },
 }))
@@ -34,6 +36,7 @@ describe("nutrition hooks integration", () => {
   beforeEach(async () => {
     await clearDatabase()
     vi.restoreAllMocks()
+    toastError.mockReset()
     updateStreaksSpy = vi.spyOn(achievementService, "updateStreaks").mockResolvedValue()
     checkNutritionAchievementsSpy = vi.spyOn(achievementService, "checkNutritionAchievements").mockResolvedValue()
   })
@@ -185,6 +188,24 @@ describe("nutrition hooks integration", () => {
     expect(log?.entries[0]?.foodId).toBe("food-2")
     expect((await db.foods.get("food-1"))?.usageCount).toBe(0)
     expect((await db.foods.get("food-2"))?.usageCount).toBe(1)
+  })
+
+  it("surfaces update errors when the requested log does not exist", async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useUpdateMealEntry(), { wrapper })
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          date: "2026-02-08",
+          entryId: "missing-entry",
+          updates: { quantity: 2 },
+        })
+      ).rejects.toThrow("Log not found")
+    })
+
+    expect(toastError).toHaveBeenCalledWith("Failed to update entry")
   })
 
   it("toggles favorite for existing local foods", async () => {
@@ -446,5 +467,123 @@ describe("nutrition hooks integration", () => {
     })
 
     expect(await db.mealTemplates.get(templateId)).toBeUndefined()
+  })
+
+  it("rolls back optimistic remove-entry cache updates when mutation fails", async () => {
+    await db.foods.put({
+      id: "food-rollback",
+      name: "Rollback Food",
+      calories: 100,
+      protein: 10,
+      carbs: 10,
+      fat: 2,
+      fiber: 1,
+      sugar: 1,
+      servingSize: "100g",
+      isCustom: true,
+      usageCount: 1,
+    })
+    await db.nutritionLogs.put({
+      date: "2026-02-11",
+      entries: [{ id: "entry-rollback", foodId: "food-rollback", quantity: 1, mealType: "dinner" }],
+    })
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const previous = {
+      log: {
+        date: "2026-02-11",
+        entries: [{ id: "entry-rollback", foodId: "food-rollback", quantity: 1, mealType: "dinner" as const }],
+      },
+      totals: {
+        calories: 100,
+        protein: 10,
+        carbs: 10,
+        fat: 2,
+        fiber: 1,
+        sugar: 1,
+      },
+      entriesWithFood: [
+        {
+          id: "entry-rollback",
+          foodId: "food-rollback",
+          quantity: 1,
+          mealType: "dinner" as const,
+          food: {
+            id: "food-rollback",
+            name: "Rollback Food",
+            calories: 100,
+            protein: 10,
+            carbs: 10,
+            fat: 2,
+            fiber: 1,
+            sugar: 1,
+            servingSize: "100g",
+            isCustom: true,
+          },
+        },
+      ],
+    }
+    queryClient.setQueryData(queryKeys.nutrition.daily("2026-02-11"), previous)
+
+    const txSpy = vi.spyOn(db, "transaction").mockRejectedValueOnce(new Error("tx failed"))
+    const { result } = renderHook(() => useRemoveMealEntry(), { wrapper })
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({ date: "2026-02-11", entryId: "entry-rollback" })
+      ).rejects.toThrow("tx failed")
+    })
+
+    expect(queryClient.getQueryData(queryKeys.nutrition.daily("2026-02-11"))).toEqual(previous)
+    expect(toastError).toHaveBeenCalledWith("Failed to remove entry")
+    txSpy.mockRestore()
+  })
+
+  it("rolls back optimistic favorite toggles when persistence fails", async () => {
+    await db.foods.put({
+      id: "food-favorite",
+      name: "Favorite Food",
+      calories: 90,
+      protein: 5,
+      carbs: 8,
+      fat: 2,
+      fiber: 1,
+      sugar: 1,
+      servingSize: "100g",
+      isCustom: true,
+      isFavorite: false,
+    })
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    queryClient.setQueryData(queryKeys.foods.list(), [
+      {
+        id: "food-favorite",
+        name: "Favorite Food",
+        calories: 90,
+        protein: 5,
+        carbs: 8,
+        fat: 2,
+        fiber: 1,
+        sugar: 1,
+        servingSize: "100g",
+        isCustom: true,
+        isFavorite: false,
+      },
+    ])
+
+    const txSpy = vi.spyOn(db, "transaction").mockRejectedValueOnce(new Error("favorite failed"))
+    const { result } = renderHook(() => useToggleFavoriteFood(), { wrapper })
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({ id: "food-favorite", isFavorite: true })
+      ).rejects.toThrow("favorite failed")
+    })
+
+    expect(queryClient.getQueryData<Array<{ isFavorite: boolean }>>(queryKeys.foods.list())?.[0]?.isFavorite).toBe(false)
+    expect(toastError).toHaveBeenCalledWith("Failed to update favorite")
+    txSpy.mockRestore()
   })
 })
