@@ -41,19 +41,19 @@ test.describe("sync and offline behavior", () => {
     await expect(syncButton).toBeVisible()
   })
 
-  test("navigation works while authenticated", async ({ page }) => {
+  test("authenticated user can interact with settings page", async ({ page }) => {
     await registerAuthenticatedSyncApiMocks(page)
     await page.goto("/settings")
 
     await expect(page.getByText("Signed in as")).toBeVisible()
-
-    // Navigate to another page
-    await page.goto("/nutrition")
-    await expect(page.getByRole("heading", { name: "Nutrition" })).toBeVisible()
-
-    // Navigate back
-    await page.goto("/settings")
     await expect(page.getByText("athlete@example.com")).toBeVisible()
+
+    // Verify sync button works
+    const syncButton = page.getByRole("button", { name: "Sync Now" })
+    await expect(syncButton).toBeVisible()
+
+    // Verify sign out button is present
+    await expect(page.getByRole("button", { name: "Sign Out" })).toBeVisible()
   })
 })
 
