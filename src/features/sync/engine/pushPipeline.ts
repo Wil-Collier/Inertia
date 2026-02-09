@@ -79,8 +79,19 @@ export async function pushFullSnapshot(accessToken: string): Promise<void> {
         version: item.version,
       }))
     )
+
+    // Clear pending changes for this batch immediately after success
+    // This ensures partial failures don't leave orphan pending changes
+    await acknowledgeProcessedPendingChanges(
+      response.acceptedChanges.map((item) => ({
+        collection: item.collection,
+        id: item.id,
+        mutationId: item.mutationId,
+      }))
+    )
   })
 
+  // Final cleanup of any remaining pending changes
   await clearPendingChanges()
 }
 
@@ -118,8 +129,18 @@ export async function overwriteCloudWithLocal(accessToken: string): Promise<void
 
   const combined = [...tombstones, ...localChanges]
   const chunks = chunkArray(combined, MAX_PUSH_BATCH)
+  const allConflicts: Array<{ collection: string; id: string }> = []
+
   await runSequentially(chunks, async (chunk) => {
     const response = await pushChanges(accessToken, { changes: chunk })
+
+    // Track conflicts - "use-local" strategy should fully succeed
+    if (response.conflicts.length > 0) {
+      allConflicts.push(
+        ...response.conflicts.map((c) => ({ collection: c.collection, id: c.id }))
+      )
+    }
+
     await setRecordVersionsBulk(
       response.acceptedChanges.map((item) => ({
         collection: item.collection,
@@ -128,6 +149,12 @@ export async function overwriteCloudWithLocal(accessToken: string): Promise<void
       }))
     )
   })
+
+  // Fail if any conflicts occurred during "use-local" overwrite
+  if (allConflicts.length > 0) {
+    const conflictIds = allConflicts.map((c) => `${c.collection}:${c.id}`).join(", ")
+    throw new Error(`Failed to overwrite cloud with local data. Conflicts on: ${conflictIds}`)
+  }
 
   await clearPendingChanges()
 }

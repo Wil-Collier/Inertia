@@ -100,19 +100,19 @@ async function upsertPendingChange(change: PendingChange, transaction?: Transact
 
   const merged: SyncPendingChangeRecord = existing
     ? {
-        ...existing,
-        deleted: change.deleted,
-        mutationId: change.mutationId,
-        enqueuedAt: change.enqueuedAt,
-      }
+      ...existing,
+      deleted: change.deleted,
+      mutationId: change.mutationId,
+      enqueuedAt: change.enqueuedAt,
+    }
     : {
-        collection: change.collection,
-        id: change.id,
-        deleted: change.deleted,
-        baseVersion: change.baseVersion,
-        mutationId: change.mutationId,
-        enqueuedAt: change.enqueuedAt,
-      }
+      collection: change.collection,
+      id: change.id,
+      deleted: change.deleted,
+      baseVersion: change.baseVersion,
+      mutationId: change.mutationId,
+      enqueuedAt: change.enqueuedAt,
+    }
 
   await table.put(merged)
 }
@@ -177,12 +177,12 @@ export async function setPullCursor(cursor: SyncCursor | null): Promise<void> {
 }
 
 export async function getLastSyncedAtMs(): Promise<number | null> {
-  const record = await db.metadata.get(LAST_SYNCED_AT_KEY)
-  return typeof record?.value === "number" ? record.value : null
+  const raw = await readMetadataJson(LAST_SYNCED_AT_KEY)
+  return typeof raw === "number" ? raw : null
 }
 
 export async function setLastSyncedAtMs(timestamp: number): Promise<void> {
-  await db.metadata.put({ key: LAST_SYNCED_AT_KEY, value: timestamp })
+  await writeMetadataJson(LAST_SYNCED_AT_KEY, timestamp)
 }
 
 export async function getLocalDataOwnerUserId(): Promise<string | null> {

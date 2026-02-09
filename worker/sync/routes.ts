@@ -35,13 +35,13 @@ type SyncContext = Context<{ Bindings: Env; Variables: Variables }>
 
 type ParsedJsonBody =
   | {
-      success: true
-      body: unknown
-    }
+    success: true
+    body: unknown
+  }
   | {
-      success: false
-      response: Response
-    }
+    success: false
+    response: Response
+  }
 
 const MAX_PUSH_REQUEST_BYTES = 1024 * 1024
 const MAX_PULL_REQUEST_BYTES = 64 * 1024
@@ -457,8 +457,18 @@ syncRoutes.post("/pull", async (c) => {
   const rawPage = hasMore ? rawResults.slice(0, limit) : rawResults
   const page = rawPage.map(toSyncEventRow).filter((row): row is SyncEventRow => row !== null)
 
-  const changes = page.map((row) => {
+  const changes: Array<{
+    collection: string
+    id: string
+    data: Record<string, unknown> | null
+    version: number
+    deleted: boolean
+  }> = []
+
+  for (const row of page) {
+    const deleted = row.deleted === 1
     let data: Record<string, unknown> | null = null
+
     if (row.data) {
       try {
         const parsed: unknown = JSON.parse(row.data)
@@ -467,17 +477,24 @@ syncRoutes.post("/pull", async (c) => {
         }
       } catch (error) {
         console.error(`Corrupted sync_events data for ${row.collection}/${row.id} at version ${row.version}:`, error)
-        // Skip corrupted rows by returning null data rather than crashing the entire pull
+        // If this is a non-deleted row with corrupted data, skip it entirely
+        // so the cursor advances past it and we don't infinitely re-fetch
+        if (!deleted) {
+          console.warn(`Skipping corrupted non-deleted record ${row.collection}/${row.id} at version ${row.version}`)
+          continue
+        }
+        // Tombstones with corrupted data are fine - data should be null anyway
       }
     }
-    return {
+
+    changes.push({
       collection: row.collection,
       id: row.id,
       data,
       version: row.version,
-      deleted: row.deleted === 1,
-    }
-  })
+      deleted,
+    })
+  }
 
   const nextCursor = getPageCursor(rawPage)
 

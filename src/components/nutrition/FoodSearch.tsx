@@ -152,35 +152,35 @@ export function FoodSearch({
         </TabsContent>
 
         <TabsContent value="myfoods" className="mt-4 flex-1 flex flex-col min-h-0">
-          <ScrollArea className="flex-1">
-            <div className="space-y-3 pb-[env(safe-area-inset-bottom,1rem)]">
-              <CustomFoodForm
-                onSave={onSaveCustomFood}
-                onSaveAndAdd={onSaveAndAddCustomFood}
-                initialBarcode={scannedBarcode}
-                onClearBarcode={onClearBarcode}
-              />
+          <div className="shrink-0">
+            <CustomFoodForm
+              onSave={onSaveCustomFood}
+              onSaveAndAdd={onSaveAndAddCustomFood}
+              initialBarcode={scannedBarcode}
+              onClearBarcode={onClearBarcode}
+            />
+          </div>
 
-              {customFoods.length > 0 && (
-                <div className="space-y-2 pt-2">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Saved Foods
-                  </p>
-                  {customFoods.map((food) => (
-                    <FoodListItem
-                      key={food.id}
-                      food={food}
-                      onAdd={(qty) => onAddFood(food, qty)}
-                      onToggleFavorite={() => onToggleFavorite(food.id)}
-                      isFavorite={food.isFavorite}
-                      onDelete={() => onDeleteFood(food.id)}
-                      showDelete
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+          {customFoods.length > 0 && (
+            <ScrollArea className="flex-1 mt-3">
+              <div className="space-y-2 pb-[env(safe-area-inset-bottom,1rem)]">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Saved Foods
+                </p>
+                {customFoods.map((food) => (
+                  <FoodListItem
+                    key={food.id}
+                    food={food}
+                    onAdd={(qty) => onAddFood(food, qty)}
+                    onToggleFavorite={() => onToggleFavorite(food.id)}
+                    isFavorite={food.isFavorite}
+                    onDelete={() => onDeleteFood(food.id)}
+                    showDelete
+                  />
+                ))}
+              </div>
+            </ScrollArea>
+          )}
         </TabsContent>
 
         <TabsContent value="favorites" className="mt-4 flex-1 flex flex-col min-h-0">

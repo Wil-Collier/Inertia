@@ -932,4 +932,138 @@ describe("sync routes integration", () => {
       },
     ])
   })
+
+  it("filters out non-deleted records with corrupted JSON data from pull response", async () => {
+    db.seedEvent({
+      version: 1,
+      user_id: "u1",
+      user_email: "u1@example.com",
+      collection: "foods",
+      id: "food-valid",
+      data: JSON.stringify({ id: "food-valid", name: "Valid Food" }),
+      deleted: 0,
+      base_version: 0,
+      mutation_id: "m-valid",
+      device_id: null,
+      created_at: Date.now(),
+    })
+    // Simulate corrupted JSON via raw row
+    db.seedRawPullRow({
+      user_id: "u1",
+      version: 2,
+      collection: "foods",
+      id: "food-corrupted",
+      data: "{ invalid json \\x00",
+      deleted: 0,
+    })
+    db.seedEvent({
+      version: 3,
+      user_id: "u1",
+      user_email: "u1@example.com",
+      collection: "foods",
+      id: "food-also-valid",
+      data: JSON.stringify({ id: "food-also-valid", name: "Also Valid" }),
+      deleted: 0,
+      base_version: 0,
+      mutation_id: "m-also-valid",
+      device_id: null,
+      created_at: Date.now(),
+    })
+
+    const response = await requestSync(db, "/api/sync/pull", {
+      cursor: { version: 0 },
+      limit: 10,
+    })
+
+    const body = await readJson(response)
+    const changes = readArray(body, "changes")
+
+    expect(response.status).toBe(200)
+    // Corrupted record should be filtered out, but valid ones included
+    expect(changes).toHaveLength(2)
+    expect(changes.map((c: unknown) => isRecord(c) ? c.id : null)).toEqual(["food-valid", "food-also-valid"])
+  })
+
+  it("includes corrupted tombstone records in pull response with null data", async () => {
+    // Simulate corrupted deleted record via raw row
+    db.seedRawPullRow({
+      user_id: "u1",
+      version: 1,
+      collection: "foods",
+      id: "food-deleted-corrupted",
+      data: "{ corrupted but deleted \\x00",
+      deleted: 1,
+    })
+
+    const response = await requestSync(db, "/api/sync/pull", {
+      cursor: { version: 0 },
+      limit: 10,
+    })
+
+    const body = await readJson(response)
+    const changes = readArray(body, "changes")
+
+    expect(response.status).toBe(200)
+    // Tombstones with corrupted data should still be included with null data
+    expect(changes).toHaveLength(1)
+    expect(changes[0]).toMatchObject({
+      collection: "foods",
+      id: "food-deleted-corrupted",
+      data: null,
+      deleted: true,
+    })
+  })
+
+  it("advances cursor correctly even when some records are filtered due to corruption", async () => {
+    db.seedEvent({
+      version: 1,
+      user_id: "u1",
+      user_email: "u1@example.com",
+      collection: "foods",
+      id: "food-1",
+      data: JSON.stringify({ id: "food-1" }),
+      deleted: 0,
+      base_version: 0,
+      mutation_id: "m1",
+      device_id: null,
+      created_at: Date.now(),
+    })
+    // Corrupted record at version 2 (should be skipped)
+    db.seedRawPullRow({
+      user_id: "u1",
+      version: 2,
+      collection: "foods",
+      id: "food-corrupted",
+      data: "not valid json",
+      deleted: 0,
+    })
+    db.seedEvent({
+      version: 3,
+      user_id: "u1",
+      user_email: "u1@example.com",
+      collection: "foods",
+      id: "food-3",
+      data: JSON.stringify({ id: "food-3" }),
+      deleted: 0,
+      base_version: 0,
+      mutation_id: "m3",
+      device_id: null,
+      created_at: Date.now(),
+    })
+
+    const response = await requestSync(db, "/api/sync/pull", {
+      cursor: { version: 0 },
+      limit: 10,
+    })
+
+    const body = await readJson(response)
+    const nextCursor = readObject(body, "nextCursor")
+    const hasMore = isRecord(body) ? body.hasMore : undefined
+
+    expect(response.status).toBe(200)
+    // Cursor should advance past the corrupted record
+    expect(nextCursor).toEqual({ version: 3 })
+    expect(hasMore).toBe(false)
+  })
 })
+

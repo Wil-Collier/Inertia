@@ -64,7 +64,11 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
             return
           }
 
-          if (!change.data) return
+          if (!change.data) {
+            // This shouldn't happen - non-deleted changes should always have data
+            console.warn(`[Sync] Skipping non-deleted change with null data: ${change.collection}/${change.id}`)
+            return
+          }
           const local = fromCloudRecord(change.collection, change.data)
           if (isRecord(local)) {
             local.updatedAt = Date.now()

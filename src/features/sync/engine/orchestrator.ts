@@ -25,41 +25,39 @@ export async function syncNow(): Promise<void> {
     return
   }
 
+  if (syncInFlight) return
+  syncInFlight = true
+
+  const syncStore = useSyncStore.getState()
+  syncStore.setStatus("syncing")
+  syncStore.setLastError(null)
+  syncStore.setConflicts([])
+
   try {
     await syncWithRetry(async () => {
-      if (syncInFlight) return
-      syncInFlight = true
-
-      const syncStore = useSyncStore.getState()
-      syncStore.setStatus("syncing")
-      syncStore.setLastError(null)
-      syncStore.setConflicts([])
-
-      try {
-        const canProceed = await ensureInitialSync(accessToken, userId)
-        if (!canProceed) {
-          syncStore.setStatus("idle")
-          return
-        }
-
-        await pushPendingChangesInternal(accessToken, true)
-        const pullResult = await pullAllChanges(accessToken)
-        await applyPulledChanges(pullResult.changes)
-
-        if (pullResult.cursor) {
-          await setPullCursor(pullResult.cursor)
-        }
-
-        syncStore.setLastSyncedAtMs(pullResult.serverTimestampMs)
-        await setLastSyncedAtMs(pullResult.serverTimestampMs)
-        await setLocalDataOwnerUserId(userId)
-        syncStore.setStatus("success")
-      } finally {
-        syncInFlight = false
+      const canProceed = await ensureInitialSync(accessToken, userId)
+      if (!canProceed) {
+        syncStore.setStatus("idle")
+        return
       }
+
+      await pushPendingChangesInternal(accessToken, true)
+      const pullResult = await pullAllChanges(accessToken)
+      await applyPulledChanges(pullResult.changes)
+
+      if (pullResult.cursor) {
+        await setPullCursor(pullResult.cursor)
+      }
+
+      syncStore.setLastSyncedAtMs(pullResult.serverTimestampMs)
+      await setLastSyncedAtMs(pullResult.serverTimestampMs)
+      await setLocalDataOwnerUserId(userId)
+      syncStore.setStatus("success")
     })
   } catch (error) {
     handleSyncError(error)
+  } finally {
+    syncInFlight = false
   }
 }
 
