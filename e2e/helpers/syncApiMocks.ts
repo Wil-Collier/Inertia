@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test"
-import type { ErrorResponse, PullResponse, PushResponse, RefreshResponse } from "../../shared/syncSchemas"
+import type { ErrorResponse, PullResponse, PushResponse, RefreshResponse, SyncCollection } from "../../shared/syncSchemas"
 
 interface SyncApiMockOptions {
   refreshStatus?: number
@@ -156,7 +156,7 @@ export async function registerAuthenticatedSyncApiMocks(
  * Helper to create a push response with conflicts for testing conflict scenarios
  */
 export function createConflictPushResponse(
-  conflicts: Array<{ collection: string; id: string; serverVersion: number; clientBaseVersion: number }>
+  conflicts: Array<{ collection: SyncCollection; id: string; serverVersion: number; clientBaseVersion: number }>
 ): PushResponse {
   return {
     accepted: 0,
@@ -164,7 +164,7 @@ export function createConflictPushResponse(
     conflicts: conflicts.map((c) => ({
       ...c,
       reason: "VERSION_MISMATCH",
-    })) as PushResponse["conflicts"],
+    })),
   }
 }
 
@@ -173,7 +173,7 @@ export function createConflictPushResponse(
  */
 export function createPullResponseWithChanges(
   changes: Array<{
-    collection: string
+    collection: SyncCollection
     id: string
     data: Record<string, unknown> | null
     version: number
@@ -182,7 +182,7 @@ export function createPullResponseWithChanges(
 ): PullResponse {
   const maxVersion = Math.max(...changes.map((c) => c.version), 0)
   return {
-    changes: changes as PullResponse["changes"],
+    changes: changes,
     nextCursor: maxVersion > 0 ? { version: maxVersion } : null,
     serverTimestampMs: Date.now(),
     hasMore: false,

@@ -1,7 +1,7 @@
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
-import { type PluginOption } from "vite"
+import { type PluginOption } from "rolldown-vite"
 import { defineConfig } from "vitest/config"
 import { VitePWA } from "vite-plugin-pwa"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
@@ -11,7 +11,8 @@ import { matchNutritionApi } from "./src/lib/workboxRuntime"
 const isVitest = process.env.VITEST === "true"
 
 // https://vite.dev/config/
-export default defineConfig({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, typescript-eslint/no-unsafe-type-assertion
+export default (defineConfig as any)({
   plugins: [
     tanstackRouter(),
     react(),
@@ -91,7 +92,7 @@ export default defineConfig({
     target: "es2019",
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
+        manualChunks: (id: string) => {
           if (id.includes("node_modules")) {
             const isReact =
               id.includes("/react/") ||
