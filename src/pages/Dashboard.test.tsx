@@ -10,18 +10,26 @@ import { renderAppRoute } from "@/test/helpers/renderAppRoute"
 import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
 import { seedTestState } from "@/test/helpers/seedTestState"
 
+// WeeklyConsistency uses recharts which requires DOM measurements (getBBox, getComputedTextLength)
+// unavailable in jsdom. Mocking avoids spurious layout errors unrelated to Dashboard behavior.
 vi.mock("@/components/dashboard/WeeklyConsistency", () => ({
   WeeklyConsistency: () => <div>Weekly Consistency</div>,
 }))
 
+// WeightCard uses recharts (LineChart) which requires DOM measurement APIs unavailable in jsdom.
+// Mocking prevents layout/rendering errors that would obscure the Dashboard tests.
 vi.mock("@/components/dashboard/WeightCard", () => ({
   WeightCard: () => <div>Weight Card</div>,
 }))
 
+// AchievementBadge renders complex SVG animations and gradient effects that cause jsdom
+// warnings. Dashboard tests focus on routing, data hydration, and CTA behavior — not badge rendering.
 vi.mock("@/components/AchievementBadge", () => ({
   AchievementBadge: () => <div>Achievement Badge</div>,
 }))
 
+// Pin today's date to a deterministic value so seeded workout/nutrition data with
+// date "2026-02-09" is always treated as "today" regardless of when the test runs.
 vi.mock("@/lib/dateUtils", () => ({
   getToday: () => "2026-02-09",
 }))
