@@ -28,7 +28,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm preview --host 127.0.0.1 --port 4173",
+    command: "VITE_E2E_DISABLE_CAMERA=true pnpm preview --host 127.0.0.1 --port 4173",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

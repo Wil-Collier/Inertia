@@ -89,6 +89,7 @@ export function FoodSearch({
                   variant="ghost"
                   className="absolute right-2 top-1/2 -translate-y-1/2"
                   onClick={() => onSearchQueryChange("")}
+                  aria-label="Clear food search"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -99,6 +100,7 @@ export function FoodSearch({
               size="icon"
               onClick={onScanBarcode}
               disabled={isLookingUp}
+              aria-label="Scan barcode"
               title="Scan barcode"
             >
               {isLookingUp ? (

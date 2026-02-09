@@ -96,7 +96,9 @@ export function CustomFoodForm({
         <Button
           size="icon-sm"
           variant="ghost"
+          aria-label="Close custom food form"
           onClick={() => {
+            setBarcode("")
             setIsExpanded(false)
             onClearBarcode?.()
           }}

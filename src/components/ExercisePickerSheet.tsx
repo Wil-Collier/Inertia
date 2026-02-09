@@ -62,6 +62,7 @@ const ExerciseListItem = memo(({
             size="icon-sm"
             variant="ghost"
             onClick={() => onEdit(exercise)}
+            aria-label={`Edit ${exercise.name}`}
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -156,6 +157,7 @@ export function ExercisePickerSheet({
       <Sheet open={isOpen} onOpenChange={(open) => {
         if (!open) {
           setSearchQuery("")
+          setDebouncedQuery("")
           setSelectedMuscleGroup(null)
           setShowCustomOnly(false)
         }
@@ -188,6 +190,7 @@ export function ExercisePickerSheet({
                     size="icon-sm"
                     variant="ghost"
                     onClick={() => setSearchQuery("")}
+                    aria-label="Clear search"
                     className="absolute right-2 top-1/2 -translate-y-1/2"
                   >
                     <X className="h-4 w-4" />

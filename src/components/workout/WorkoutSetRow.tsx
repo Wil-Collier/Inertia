@@ -101,6 +101,7 @@ export const WorkoutSetRow = memo(({
               size="icon-sm"
               variant={countdownIsRunning ? "default" : "outline"}
               className="h-8 w-8"
+              aria-label={countdownIsRunning ? `Pause set ${index + 1} timer` : `Resume set ${index + 1} timer`}
               onClick={() => {
                 if (countdownIsRunning) {
                   onPauseCountdown()
@@ -117,6 +118,7 @@ export const WorkoutSetRow = memo(({
               variant="outline"
               className="h-8 w-8"
               disabled={!canComplete}
+              aria-label={`Start set ${index + 1} timer`}
               onClick={() => {
                 if (canComplete) {
                   onStartCountdown(set.id, workoutExerciseId, set.reps)
@@ -132,6 +134,7 @@ export const WorkoutSetRow = memo(({
             variant={set.isCompleted ? "default" : "outline"}
             className="h-8 w-8"
             disabled={!set.isCompleted && !canComplete}
+            aria-label={set.isCompleted ? `Mark set ${index + 1} incomplete` : `Complete set ${index + 1}`}
             onClick={() => {
               if (set.isCompleted || canComplete) {
                 onToggleSetComplete(workoutExerciseId, set.id)
@@ -155,6 +158,7 @@ export const WorkoutSetRow = memo(({
           size="sm"
           className="h-9 w-full text-center tabular-nums"
           disabled={set.isCompleted}
+          aria-label={`Set ${index + 1} weight`}
           onClick={() => setActivePicker("weight")}
         >
           {set.weight} <span className="ml-1 text-[10px] text-muted-foreground uppercase">{weightUnitLabel}</span>
@@ -184,6 +188,7 @@ export const WorkoutSetRow = memo(({
           size="sm"
           className="h-9 w-full text-center tabular-nums"
           disabled={set.isCompleted}
+          aria-label={`Set ${index + 1} reps`}
           onClick={() => setActivePicker("reps")}
         >
           {set.reps} <span className="ml-1 text-[10px] text-muted-foreground uppercase">reps</span>
@@ -197,6 +202,7 @@ export const WorkoutSetRow = memo(({
             size="icon-sm"
             variant="ghost"
             className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label={`Remove set ${index + 1}`}
             onClick={() => onRemoveSet(workoutExerciseId, set.id)}
           >
             <Trash2 className="h-4 w-4" />

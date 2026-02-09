@@ -2,6 +2,9 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { Html5Qrcode } from "html5-qrcode"
 import { X, Camera, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+
+const CAMERA_DISABLED = import.meta.env.VITE_E2E_DISABLE_CAMERA === "true"
 
 interface BarcodeScannerProps {
   isOpen: boolean
@@ -12,6 +15,7 @@ interface BarcodeScannerProps {
 export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps) {
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
+  const [manualBarcode, setManualBarcode] = useState("")
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const onScanRef = useRef(onScan)
@@ -34,6 +38,12 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
 
   useEffect(() => {
     if (!isOpen) return
+
+    if (CAMERA_DISABLED) {
+      setIsStarting(false)
+      setError(null)
+      return
+    }
 
     const scannerId = "barcode-scanner-container"
     let mounted = true
@@ -139,6 +149,13 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
     onClose()
   }
 
+  const handleManualSubmit = () => {
+    const trimmed = manualBarcode.trim()
+    if (!trimmed) return
+    onScanRef.current(trimmed)
+    setManualBarcode("")
+  }
+
   if (!isOpen) return null
 
   return (
@@ -150,6 +167,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
           variant="ghost"
           size="icon"
           onClick={() => void handleClose()}
+          aria-label="Close scanner"
           className="text-white hover:bg-white/20"
         >
           <X className="h-5 w-5" />
@@ -187,7 +205,34 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
       </div>
 
       {/* Footer */}
-      <div className="p-4 safe-area-bottom">
+      <div className="p-4 safe-area-bottom space-y-3">
+        <div className="space-y-2">
+          <p className="text-xs text-white/80 uppercase tracking-widest">Manual Entry</p>
+          <div className="flex gap-2">
+            <Input
+              data-testid="manual-barcode-input"
+              value={manualBarcode}
+              onChange={(event) => setManualBarcode(event.target.value)}
+              placeholder="Enter barcode manually"
+              inputMode="numeric"
+              className="bg-white text-black"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleManualSubmit()
+                }
+              }}
+            />
+            <Button
+              data-testid="manual-barcode-submit"
+              variant="secondary"
+              className="shrink-0"
+              onClick={handleManualSubmit}
+              disabled={!manualBarcode.trim()}
+            >
+              Use Barcode
+            </Button>
+          </div>
+        </div>
         <Button
           variant="secondary"
           className="w-full"
