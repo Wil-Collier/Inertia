@@ -98,8 +98,10 @@ test("workout set row supports reps/weight editing and timed controls", async ({
     element.scrollTop = 600
     element.dispatchEvent(new Event("scroll"))
   })
-  await page.waitForTimeout(150)
-  await page.getByRole("button", { name: "Confirm" }).click()
+  // Wait for picker to settle before confirming
+  const confirmButton = page.getByRole("button", { name: "Confirm" })
+  await expect(confirmButton).toBeEnabled()
+  await confirmButton.click()
   await expect.poll(async () => {
     const text = await repsButton.innerText()
     const parsed = Number.parseFloat(text)
@@ -113,8 +115,10 @@ test("workout set row supports reps/weight editing and timed controls", async ({
     element.scrollTop = 600
     element.dispatchEvent(new Event("scroll"))
   })
-  await page.waitForTimeout(150)
-  await page.getByRole("button", { name: "Confirm" }).click()
+  // Wait for picker to settle before confirming
+  const confirmButton2 = page.getByRole("button", { name: "Confirm" })
+  await expect(confirmButton2).toBeEnabled()
+  await confirmButton2.click()
   await expect.poll(async () => {
     const text = await weightButton.innerText()
     const parsed = Number.parseFloat(text)

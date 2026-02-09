@@ -26,6 +26,10 @@ export default defineConfig({
       name: "safari",
       use: { ...devices["Desktop Safari"] },
     },
+    {
+      name: "mobile-chrome",
+      use: { ...devices["Pixel 5"] },
+    },
   ],
   webServer: {
     command: "VITE_E2E_DISABLE_CAMERA=true pnpm preview --host 127.0.0.1 --port 4173",
@@ -34,3 +38,4 @@ export default defineConfig({
     timeout: 120_000,
   },
 })
+

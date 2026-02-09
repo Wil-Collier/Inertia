@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { registerUnauthenticatedSyncApiMocks } from "./helpers/syncApiMocks"
+import { registerUnauthenticatedSyncApiMocks, registerAuthenticatedSyncApiMocks } from "./helpers/syncApiMocks"
 
 test("nutrition journey adds a custom food entry and navigates history", async ({ page }) => {
   await registerUnauthenticatedSyncApiMocks(page)
@@ -26,77 +26,10 @@ test("nutrition journey adds a custom food entry and navigates history", async (
 })
 
 test("barcode not-found path switches to scanned custom food flow", async ({ page }) => {
-  await page.addInitScript(() => {
-    const windowWithCounter = window as Window & { __e2eBarcodeLookupCount?: number }
-    windowWithCounter.__e2eBarcodeLookupCount = 0
-
-    const originalFetch = window.fetch.bind(window)
-    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const request = input instanceof Request ? input : new Request(input, init)
-      const url = new URL(request.url)
-      const method = request.method.toUpperCase()
-
-      if (url.pathname === "/api/auth/refresh" && method === "POST") {
-        return new Response(
-          JSON.stringify({
-            accessToken: "e2e-access-token",
-            userId: "e2e-user-id",
-            email: "athlete@example.com",
-            expiresAtMs: Date.now() + 60 * 60 * 1000,
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }
-        )
-      }
-
-      if (url.pathname === "/api/sync/pull" && method === "POST") {
-        return new Response(
-          JSON.stringify({
-            changes: [],
-            nextCursor: null,
-            serverTimestampMs: Date.now(),
-            hasMore: false,
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }
-        )
-      }
-
-      if (url.pathname === "/api/sync/push" && method === "POST") {
-        return new Response(
-          JSON.stringify({
-            accepted: 0,
-            acceptedChanges: [],
-            conflicts: [],
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }
-        )
-      }
-
-      if (url.pathname === "/api/auth/logout" && method === "POST") {
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      }
-
-      if (url.pathname === "/api/nutrition/barcode") {
-        windowWithCounter.__e2eBarcodeLookupCount = (windowWithCounter.__e2eBarcodeLookupCount ?? 0) + 1
-        return new Response(JSON.stringify({ error: "Not Found" }), {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        })
-      }
-
-      return await originalFetch(input, init)
-    }
+  // Use the helper with barcode mock configured to return 404
+  await registerAuthenticatedSyncApiMocks(page, {
+    barcodeStatus: 404,
+    barcodeBody: { error: "Not Found" },
   })
 
   await page.goto("/nutrition")
@@ -117,12 +50,7 @@ test("barcode not-found path switches to scanned custom food flow", async ({ pag
     await useBarcodeButton.click()
   }
 
-  await expect.poll(async () => {
-    return await page.evaluate(() => {
-      const windowWithCounter = window as Window & { __e2eBarcodeLookupCount?: number }
-      return windowWithCounter.__e2eBarcodeLookupCount ?? 0
-    })
-  }).toBeGreaterThan(0)
+  // Wait for the barcode lookup result
   await expect(page.getByRole("tab", { name: "My Foods", selected: true })).toBeVisible()
   await expect(page.getByLabel("Name")).toBeVisible()
   await expect(page.getByText("Create Food (Scanned)")).toBeVisible()
@@ -134,3 +62,4 @@ test("barcode not-found path switches to scanned custom food flow", async ({ pag
 
   await expect(page.getByText("E2E Scanned Not Found Food", { exact: true }).first()).toBeVisible()
 })
+

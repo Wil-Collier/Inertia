@@ -10,6 +10,8 @@ interface SyncApiMockOptions {
   pullBody?: PullResponse | ErrorResponse
   pushStatus?: number
   pushBody?: PushResponse | ErrorResponse
+  barcodeStatus?: number
+  barcodeBody?: unknown
 }
 
 const DEFAULT_REFRESH_ERROR: ErrorResponse = {
@@ -43,6 +45,10 @@ const DEFAULT_PUSH_RESPONSE: PushResponse = {
 
 function isPost(route: Route): boolean {
   return route.request().method() === "POST"
+}
+
+function isGet(route: Route): boolean {
+  return route.request().method() === "GET"
 }
 
 async function fulfillJson(route: Route, status: number, body: unknown): Promise<void> {
@@ -94,6 +100,21 @@ export async function registerSyncApiMocks(page: Page, options: SyncApiMockOptio
     }
     await fulfillJson(route, pushStatus, pushBody)
   })
+
+  // Register barcode mock if options provided
+  if (options.barcodeStatus !== undefined || options.barcodeBody !== undefined) {
+    await page.route("**/api/nutrition/barcode**", async (route) => {
+      if (!isGet(route)) {
+        await route.fallback()
+        return
+      }
+      await fulfillJson(
+        route,
+        options.barcodeStatus ?? 404,
+        options.barcodeBody ?? { error: "Not Found" }
+      )
+    })
+  }
 }
 
 export async function registerUnauthenticatedSyncApiMocks(page: Page): Promise<void> {
@@ -105,8 +126,12 @@ export async function registerUnauthenticatedSyncApiMocks(page: Page): Promise<v
 
 interface AuthenticatedSyncMockOptions {
   refreshBody?: RefreshResponse
-  pullBody?: PullResponse
-  pushBody?: PushResponse
+  pullStatus?: number
+  pullBody?: PullResponse | ErrorResponse
+  pushStatus?: number
+  pushBody?: PushResponse | ErrorResponse
+  barcodeStatus?: number
+  barcodeBody?: unknown
 }
 
 export async function registerAuthenticatedSyncApiMocks(
@@ -116,11 +141,60 @@ export async function registerAuthenticatedSyncApiMocks(
   await registerSyncApiMocks(page, {
     refreshStatus: 200,
     refreshBody: options.refreshBody ?? DEFAULT_AUTH_REFRESH_RESPONSE,
-    pullStatus: 200,
+    pullStatus: options.pullStatus ?? 200,
     pullBody: options.pullBody ?? DEFAULT_PULL_RESPONSE,
-    pushStatus: 200,
+    pushStatus: options.pushStatus ?? 200,
     pushBody: options.pushBody ?? DEFAULT_PUSH_RESPONSE,
     logoutStatus: 200,
     logoutBody: DEFAULT_LOGOUT_RESPONSE,
+    barcodeStatus: options.barcodeStatus,
+    barcodeBody: options.barcodeBody,
   })
+}
+
+/**
+ * Helper to create a push response with conflicts for testing conflict scenarios
+ */
+export function createConflictPushResponse(
+  conflicts: Array<{ collection: string; id: string; serverVersion: number; clientBaseVersion: number }>
+): PushResponse {
+  return {
+    accepted: 0,
+    acceptedChanges: [],
+    conflicts: conflicts.map((c) => ({
+      ...c,
+      reason: "VERSION_MISMATCH",
+    })) as PushResponse["conflicts"],
+  }
+}
+
+/**
+ * Helper to create a pull response with changes for testing sync scenarios
+ */
+export function createPullResponseWithChanges(
+  changes: Array<{
+    collection: string
+    id: string
+    data: Record<string, unknown> | null
+    version: number
+    deleted: boolean
+  }>
+): PullResponse {
+  const maxVersion = Math.max(...changes.map((c) => c.version), 0)
+  return {
+    changes: changes as PullResponse["changes"],
+    nextCursor: maxVersion > 0 ? { version: maxVersion } : null,
+    serverTimestampMs: Date.now(),
+    hasMore: false,
+  }
+}
+
+/**
+ * Helper for server error responses
+ */
+export function createServerErrorResponse(status: number, message: string): ErrorResponse {
+  return {
+    error: "SERVER_ERROR",
+    message,
+  }
 }
