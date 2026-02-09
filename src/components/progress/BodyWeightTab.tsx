@@ -210,6 +210,8 @@ export function BodyWeightTab({
                     <Button
                       size="icon-sm"
                       variant="ghost"
+                      aria-label={`Delete weight entry ${entry.date}`}
+                      title="Delete weight entry"
                       onClick={() => setEntryToDelete(entry.id)}
                     >
                       <Trash2 className="h-3 w-3" />

@@ -55,6 +55,7 @@ export const FoodListItem = memo(({
           <Button
             size="icon-sm"
             variant="ghost"
+            aria-label={`Toggle favorite for ${food.name}`}
             onClick={handleToggleFavorite}
           >
             <Star
@@ -66,6 +67,7 @@ export const FoodListItem = memo(({
             <Button
               size="icon-sm"
               variant="ghost"
+              aria-label={`Delete ${food.name}`}
               onClick={handleDelete}
             >
               <Trash2 className="h-4 w-4 text-destructive" />
@@ -76,6 +78,7 @@ export const FoodListItem = memo(({
             size="icon-sm"
             variant="secondary"
             className="h-8 w-8 rounded-full ml-1"
+            aria-label={`Add ${food.name}`}
             onClick={handleAdd}
           >
             <Plus className="h-4 w-4" />
@@ -87,4 +90,3 @@ export const FoodListItem = memo(({
 })
 
 FoodListItem.displayName = "FoodListItem"
-

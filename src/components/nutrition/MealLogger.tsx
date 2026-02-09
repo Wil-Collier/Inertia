@@ -83,6 +83,8 @@ export function MealLogger({
                     size="icon-sm"
                     variant="ghost"
                     className="h-8 w-8 rounded-full bg-background/50"
+                    aria-label={`Add food to ${label}`}
+                    title={`Add food to ${label}`}
                     onClick={() => openAddSheet(type)}
                   >
                     <Plus className="h-4 w-4" />
