@@ -171,6 +171,9 @@ async function buildPushChangesFromPending(pending: PendingChange[]): Promise<Pr
   const deviceId = getDeviceId()
   return await Promise.all(
     pending.map(async (change) => {
+      const knownVersion = await getRecordVersion(change.collection, change.id)
+      const baseVersion = Math.max(change.baseVersion, knownVersion)
+
       if (change.deleted) {
         return {
           pending: change,
@@ -178,7 +181,7 @@ async function buildPushChangesFromPending(pending: PendingChange[]): Promise<Pr
             collection: change.collection,
             id: change.id,
             data: null,
-            baseVersion: change.baseVersion,
+            baseVersion,
             mutationId: change.mutationId,
             deviceId,
           },
@@ -193,7 +196,7 @@ async function buildPushChangesFromPending(pending: PendingChange[]): Promise<Pr
             collection: change.collection,
             id: change.id,
             data: null,
-            baseVersion: change.baseVersion,
+            baseVersion,
             mutationId: change.mutationId,
             deviceId,
           },
@@ -211,7 +214,7 @@ async function buildPushChangesFromPending(pending: PendingChange[]): Promise<Pr
           collection: change.collection,
           id: change.id,
           data,
-          baseVersion: change.baseVersion,
+          baseVersion,
           mutationId: change.mutationId,
           deviceId,
         },

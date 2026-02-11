@@ -323,6 +323,47 @@ describe("pushPipeline", () => {
     ])
   })
 
+  it("pushes known synced version instead of stale pending baseVersion zero", async () => {
+    listPendingChangesMock.mockResolvedValue([
+      {
+        collection: "nutrition",
+        id: "2026-02-10",
+        deleted: false,
+        baseVersion: 0,
+        mutationId: "m-nutrition",
+        enqueuedAt: 1,
+      },
+    ])
+
+    getLocalRecordMock.mockResolvedValueOnce({ date: "2026-02-10", entries: [] })
+    toCloudRecordMock.mockReturnValueOnce({ date: "2026-02-10", entries: [] })
+    getRecordVersionMock.mockImplementation(async (collection, id) => {
+      if (collection === "nutrition" && id === "2026-02-10") {
+        return 20
+      }
+      return 0
+    })
+    pushChangesMock.mockResolvedValueOnce({
+      acceptedChanges: [],
+      conflicts: [],
+    })
+
+    const { pushPendingChangesInternal } = await loadPushPipeline()
+    await pushPendingChangesInternal("token", true)
+
+    expect(pushChangesMock).toHaveBeenCalledTimes(1)
+    expect(pushChangesMock.mock.calls[0]?.[1].changes).toEqual([
+      {
+        collection: "nutrition",
+        id: "2026-02-10",
+        data: { date: "2026-02-10", entries: [] },
+        baseVersion: 20,
+        mutationId: "m-nutrition",
+        deviceId: "device-1",
+      },
+    ])
+  })
+
   it("does not update conflict store when updateStatus is false", async () => {
     listPendingChangesMock.mockResolvedValue([
       {
