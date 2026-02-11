@@ -4,6 +4,7 @@ import {
   acknowledgeProcessedPendingChanges,
   clearPendingChanges,
   getRecordVersion,
+  rebasePendingChangesFromAccepted,
   listPendingChanges,
   setRecordVersionsBulk,
 } from "@/features/sync/changeTracker"
@@ -37,11 +38,18 @@ export async function pushPendingChangesInternal(accessToken: string, updateStat
       useSyncStore.getState().setConflicts(response.conflicts)
     }
 
-    await setRecordVersionsBulk(
+    const acceptedVersions = response.acceptedChanges.map((item) => ({
+      collection: item.collection,
+      id: item.id,
+      version: item.version,
+    }))
+    await setRecordVersionsBulk(acceptedVersions)
+    await rebasePendingChangesFromAccepted(
       response.acceptedChanges.map((item) => ({
         collection: item.collection,
         id: item.id,
         version: item.version,
+        mutationId: item.mutationId,
       }))
     )
 

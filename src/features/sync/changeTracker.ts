@@ -223,6 +223,29 @@ export async function setRecordVersionsBulk(
   await table.bulkPut(entries)
 }
 
+export async function rebasePendingChangesFromAccepted(
+  entries: Array<{ collection: SyncCollection; id: string; version: number; mutationId: string }>
+): Promise<void> {
+  if (entries.length === 0) return
+
+  await db.transaction("rw", db.syncPendingChanges, async () => {
+    await Promise.all(
+      entries.map(async (entry) => {
+        const key: [string, string] = [entry.collection, entry.id]
+        const current = await db.syncPendingChanges.get(key)
+        if (!current) return
+        if (current.mutationId === entry.mutationId) return
+        if (current.baseVersion >= entry.version) return
+
+        await db.syncPendingChanges.put({
+          ...current,
+          baseVersion: entry.version,
+        })
+      })
+    )
+  })
+}
+
 export async function removeRecordVersion(collection: SyncCollection, id: string, transaction?: Transaction): Promise<void> {
   const table = getVersionTable(transaction)
   await table.delete([collection, id])

@@ -6,6 +6,7 @@ import {
   getLastSyncedAtMs,
   getPullCursor,
   getRecordVersion,
+  rebasePendingChangesFromAccepted,
   listPendingChanges,
   setLastSyncedAtMs,
   setPullCursor,
@@ -91,5 +92,32 @@ describe("changeTracker integration", () => {
 
     await setRecordVersion("nutrition", "2026-02-07", 11)
     expect(await getRecordVersion("nutrition", "2026-02-07")).toBe(11)
+  })
+
+  it("rebases a newer pending mutation to the accepted server version", async () => {
+    await db.syncPendingChanges.put({
+      collection: "foods",
+      id: "food-1",
+      deleted: false,
+      baseVersion: 0,
+      mutationId: "newer",
+      enqueuedAt: 123,
+    })
+
+    await rebasePendingChangesFromAccepted([
+      {
+        collection: "foods",
+        id: "food-1",
+        version: 4,
+        mutationId: "older",
+      },
+    ])
+
+    expect(await db.syncPendingChanges.get(["foods", "food-1"])).toMatchObject({
+      collection: "foods",
+      id: "food-1",
+      mutationId: "newer",
+      baseVersion: 4,
+    })
   })
 })

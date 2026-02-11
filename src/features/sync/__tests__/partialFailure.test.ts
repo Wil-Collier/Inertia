@@ -5,6 +5,7 @@ import type { PullChange, PushChange } from "@/features/sync/schemas"
 const listPendingChangesMock = vi.fn<() => Promise<PendingChange[]>>()
 const getRecordVersionMock = vi.fn<(collection: PushChange["collection"], id: string) => Promise<number>>()
 const setRecordVersionsBulkMock = vi.fn()
+const rebasePendingChangesFromAcceptedMock = vi.fn()
 const acknowledgeProcessedPendingChangesMock = vi.fn()
 const clearPendingChangesMock = vi.fn()
 
@@ -29,6 +30,7 @@ vi.mock("@/features/sync/changeTracker", () => ({
     listPendingChanges: () => listPendingChangesMock(),
     getRecordVersion: (collection: PushChange["collection"], id: string) => getRecordVersionMock(collection, id),
     setRecordVersionsBulk: (...args: unknown[]) => setRecordVersionsBulkMock(...args),
+    rebasePendingChangesFromAccepted: (...args: unknown[]) => rebasePendingChangesFromAcceptedMock(...args),
     acknowledgeProcessedPendingChanges: (...args: unknown[]) => acknowledgeProcessedPendingChangesMock(...args),
     clearPendingChanges: () => clearPendingChangesMock(),
 }))
@@ -94,6 +96,7 @@ describe("pushPipeline partial failure handling", () => {
         listPendingChangesMock.mockResolvedValue([])
         getRecordVersionMock.mockResolvedValue(0)
         setRecordVersionsBulkMock.mockResolvedValue(undefined)
+        rebasePendingChangesFromAcceptedMock.mockResolvedValue(undefined)
         acknowledgeProcessedPendingChangesMock.mockResolvedValue(undefined)
         clearPendingChangesMock.mockResolvedValue(undefined)
         pushChangesMock.mockResolvedValue({ acceptedChanges: [], conflicts: [] })
