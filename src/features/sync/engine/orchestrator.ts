@@ -4,6 +4,7 @@ import { ensureInitialSync, resolveInitialSyncStrategy } from "@/features/sync/e
 import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
 import { pushPendingChangesInternal } from "@/features/sync/engine/pushPipeline"
 import { setLastSyncedAtMs, setLocalDataOwnerUserId, setPullCursor } from "@/features/sync/changeTracker"
+import { lastPullTimestamp } from "@/features/sync/lastPullTracker"
 import type { InitialSyncStrategy } from "@/features/sync/types"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
 
@@ -49,6 +50,7 @@ export async function syncNow(): Promise<void> {
         await setPullCursor(pullResult.cursor)
       }
 
+      lastPullTimestamp.value = Date.now()
       syncStore.setLastSyncedAtMs(pullResult.serverTimestampMs)
       await setLastSyncedAtMs(pullResult.serverTimestampMs)
       await setLocalDataOwnerUserId(userId)
@@ -78,9 +80,27 @@ export async function pushPendingChanges(): Promise<void> {
   syncStore.setConflicts([])
 
   try {
-    await pushPendingChangesInternal(accessToken, true)
-    await setLocalDataOwnerUserId(userId)
-    syncStore.setStatus("success")
+    await syncWithRetry(async () => {
+      const canProceed = await ensureInitialSync(accessToken, userId)
+      if (!canProceed) {
+        syncStore.setStatus("idle")
+        return
+      }
+
+      await pushPendingChangesInternal(accessToken, true)
+      const pullResult = await pullAllChanges(accessToken)
+      await applyPulledChanges(pullResult.changes)
+
+      if (pullResult.cursor) {
+        await setPullCursor(pullResult.cursor)
+      }
+
+      lastPullTimestamp.value = Date.now()
+      syncStore.setLastSyncedAtMs(pullResult.serverTimestampMs)
+      await setLastSyncedAtMs(pullResult.serverTimestampMs)
+      await setLocalDataOwnerUserId(userId)
+      syncStore.setStatus("success")
+    })
   } catch (error) {
     handleSyncError(error)
   } finally {

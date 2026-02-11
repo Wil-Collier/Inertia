@@ -195,6 +195,7 @@ describe("sync orchestrator", () => {
   })
 
   it("routes pushPendingChanges failures through the error handler", async () => {
+    vi.useFakeTimers()
     setOnline(true)
     pushPendingChangesInternalMock.mockRejectedValue(new Error("push failed"))
     handleSyncErrorMock.mockImplementation((error: unknown) => {
@@ -205,10 +206,34 @@ describe("sync orchestrator", () => {
     })
 
     const { pushPendingChanges } = await loadOrchestrator()
-    await pushPendingChanges()
+    const syncPromise = pushPendingChanges()
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    await vi.advanceTimersByTimeAsync(5_000)
+    await vi.advanceTimersByTimeAsync(15_000)
+    await syncPromise
 
     expect(handleSyncErrorMock).toHaveBeenCalledTimes(1)
     expect(useSyncStore.getState().status).toBe("error")
     expect(useSyncStore.getState().lastError).toBe("push failed")
+    vi.useRealTimers()
+  })
+
+  it("pushPendingChanges pulls after pushing", async () => {
+    setOnline(true)
+    pullAllChangesMock.mockResolvedValue({
+      changes: [],
+      cursor: null,
+      serverTimestampMs: 300,
+      affectedCollections: new Set(),
+    })
+
+    const { pushPendingChanges } = await loadOrchestrator()
+    await pushPendingChanges()
+
+    expect(pushPendingChangesInternalMock).toHaveBeenCalledWith("token", true)
+    expect(pullAllChangesMock).toHaveBeenCalledWith("token")
+    expect(applyPulledChangesMock).toHaveBeenCalled()
+    expect(useSyncStore.getState().status).toBe("success")
   })
 })
