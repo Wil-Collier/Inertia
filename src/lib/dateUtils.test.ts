@@ -7,6 +7,7 @@ import {
   getThirtyDaysAgo,
   getNinetyDaysAgo,
   parseDbDate,
+  calculateStreak,
 } from "@/lib/dateUtils"
 
 describe("dateUtils", () => {
@@ -183,6 +184,54 @@ describe("dateUtils", () => {
 
       expect(week).toHaveLength(7)
       expect(week).toContain("2026-02-07")
+    })
+  })
+
+  describe("calculateStreak", () => {
+    it("returns 0 for empty dates", () => {
+      expect(calculateStreak([])).toBe(0)
+    })
+
+    it("returns 1 if today is present", () => {
+      const today = new Date(2023, 9, 27) // Oct 27
+      const dates = ["2023-10-27"]
+      expect(calculateStreak(dates, today)).toBe(1)
+    })
+
+    it("returns 1 if only yesterday is present", () => {
+      const today = new Date(2023, 9, 27) // Oct 27
+      const dates = ["2023-10-26"]
+      expect(calculateStreak(dates, today)).toBe(1)
+    })
+
+    it("returns 2 if today and yesterday are present", () => {
+      const today = new Date(2023, 9, 27) // Oct 27
+      const dates = ["2023-10-27", "2023-10-26"]
+      expect(calculateStreak(dates, today)).toBe(2)
+    })
+
+    it("returns correct streak with gaps", () => {
+      const today = new Date(2023, 9, 27) // Oct 27
+      const dates = ["2023-10-27", "2023-10-26", "2023-10-24"] // Gap on 25th
+      expect(calculateStreak(dates, today)).toBe(2)
+    })
+
+    it("handles duplicates correctly", () => {
+      const today = new Date(2023, 9, 27) // Oct 27
+      const dates = ["2023-10-27", "2023-10-27", "2023-10-26"]
+      expect(calculateStreak(dates, today)).toBe(2)
+    })
+
+    it("ignores future dates", () => {
+      const today = new Date(2023, 9, 27)
+      const dates = ["2023-10-28", "2023-10-27"]
+      expect(calculateStreak(dates, today)).toBe(1)
+    })
+
+    it("breaks streak if yesterday missing (and today missing)", () => {
+      const today = new Date(2023, 9, 27)
+      const dates = ["2023-10-25"]
+      expect(calculateStreak(dates, today)).toBe(0)
     })
   })
 })
