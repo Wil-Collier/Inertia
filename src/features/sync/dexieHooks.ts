@@ -6,6 +6,7 @@ import {
   enqueuePendingChangeInTransaction,
   getRecordVersion,
 } from "@/features/sync/changeTracker"
+import { deepEqual } from "@/lib/utils"
 
 let hooksRegistered = false
 let suppressionDepth = 0
@@ -206,13 +207,5 @@ function isDerivedWorkoutRebuildOnly(mods: Record<string, unknown>, current?: un
   if (!onlyRebuildKeys) return false
 
   if (!isRecord(current)) return false
-  return deepEqualJson(mods.exercises, current.exercises)
-}
-
-function deepEqualJson(a: unknown, b: unknown): boolean {
-  try {
-    return JSON.stringify(a) === JSON.stringify(b)
-  } catch {
-    return false
-  }
+  return deepEqual(mods.exercises, current.exercises)
 }
