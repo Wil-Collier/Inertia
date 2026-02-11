@@ -343,38 +343,7 @@ export const achievementService = {
    * @param condition - Whether the unlock condition is met
    */
   async tryUnlock(id: string, condition: boolean) {
-    if (!condition) return
-
-    // Use transaction to avoid race conditions with other unlocks or streak updates
-    await db.transaction("rw", db.achievements, async () => {
-      const currentData = await db.achievements.get("achievements")
-      const unlocked = currentData?.unlockedAchievements || []
-
-      const existing = unlocked.find((a) => a.id === id)
-      if (existing) return
-
-      const achievement = achievements.find((a) => a.id === id)
-      if (!achievement) return
-
-      const newAchievement: UnlockedAchievement = {
-        id,
-        unlockedAt: new Date().toISOString(),
-      }
-
-      const newUnlocked = [...unlocked, newAchievement]
-
-      await db.achievements.put({
-        id: "achievements",
-        unlockedAchievements: newUnlocked,
-        streaks: currentData?.streaks || defaultStreaks,
-      })
-
-      // Show toast notification
-      toast.success(`Achievement Unlocked: ${achievement.name}`, {
-        description: achievement.description,
-        duration: 5000,
-      })
-    })
+    await this.tryUnlockBatch([[id, condition]])
   },
 
   /**
