@@ -512,3 +512,16 @@ syncRoutes.post("/pull", async (c) => {
     hasMore,
   })
 })
+
+syncRoutes.post("/reset", async (c) => {
+  const userId = c.get("userId")
+
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM sync_store WHERE user_id = ?").bind(userId),
+    c.env.DB.prepare("DELETE FROM sync_events WHERE user_id = ?").bind(userId),
+    c.env.DB.prepare("DELETE FROM audit_log WHERE user_id = ?").bind(userId),
+    c.env.DB.prepare("DELETE FROM refresh_sessions WHERE user_id = ?").bind(userId),
+  ])
+
+  return c.json({ success: true })
+})

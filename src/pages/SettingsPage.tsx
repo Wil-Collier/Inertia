@@ -12,6 +12,7 @@ import {
 import { useSettings } from "@/features/settings/queries"
 import { useUpdateSettings } from "@/features/settings/mutations"
 import { useTheme } from "@/hooks/useTheme"
+import { useSync } from "@/features/sync/hooks"
 import {
   requestNotificationPermission,
   getNotificationPermission,
@@ -31,6 +32,7 @@ export function SettingsPage() {
   const updateSettingsMutation = useUpdateSettings()
   
   const { data: settings } = useSettings()
+  const { auth, resetCloudData } = useSync()
   
   const { theme, setTheme } = useTheme()
   const [showClearDialog, setShowClearDialog] = useState(false)
@@ -102,6 +104,19 @@ export function SettingsPage() {
   const handleClearData = async () => {
     setIsClearing(true)
     try {
+      if (auth.isAuthenticated) {
+        try {
+          await resetCloudData()
+          toast.success("Cloud data deleted")
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to delete cloud data"
+          toast.error(message)
+          // Stop here if cloud deletion failed, to prevent inconsistent state
+          // (clearing local but leaving cloud intact)
+          return
+        }
+      }
+
       const { clearAllData } = await import("@/services/dataExport")
       await clearAllData()
       setShowClearDialog(false)
@@ -178,9 +193,20 @@ export function SettingsPage() {
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
               This will permanently delete all your workouts, nutrition logs,
-              exercises, and settings. This action cannot be undone.
+              exercises, and settings from this device.
             </p>
-            <div className="flex gap-2">
+            {auth.isAuthenticated && (
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                <strong>Warning:</strong> Since you are signed in, this will also permanently delete
+                ALL your data from the cloud. This action cannot be undone.
+              </p>
+            )}
+            {!auth.isAuthenticated && (
+              <p className="text-sm text-muted-foreground">
+                This action cannot be undone.
+              </p>
+            )}
+            <div className="flex gap-2 pt-2">
               <Button
                 variant="outline"
                 className="flex-1"

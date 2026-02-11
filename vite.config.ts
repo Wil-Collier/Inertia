@@ -84,9 +84,9 @@ export default (defineConfig as any)({
       "@tanstack/react-query",
       "@tanstack/react-router",
     ],
-    esbuildOptions: {
-      target: "es2019",
-    },
+    // esbuildOptions: {
+    //   target: "es2019",
+    // },
   },
   build: {
     target: "es2019",

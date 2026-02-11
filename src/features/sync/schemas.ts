@@ -11,6 +11,7 @@ export {
   LoginResponseSchema,
   RefreshResponseSchema,
   LogoutResponseSchema,
+  ResetDataResponseSchema,
   ErrorResponseSchema,
   MAX_PULL_LIMIT,
   SYNC_COLLECTIONS,
@@ -31,5 +32,6 @@ export type {
   LoginResponse,
   RefreshResponse,
   LogoutResponse,
+  ResetDataResponse,
   ErrorResponse,
 } from "../../../shared/syncSchemas"

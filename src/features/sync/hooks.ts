@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 import { toast } from "sonner"
-import { loginWithGoogle, logoutSession } from "@/features/sync/api"
+import { loginWithGoogle, logoutSession, resetCloudData as apiResetCloudData } from "@/features/sync/api"
 import { clearSyncMetadata, setLocalDataOwnerUserId } from "@/features/sync/changeTracker"
 import { resolveInitialSync as resolveInitialSyncEngine, syncNow, SYNC_ENABLED } from "@/features/sync/syncEngine"
 import { useAuthStore, useSyncStore, clearAuthStorage } from "@/features/sync/store"
@@ -43,6 +43,23 @@ export function useSync() {
     sync.setLastError(null)
   }
 
+  const resetCloudData = async () => {
+    if (!auth.accessToken) {
+      throw new Error("Not authenticated")
+    }
+
+    await apiResetCloudData(auth.accessToken)
+
+    // After cloud data is reset, the session is invalidated on server.
+    // We should clear local auth state.
+    auth.clearAuth()
+    clearAuthStorage()
+    await clearSyncMetadata()
+    sync.setInitialSyncState(null)
+    sync.setStatus("idle")
+    sync.setLastError(null)
+  }
+
   const resolveInitialSync = async (strategy: InitialSyncStrategy) => {
     await resolveInitialSyncEngine(strategy)
   }
@@ -52,6 +69,7 @@ export function useSync() {
     sync,
     signInWithGoogle,
     signOut,
+    resetCloudData,
     resolveInitialSync,
     syncNow,
     syncEnabled: SYNC_ENABLED,

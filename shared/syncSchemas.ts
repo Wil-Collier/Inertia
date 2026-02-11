@@ -113,6 +113,11 @@ export const LogoutResponseSchema = z.object({
 })
 export type LogoutResponse = z.infer<typeof LogoutResponseSchema>
 
+export const ResetDataResponseSchema = z.object({
+  success: z.literal(true),
+})
+export type ResetDataResponse = z.infer<typeof ResetDataResponseSchema>
+
 export const ErrorResponseSchema = z.object({
   error: z.string(),
   message: z.string(),

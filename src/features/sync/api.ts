@@ -5,6 +5,7 @@ import {
   PullResponseSchema,
   PushResponseSchema,
   RefreshResponseSchema,
+  ResetDataResponseSchema,
 } from "@/features/sync/schemas"
 import type {
   LoginResponse,
@@ -14,6 +15,7 @@ import type {
   PushRequest,
   PushResponse,
   RefreshResponse,
+  ResetDataResponse,
 } from "@/features/sync/schemas"
 import { useAuthStore } from "@/features/sync/store"
 
@@ -140,6 +142,15 @@ export async function pullChanges(accessToken: string, payload: PullRequest): Pr
     "/api/sync/pull",
     payload,
     (data) => PullResponseSchema.parse(data)
+  )
+}
+
+export async function resetCloudData(accessToken: string): Promise<ResetDataResponse> {
+  return await authorizedRequest(
+    accessToken,
+    "/api/sync/reset",
+    {},
+    (data) => ResetDataResponseSchema.parse(data)
   )
 }
 
