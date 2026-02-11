@@ -233,5 +233,11 @@ describe("dateUtils", () => {
       const dates = ["2023-10-25"]
       expect(calculateStreak(dates, today)).toBe(0)
     })
+
+    it("skips invalid dates without crashing", () => {
+      const today = new Date(2023, 9, 27)
+      const dates = ["2023-10-27", "invalid-date", "2023-10-26"]
+      expect(calculateStreak(dates, today)).toBe(2)
+    })
   })
 })

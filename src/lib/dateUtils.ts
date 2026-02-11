@@ -71,7 +71,12 @@ export function calculateStreak(dates: string[], referenceDate: Date = new Date(
   let currentDate = referenceDate
 
   for (const dateStr of sortedDates) {
-    const date = parseDbDate(dateStr)
+    let date: Date
+    try {
+      date = parseDbDate(dateStr)
+    } catch {
+      continue
+    }
 
     // If this date matches current day we're checking, increment streak
     if (isSameDay(date, currentDate)) {
