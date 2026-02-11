@@ -94,6 +94,6 @@ test.describe("progress and achievements journey", () => {
 
         // Training tab should show muscle group frequency and exercise progress sections
         await expect(page.getByText("Muscle Group Frequency")).toBeVisible()
-        await expect(page.getByText("Exercise Progress")).toBeVisible()
+        await expect(page.getByRole("heading", { name: "Exercise Progress" })).toBeVisible()
     })
 })
