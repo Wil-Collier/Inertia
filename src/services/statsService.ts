@@ -147,16 +147,17 @@ export const statsService = {
    */
   async recalculateAll(): Promise<UserStats> {
     const run = async () => {
-      const workouts = await db.workoutSessions.toArray()
-
       let totalVolumeLbs = 0
-      for (const workout of workouts) {
+      let totalWorkouts = 0
+
+      await db.workoutSessions.each((workout) => {
         totalVolumeLbs += this.calculateWorkoutVolumeLbs(workout)
-      }
+        totalWorkouts++
+      })
 
       const updated: UserStats & { id: string } = {
         id: "stats",
-        totalWorkouts: workouts.length,
+        totalWorkouts,
         totalVolumeLbs,
         lastUpdated: new Date().toISOString(),
       }
