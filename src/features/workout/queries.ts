@@ -4,6 +4,7 @@ import { queryKeys } from "@/lib/queryKeys"
 import { getCompletedSets, sumSetVolume } from "@/lib/workoutUtils"
 import { getThirtyDaysAgo } from "@/lib/dateUtils"
 import { statsService } from "@/services/statsService"
+import { orderedUniqueStringKeys } from "@/lib/indexedDbUtils"
 
 import type { PersonalRecord } from "@/lib/types"
 
@@ -88,15 +89,7 @@ export function useWorkoutDates() {
     queryFn: async () => {
       // Avoid uniqueKeys() on Safari (can throw "Unable to open cursor").
       const keys = await db.workoutSessions.orderBy("date").keys()
-      const dates: string[] = []
-      let prev: string | undefined
-      for (const k of keys) {
-        if (typeof k !== "string") continue
-        if (k === prev) continue
-        dates.push(k)
-        prev = k
-      }
-      return dates
+      return orderedUniqueStringKeys(keys)
     },
   })
 }

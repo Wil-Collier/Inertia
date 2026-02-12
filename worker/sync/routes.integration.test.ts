@@ -675,6 +675,96 @@ describe("sync routes integration", () => {
     expect(db.syncStore[0]?.record_version).toBe(9)
   })
 
+  it("does not downgrade sync_store snapshot version when replaying an older mutation", async () => {
+    db.seedStore({
+      user_id: "u1",
+      user_email: "u1@example.com",
+      collection: "foods",
+      id: "food-1",
+      data: JSON.stringify({ id: "food-1", name: "Rice (newer)" }),
+      deleted: 0,
+      record_version: 12,
+      updated_at: Date.now(),
+      mutation_id: "m-newer",
+      device_id: "device-a",
+    })
+
+    db.seedEvent({
+      version: 9,
+      user_id: "u1",
+      user_email: "u1@example.com",
+      collection: "foods",
+      id: "food-1",
+      data: JSON.stringify({ id: "food-1", name: "Rice (older)" }),
+      deleted: 0,
+      base_version: 8,
+      mutation_id: "m-repeat",
+      device_id: "device-a",
+      created_at: Date.now(),
+    })
+
+    const response = await requestSync(db, "/api/sync/push", {
+      changes: [
+        {
+          collection: "foods",
+          id: "food-1",
+          data: { id: "food-1", name: "Rice" },
+          baseVersion: 8,
+          mutationId: "m-repeat",
+        },
+      ],
+    })
+
+    const body = await readJson(response)
+    expect(response.status).toBe(200)
+    expect(readNumber(body, "accepted")).toBe(1)
+    expect(db.syncStore[0]?.record_version).toBe(12)
+  })
+
+  it("rejects mutationId reuse across different record identities", async () => {
+    db.seedEvent({
+      version: 9,
+      user_id: "u1",
+      user_email: "u1@example.com",
+      collection: "foods",
+      id: "food-1",
+      data: JSON.stringify({ id: "food-1", name: "Rice" }),
+      deleted: 0,
+      base_version: 0,
+      mutation_id: "m-reused",
+      device_id: "device-a",
+      created_at: Date.now(),
+    })
+
+    const response = await requestSync(db, "/api/sync/push", {
+      changes: [
+        {
+          collection: "nutrition",
+          id: "2026-02-12",
+          data: { date: "2026-02-12", entries: [] },
+          baseVersion: 0,
+          mutationId: "m-reused",
+        },
+      ],
+    })
+
+    const body = await readJson(response)
+    const accepted = readNumber(body, "accepted")
+    const conflicts = readArray(body, "conflicts")
+
+    expect(response.status).toBe(200)
+    expect(accepted).toBe(0)
+    expect(conflicts).toEqual([
+      {
+        collection: "nutrition",
+        id: "2026-02-12",
+        serverVersion: 0,
+        clientBaseVersion: 0,
+        reason: "MUTATION_ID_REUSE",
+      },
+    ])
+  })
+
   it("falls back to querying inserted event version when row id metadata is missing", async () => {
     db.forceInsertRowIdFallback()
 
@@ -1066,4 +1156,3 @@ describe("sync routes integration", () => {
     expect(hasMore).toBe(false)
   })
 })
-

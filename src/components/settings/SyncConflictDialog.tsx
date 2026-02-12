@@ -40,7 +40,8 @@ export function SyncConflictDialog({ open, state, onResolve, onOpenChange }: Syn
           </div>
           <p className="text-xs text-muted-foreground">
             Policy: Merge keeps both sides ({INITIAL_SYNC_POLICY.merge.localBehavior}/{INITIAL_SYNC_POLICY.merge.cloudBehavior});
-            Use Cloud replaces local data; Use Local replaces cloud data.
+            conflicts require {INITIAL_SYNC_POLICY.merge.conflictBehavior}. Use Cloud replaces local data;
+            Use Local replaces cloud data.
           </p>
         </div>
       </DialogContent>

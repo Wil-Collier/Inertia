@@ -3,6 +3,7 @@ import type { Context } from "hono"
 import type { Env } from "../env"
 import { PullRequestSchema, PushRequestSchema } from "../../shared/syncSchemas"
 import { logAudit } from "../lib/db"
+import { runSequentially } from "../../shared/asyncUtils"
 
 type Variables = {
   userId: string
@@ -108,10 +109,6 @@ function getPageCursor(rows: unknown[]): { version: number } | null {
   return null
 }
 
-async function runSequentially<T>(items: T[], task: (item: T) => Promise<void>): Promise<void> {
-  await items.reduce((promise, item) => promise.then(() => task(item)), Promise.resolve())
-}
-
 function getContentLength(headerValue: string | undefined): number | null {
   if (!headerValue) return null
   const parsed = Number.parseInt(headerValue, 10)
@@ -206,6 +203,33 @@ async function upsertSyncStoreSnapshot(
     .run()
 }
 
+function hasMutationIdentityMismatch(change: { collection: string; id: string }, event: { collection: string; id: string }): boolean {
+  return change.collection !== event.collection || change.id !== event.id
+}
+
+async function getSyncStoreRecordVersion(
+  db: Env["DB"],
+  userId: string,
+  collection: string,
+  id: string
+): Promise<number> {
+  const current = await db
+    .prepare("SELECT record_version FROM sync_store WHERE user_id = ? AND collection = ? AND id = ?")
+    .bind(userId, collection, id)
+    .first<SyncStoreRow>()
+
+  return current?.record_version ?? 0
+}
+
+async function upsertSyncStoreSnapshotIfNewer(
+  db: Env["DB"],
+  event: Parameters<typeof upsertSyncStoreSnapshot>[1]
+): Promise<void> {
+  const currentVersion = await getSyncStoreRecordVersion(db, event.userId, event.collection, event.id)
+  if (currentVersion >= event.version) return
+  await upsertSyncStoreSnapshot(db, event)
+}
+
 export const syncRoutes = new Hono<{ Bindings: Env; Variables: Variables }>()
 const textEncoder = new TextEncoder()
 
@@ -260,7 +284,18 @@ syncRoutes.post("/push", async (c) => {
       .first<SyncEventRow>()
 
     if (existingEvent) {
-      await upsertSyncStoreSnapshot(c.env.DB, {
+      if (hasMutationIdentityMismatch(change, existingEvent)) {
+        conflicts.push({
+          collection: change.collection,
+          id: change.id,
+          serverVersion: await getSyncStoreRecordVersion(c.env.DB, userId, change.collection, change.id),
+          clientBaseVersion: change.baseVersion,
+          reason: "MUTATION_ID_REUSE",
+        })
+        return
+      }
+
+      await upsertSyncStoreSnapshotIfNewer(c.env.DB, {
         userId,
         userEmail,
         collection: existingEvent.collection,
@@ -283,12 +318,7 @@ syncRoutes.post("/push", async (c) => {
       return
     }
 
-    const current = await c.env.DB
-      .prepare("SELECT record_version FROM sync_store WHERE user_id = ? AND collection = ? AND id = ?")
-      .bind(userId, change.collection, change.id)
-      .first<SyncStoreRow>()
-
-    const currentVersion = current?.record_version ?? 0
+    const currentVersion = await getSyncStoreRecordVersion(c.env.DB, userId, change.collection, change.id)
     if (change.baseVersion !== currentVersion) {
       conflicts.push({
         collection: change.collection,
@@ -343,7 +373,18 @@ syncRoutes.post("/push", async (c) => {
           throw error
         }
 
-        await upsertSyncStoreSnapshot(c.env.DB, {
+        if (hasMutationIdentityMismatch(change, duplicateEvent)) {
+          conflicts.push({
+            collection: change.collection,
+            id: change.id,
+            serverVersion: await getSyncStoreRecordVersion(c.env.DB, userId, change.collection, change.id),
+            clientBaseVersion: change.baseVersion,
+            reason: "MUTATION_ID_REUSE",
+          })
+          return
+        }
+
+        await upsertSyncStoreSnapshotIfNewer(c.env.DB, {
           userId,
           userEmail,
           collection: duplicateEvent.collection,
@@ -370,15 +411,10 @@ syncRoutes.post("/push", async (c) => {
         throw error
       }
 
-      const latest = await c.env.DB
-        .prepare("SELECT record_version FROM sync_store WHERE user_id = ? AND collection = ? AND id = ?")
-        .bind(userId, change.collection, change.id)
-        .first<SyncStoreRow>()
-
       conflicts.push({
         collection: change.collection,
         id: change.id,
-        serverVersion: latest?.record_version ?? 0,
+        serverVersion: await getSyncStoreRecordVersion(c.env.DB, userId, change.collection, change.id),
         clientBaseVersion: change.baseVersion,
         reason: "VERSION_MISMATCH",
       })

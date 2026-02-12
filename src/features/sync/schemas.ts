@@ -3,6 +3,7 @@ export {
   SyncCursorSchema,
   PushChangeSchema,
   PushRequestSchema,
+  PushConflictReasonSchema,
   PushAcceptedChangeSchema,
   PushResponseSchema,
   PullRequestSchema,
@@ -14,12 +15,14 @@ export {
   ErrorResponseSchema,
   MAX_PULL_LIMIT,
   SYNC_COLLECTIONS,
+  KNOWN_PUSH_CONFLICT_REASONS,
 } from "../../../shared/syncSchemas"
 
 export type {
   SyncCollection,
   SyncCursor,
   PushChange,
+  PushConflictReason,
   PushConflict,
   PushAcceptedChange,
   PushRequest,

@@ -37,12 +37,21 @@ export const PushRequestSchema = z.object({
 })
 export type PushRequest = z.infer<typeof PushRequestSchema>
 
+export const KNOWN_PUSH_CONFLICT_REASONS = [
+  "VERSION_MISMATCH",
+  "RECORD_TOO_LARGE",
+  "MUTATION_ID_REUSE",
+] as const
+
+export const PushConflictReasonSchema = z.enum(KNOWN_PUSH_CONFLICT_REASONS)
+export type PushConflictReason = z.infer<typeof PushConflictReasonSchema>
+
 export const PushConflictSchema = z.object({
   collection: SyncCollectionSchema,
   id: z.string(),
   serverVersion: z.number().int().nonnegative(),
   clientBaseVersion: z.number().int().nonnegative(),
-  reason: z.string(),
+  reason: z.union([PushConflictReasonSchema, z.string()]),
 })
 export type PushConflict = z.infer<typeof PushConflictSchema>
 

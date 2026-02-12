@@ -4,6 +4,7 @@ import { queryKeys } from "@/lib/queryKeys"
 import { searchFoods, NutritionApiError } from "@/services/nutritionApi"
 import type { FoodItem, MealEntry } from "@/lib/types"
 import { calculateNutritionTotals, calculateNutritionAverages, INITIAL_TOTALS } from "@/lib/nutritionUtils"
+import { orderedUniqueStringKeys } from "@/lib/indexedDbUtils"
 
 export interface MealEntryWithFood extends MealEntry {
   food: FoodItem | undefined
@@ -104,15 +105,7 @@ export function useNutritionDates() {
     queryFn: async () => {
       // Avoid uniqueKeys() on Safari (can throw "Unable to open cursor").
       const keys = await db.nutritionLogs.orderBy("date").keys()
-      const dates: string[] = []
-      let prev: string | undefined
-      for (const k of keys) {
-        if (typeof k !== "string") continue
-        if (k === prev) continue
-        dates.push(k)
-        prev = k
-      }
-      return dates
+      return orderedUniqueStringKeys(keys)
     },
   })
 }

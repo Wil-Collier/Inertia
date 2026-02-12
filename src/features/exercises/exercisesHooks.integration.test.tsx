@@ -5,6 +5,7 @@ import { clearDatabase } from "@/test/helpers/dbTestUtils"
 import { createQueryWrapper, createTestQueryClient } from "@/test/helpers/queryHookTestUtils"
 import { useAddExercise, useDeleteExercise, useUpdateExercise } from "@/features/exercises/mutations"
 import { exerciseDatabase } from "@/data/exerciseDatabase"
+import { ACTIVE_SESSION_ID } from "@/lib/constants"
 
 const toastError = vi.fn()
 
@@ -91,6 +92,85 @@ describe("exercise hooks integration", () => {
     })
 
     expect(await db.customExercises.get("custom-1")).toBeTruthy()
+  })
+
+  it("blocks deletion when exercise is used in active workout session", async () => {
+    await db.customExercises.put({
+      id: "custom-active",
+      name: "Custom Active",
+      muscleGroup: "arms",
+      isCustom: true,
+      isWeighted: true,
+      isTimeBased: false,
+    })
+
+    await db.activeSession.put({
+      id: ACTIVE_SESSION_ID,
+      workout: {
+        id: "workout-active",
+        name: "Session",
+        date: "2026-02-12",
+        weightUnit: "kg",
+        exercises: [
+          {
+            id: "we-1",
+            exerciseId: "custom-active",
+            sets: [{ id: "set-1", reps: 5, weight: 100, isCompleted: true }],
+          },
+        ],
+      },
+      startedAt: new Date().toISOString(),
+    })
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useDeleteExercise(), { wrapper })
+
+    await act(async () => {
+      await expect(result.current.mutateAsync("custom-active")).rejects.toThrow(
+        "Cannot delete: exercise is used in the active workout session"
+      )
+    })
+
+    expect(await db.customExercises.get("custom-active")).toBeTruthy()
+  })
+
+  it("blocks deletion when exercise is used in workout history", async () => {
+    await db.customExercises.put({
+      id: "custom-history",
+      name: "Custom History",
+      muscleGroup: "back",
+      isCustom: true,
+      isWeighted: true,
+      isTimeBased: false,
+    })
+
+    await db.workoutSessions.put({
+      id: "workout-history",
+      name: "History",
+      date: "2026-02-12",
+      weightUnit: "kg",
+      exerciseIds: ["custom-history"],
+      exercises: [
+        {
+          id: "we-1",
+          exerciseId: "custom-history",
+          sets: [{ id: "set-1", reps: 8, weight: 80, isCompleted: true }],
+        },
+      ],
+    })
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useDeleteExercise(), { wrapper })
+
+    await act(async () => {
+      await expect(result.current.mutateAsync("custom-history")).rejects.toThrow(
+        "Cannot delete: exercise is used in workout history"
+      )
+    })
+
+    expect(await db.customExercises.get("custom-history")).toBeTruthy()
   })
 
   it("deletes custom exercises and their personal records when not referenced", async () => {

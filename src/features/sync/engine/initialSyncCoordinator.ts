@@ -56,7 +56,7 @@ export async function resolveInitialSyncStrategy(
     await clearSyncMetadata()
     await pullApplyAndPersist(accessToken, userId)
   } else if (strategy === "merge") {
-    await pushFullSnapshot(accessToken)
+    await pushFullSnapshot(accessToken, { conflictMode: "error" })
     await pullApplyAndPersist(accessToken, userId)
   } else if (strategy === "use-local") {
     await overwriteCloudWithLocal(accessToken)

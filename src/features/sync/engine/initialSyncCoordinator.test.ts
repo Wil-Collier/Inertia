@@ -141,11 +141,21 @@ describe("initialSyncCoordinator", () => {
     expect(clearLocalSyncDataMock).toHaveBeenCalled()
 
     await resolveInitialSyncStrategy("token", "user-1", "merge")
-    expect(pushFullSnapshotMock).toHaveBeenCalledWith("token")
+    expect(pushFullSnapshotMock).toHaveBeenCalledWith("token", { conflictMode: "error" })
 
     await resolveInitialSyncStrategy("token", "user-1", "use-local")
     expect(overwriteCloudWithLocalMock).toHaveBeenCalledWith("token")
 
     expect(useSyncStore.getState().initialSyncState).toBeNull()
+  })
+
+  it("bubbles merge conflicts so callers can surface manual conflict resolution", async () => {
+    useSyncStore.getState().setInitialSyncState({ localHasData: true, cloudHasData: true })
+    pushFullSnapshotMock.mockRejectedValueOnce(new Error("Full snapshot push conflicted on settings:settings (VERSION_MISMATCH)"))
+
+    await expect(resolveInitialSyncStrategy("token", "user-1", "merge")).rejects.toThrow(
+      "Full snapshot push conflicted on settings:settings (VERSION_MISMATCH)"
+    )
+    expect(useSyncStore.getState().initialSyncState).toEqual({ localHasData: true, cloudHasData: true })
   })
 })

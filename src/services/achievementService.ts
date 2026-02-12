@@ -5,6 +5,7 @@ import type { MuscleGroup, UnlockedAchievement, StreakData } from "@/lib/types"
 import { achievements } from "@/data/achievements"
 import { toast } from "sonner"
 import { statsService } from "@/services/statsService"
+import { orderedUniqueStringKeys } from "@/lib/indexedDbUtils"
 
 const defaultStreaks: StreakData = {
   currentWorkoutStreak: 0,
@@ -204,14 +205,7 @@ export const achievementService = {
       // Safari can intermittently throw "Unable to open cursor" for IDBCursor.nextunique
       // which Dexie uses under the hood for uniqueKeys(). Use keys() + in-order dedupe.
       const workoutKeys = await db.workoutSessions.orderBy("date").keys()
-      const workoutDates: string[] = []
-      let prev: string | undefined
-      for (const k of workoutKeys) {
-        if (typeof k !== "string") continue
-        if (k === prev) continue
-        workoutDates.push(k)
-        prev = k
-      }
+      const workoutDates = orderedUniqueStringKeys(workoutKeys)
 
       // Load nutrition log dates. Unlike workouts where every record counts,
       // nutrition logs need filtering for non-empty entries.

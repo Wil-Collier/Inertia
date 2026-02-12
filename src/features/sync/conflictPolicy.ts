@@ -19,19 +19,22 @@ export const INITIAL_SYNC_POLICY: Record<
   {
     localBehavior: "keep" | "replace"
     cloudBehavior: "keep" | "replace"
+    conflictBehavior: "manual-resolution" | "overwrite-cloud" | "overwrite-local"
   }
 > = {
   merge: {
     localBehavior: "keep",
     cloudBehavior: "keep",
+    conflictBehavior: "manual-resolution",
   },
   "use-cloud": {
     localBehavior: "replace",
     cloudBehavior: "keep",
+    conflictBehavior: "overwrite-local",
   },
   "use-local": {
     localBehavior: "keep",
     cloudBehavior: "replace",
+    conflictBehavior: "overwrite-cloud",
   },
 }
-

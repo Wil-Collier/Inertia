@@ -16,6 +16,7 @@ import { getLocalRecord } from "@/features/sync/engine/applyPipeline"
 import { ACTIVE_SESSION_ID } from "@/lib/constants"
 import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
 import { shouldAcknowledgePushConflict } from "@/features/sync/conflictPolicy"
+import { runSequentially } from "../../../../shared/asyncUtils"
 
 const MAX_PUSH_BATCH = 200
 
@@ -75,13 +76,23 @@ export async function pushPendingChangesInternal(accessToken: string, updateStat
   })
 }
 
-export async function pushFullSnapshot(accessToken: string): Promise<void> {
+export async function pushFullSnapshot(
+  accessToken: string,
+  options: { conflictMode?: "ignore" | "error" } = {}
+): Promise<void> {
   const changes = await buildFullSnapshot()
   if (changes.length === 0) return
+  const conflictMode = options.conflictMode ?? "ignore"
 
   const chunks = chunkArray(changes, MAX_PUSH_BATCH)
   await runSequentially(chunks, async (chunk) => {
     const response = await pushChanges(accessToken, { changes: chunk })
+    if (response.conflicts.length > 0 && conflictMode === "error") {
+      const conflictIds = response.conflicts
+        .map((conflict) => `${conflict.collection}:${conflict.id} (${conflict.reason})`)
+        .join(", ")
+      throw new Error(`Full snapshot push conflicted on ${conflictIds}`)
+    }
     await setRecordVersionsBulk(
       response.acceptedChanges.map((item) => ({
         collection: item.collection,
@@ -284,8 +295,4 @@ function chunkArray<T>(items: T[], size: number): T[][] {
     chunks.push(items.slice(i, i + size))
   }
   return chunks
-}
-
-async function runSequentially<T>(items: T[], task: (item: T) => Promise<void>): Promise<void> {
-  await items.reduce((promise, item) => promise.then(() => task(item)), Promise.resolve())
 }

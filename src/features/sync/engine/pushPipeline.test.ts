@@ -448,6 +448,29 @@ describe("pushPipeline", () => {
     expect(pushChangesMock.mock.calls[0]?.[1].changes.length).toBeGreaterThan(0)
   })
 
+  it("fails full snapshot when conflictMode is error and server returns conflicts", async () => {
+    foodsToArrayMock.mockResolvedValue([{ id: "food-1" }])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+    getRecordVersionMock.mockResolvedValue(0)
+    pushChangesMock.mockResolvedValueOnce({
+      acceptedChanges: [],
+      conflicts: [
+        {
+          collection: "foods",
+          id: "food-1",
+          serverVersion: 4,
+          clientBaseVersion: 0,
+          reason: "VERSION_MISMATCH",
+        },
+      ],
+    })
+
+    const { pushFullSnapshot } = await loadPushPipeline()
+    await expect(pushFullSnapshot("token", { conflictMode: "error" })).rejects.toThrow(
+      "Full snapshot push conflicted on foods:food-1 (VERSION_MISMATCH)"
+    )
+  })
+
   it("overwrites cloud with local and sends tombstones for remote-only records", async () => {
     foodsToArrayMock.mockResolvedValue([{ id: "food-local" }])
     toCloudRecordMock.mockImplementation((_collection, record) => record)

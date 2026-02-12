@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import type { Exercise } from "@/lib/types"
+import { ACTIVE_SESSION_ID } from "@/lib/constants"
 
 export function useAddExercise() {
   const queryClient = useQueryClient()
@@ -47,7 +48,15 @@ export function useDeleteExercise() {
 
       await db.transaction(
         "rw",
-        [db.workoutTemplates, db.customExercises, db.personalRecords, db.syncPendingChanges, db.syncRecordVersions],
+        [
+          db.workoutTemplates,
+          db.workoutSessions,
+          db.activeSession,
+          db.customExercises,
+          db.personalRecords,
+          db.syncPendingChanges,
+          db.syncRecordVersions,
+        ],
         async () => {
         // Check if exercise is used in any templates (inside the same transaction as delete)
         const templates = await db.workoutTemplates.toArray()
@@ -57,6 +66,17 @@ export function useDeleteExercise() {
 
         if (usedInTemplate) {
           throw new Error(`Cannot delete: exercise is used in template "${usedInTemplate.name}"`)
+        }
+
+        const activeSession = await db.activeSession.get(ACTIVE_SESSION_ID)
+        const usedInActiveSession = activeSession?.workout.exercises.some((exercise) => exercise.exerciseId === id) ?? false
+        if (usedInActiveSession) {
+          throw new Error("Cannot delete: exercise is used in the active workout session")
+        }
+
+        const usedInWorkoutHistory = await db.workoutSessions.where("exerciseIds").equals(id).first()
+        if (usedInWorkoutHistory) {
+          throw new Error("Cannot delete: exercise is used in workout history")
         }
 
         // Only delete custom exercises and their associated PRs

@@ -27,9 +27,20 @@ describe("sync conflict policy", () => {
   })
 
   it("defines explicit data ownership behavior for every initial sync strategy", () => {
-    expect(INITIAL_SYNC_POLICY.merge).toEqual({ localBehavior: "keep", cloudBehavior: "keep" })
-    expect(INITIAL_SYNC_POLICY["use-cloud"]).toEqual({ localBehavior: "replace", cloudBehavior: "keep" })
-    expect(INITIAL_SYNC_POLICY["use-local"]).toEqual({ localBehavior: "keep", cloudBehavior: "replace" })
+    expect(INITIAL_SYNC_POLICY.merge).toEqual({
+      localBehavior: "keep",
+      cloudBehavior: "keep",
+      conflictBehavior: "manual-resolution",
+    })
+    expect(INITIAL_SYNC_POLICY["use-cloud"]).toEqual({
+      localBehavior: "replace",
+      cloudBehavior: "keep",
+      conflictBehavior: "overwrite-local",
+    })
+    expect(INITIAL_SYNC_POLICY["use-local"]).toEqual({
+      localBehavior: "keep",
+      cloudBehavior: "replace",
+      conflictBehavior: "overwrite-cloud",
+    })
   })
 })
-

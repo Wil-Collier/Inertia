@@ -17,6 +17,7 @@ import { rebuildLocalOnlyFields } from "@/features/sync/localRebuild"
 import { recalculateDerivedData } from "@/features/sync/derivedData"
 import { invalidateQueriesForCollections } from "@/features/sync/queryInvalidation"
 import { clearLocalDataOwnerUserId, removeRecordVersion, setRecordVersion } from "@/features/sync/changeTracker"
+import { runSequentially } from "../../../../shared/asyncUtils"
 
 type LocalRecord =
   | Workout
@@ -240,10 +241,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function resolveLocalId(collection: SyncCollection, incomingId: string): string {
   if (collection === "settings") return SETTINGS_SINGLETON_ID
   return incomingId
-}
-
-async function runSequentially<T>(items: T[], task: (item: T) => Promise<void>): Promise<void> {
-  await items.reduce((promise, item) => promise.then(() => task(item)), Promise.resolve())
 }
 
 function hasString(record: Record<string, unknown>, key: string): boolean {
