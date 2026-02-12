@@ -7,7 +7,6 @@ const getRecordVersionMock = vi.fn<(collection: PushChange["collection"], id: st
 const setRecordVersionsBulkMock = vi.fn()
 const rebasePendingChangesFromAcceptedMock = vi.fn()
 const acknowledgeProcessedPendingChangesMock = vi.fn()
-const clearPendingChangesMock = vi.fn()
 
 const pushChangesMock = vi.fn()
 const toCloudRecordMock = vi.fn()
@@ -32,7 +31,6 @@ vi.mock("@/features/sync/changeTracker", () => ({
   setRecordVersionsBulk: (...args: unknown[]) => setRecordVersionsBulkMock(...args),
   rebasePendingChangesFromAccepted: (...args: unknown[]) => rebasePendingChangesFromAcceptedMock(...args),
   acknowledgeProcessedPendingChanges: (...args: unknown[]) => acknowledgeProcessedPendingChangesMock(...args),
-  clearPendingChanges: () => clearPendingChangesMock(),
 }))
 
 vi.mock("@/features/sync/api", () => ({
@@ -124,7 +122,6 @@ describe("pushPipeline", () => {
     setRecordVersionsBulkMock.mockResolvedValue(undefined)
     rebasePendingChangesFromAcceptedMock.mockResolvedValue(undefined)
     acknowledgeProcessedPendingChangesMock.mockResolvedValue(undefined)
-    clearPendingChangesMock.mockResolvedValue(undefined)
     pushChangesMock.mockResolvedValue({ acceptedChanges: [], conflicts: [] })
     toCloudRecordMock.mockReturnValue({ payload: true })
     getDeviceIdMock.mockReturnValue("device-1")
@@ -395,6 +392,37 @@ describe("pushPipeline", () => {
     expect(setConflictsMock).not.toHaveBeenCalled()
   })
 
+  it("keeps pending changes when conflict reason is unknown to policy", async () => {
+    listPendingChangesMock.mockResolvedValue([
+      {
+        collection: "foods",
+        id: "food-1",
+        deleted: false,
+        baseVersion: 0,
+        mutationId: "m1",
+        enqueuedAt: 1,
+      },
+    ])
+
+    pushChangesMock.mockResolvedValueOnce({
+      acceptedChanges: [],
+      conflicts: [
+        {
+          collection: "foods",
+          id: "food-1",
+          serverVersion: 2,
+          clientBaseVersion: 0,
+          reason: "UNKNOWN_REASON",
+        },
+      ],
+    })
+
+    const { pushPendingChangesInternal } = await loadPushPipeline()
+    await pushPendingChangesInternal("token", true)
+
+    expect(acknowledgeProcessedPendingChangesMock).toHaveBeenCalledWith([])
+  })
+
   it("pushes a full snapshot and clears pending changes", async () => {
     workoutSessionsToArrayMock.mockResolvedValue([{ id: "workout-1" }])
     activeSessionGetMock.mockResolvedValue({ id: "current", workout: { id: "w-current" } })
@@ -418,7 +446,6 @@ describe("pushPipeline", () => {
 
     expect(pushChangesMock).toHaveBeenCalledTimes(1)
     expect(pushChangesMock.mock.calls[0]?.[1].changes.length).toBeGreaterThan(0)
-    expect(clearPendingChangesMock).toHaveBeenCalledTimes(1)
   })
 
   it("overwrites cloud with local and sends tombstones for remote-only records", async () => {
@@ -473,6 +500,5 @@ describe("pushPipeline", () => {
           change.deviceId === "device-1"
       )
     ).toBe(true)
-    expect(clearPendingChangesMock).toHaveBeenCalledTimes(1)
   })
 })

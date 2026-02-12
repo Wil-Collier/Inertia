@@ -2,6 +2,7 @@ import { AlertTriangle } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import type { InitialSyncState, InitialSyncStrategy } from "@/features/sync/types"
+import { INITIAL_SYNC_POLICY } from "@/features/sync/conflictPolicy"
 
 interface SyncConflictDialogProps {
   open: boolean
@@ -38,7 +39,8 @@ export function SyncConflictDialog({ open, state, onResolve, onOpenChange }: Syn
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Merge keeps entries from both sides. Use Cloud or Use Local will replace the other side.
+            Policy: Merge keeps both sides ({INITIAL_SYNC_POLICY.merge.localBehavior}/{INITIAL_SYNC_POLICY.merge.cloudBehavior});
+            Use Cloud replaces local data; Use Local replaces cloud data.
           </p>
         </div>
       </DialogContent>

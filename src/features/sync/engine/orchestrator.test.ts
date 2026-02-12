@@ -191,7 +191,7 @@ describe("sync orchestrator", () => {
     await pushPendingChanges()
 
     expect(pushPendingChangesInternalMock).not.toHaveBeenCalled()
-    expect(useSyncStore.getState().status).toBe("idle")
+    expect(useSyncStore.getState().status).toBe("offline")
   })
 
   it("routes pushPendingChanges failures through the error handler", async () => {

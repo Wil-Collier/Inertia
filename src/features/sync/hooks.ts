@@ -40,6 +40,7 @@ export function useSync() {
     await clearSyncMetadata()
     sync.setInitialSyncState(null)
     sync.setStatus("idle")
+    sync.setLastSyncedAtMs(null)
     sync.setLastError(null)
   }
 

@@ -16,6 +16,14 @@ let syncInFlight = false
 export const SYNC_ENABLED = import.meta.env.VITE_ENABLE_SYNC !== "false"
 
 export async function syncNow(): Promise<void> {
+  await runAuthenticatedSyncCycle()
+}
+
+export async function pushPendingChanges(): Promise<void> {
+  await runAuthenticatedSyncCycle()
+}
+
+async function runAuthenticatedSyncCycle(): Promise<void> {
   if (!SYNC_ENABLED) return
   const auth = useAuthStore.getState()
   if (!auth.isAuthenticated || !auth.accessToken || !auth.userId) return
@@ -25,51 +33,6 @@ export async function syncNow(): Promise<void> {
     useSyncStore.getState().setStatus("offline")
     return
   }
-
-  if (syncInFlight) return
-  syncInFlight = true
-
-  const syncStore = useSyncStore.getState()
-  syncStore.setStatus("syncing")
-  syncStore.setLastError(null)
-  syncStore.setConflicts([])
-
-  try {
-    await syncWithRetry(async () => {
-      const canProceed = await ensureInitialSync(accessToken, userId)
-      if (!canProceed) {
-        syncStore.setStatus("idle")
-        return
-      }
-
-      await pushPendingChangesInternal(accessToken, true)
-      const pullResult = await pullAllChanges(accessToken)
-      await applyPulledChanges(pullResult.changes)
-
-      if (pullResult.cursor) {
-        await setPullCursor(pullResult.cursor)
-      }
-
-      lastPullTimestamp.value = Date.now()
-      syncStore.setLastSyncedAtMs(pullResult.serverTimestampMs)
-      await setLastSyncedAtMs(pullResult.serverTimestampMs)
-      await setLocalDataOwnerUserId(userId)
-      syncStore.setStatus("success")
-    })
-  } catch (error) {
-    handleSyncError(error)
-  } finally {
-    syncInFlight = false
-  }
-}
-
-export async function pushPendingChanges(): Promise<void> {
-  if (!SYNC_ENABLED) return
-  const auth = useAuthStore.getState()
-  if (!auth.isAuthenticated || !auth.accessToken || !auth.userId) return
-  const accessToken = auth.accessToken
-  const userId = auth.userId
-  if (!navigator.onLine) return
 
   if (syncInFlight) return
   syncInFlight = true

@@ -88,13 +88,15 @@ class FakePrepared {
     if (sql.includes("UPDATE refresh_sessions") && sql.includes("token_hash_previous")) {
       const nextHash = readStringArg(this.args, 0)
       const previousValidUntil = readNumberArg(this.args, 1)
-      const updatedAt = readNumberArg(this.args, 2)
-      const sessionId = readStringArg(this.args, 3)
+      const expiresAt = readNumberArg(this.args, 2)
+      const updatedAt = readNumberArg(this.args, 3)
+      const sessionId = readStringArg(this.args, 4)
       const session = this.db.refreshSessions.get(sessionId)
       if (session) {
         session.token_hash_previous = session.token_hash_current
         session.token_hash_current = nextHash
         session.previous_valid_until = previousValidUntil
+        session.expires_at = expiresAt
         session.updated_at = updatedAt
       }
       return { success: true }
@@ -226,6 +228,58 @@ describe("authRoutes integration", () => {
 
     expect(response.status).toBe(403)
     expect(verifyGoogleIdTokenMock).not.toHaveBeenCalled()
+  })
+
+  it("extends refresh session expiry when rotating refresh tokens", async () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date("2026-02-08T00:00:00.000Z"))
+
+      const login = await authRoutes.request(
+        "/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: TEST_ORIGIN },
+          body: JSON.stringify({ idToken: "google-token" }),
+        },
+        {
+          DB: db,
+          JWT_SECRET: "secret",
+          GOOGLE_CLIENT_ID: "google-client",
+        }
+      )
+
+      const originalToken = parseSetCookieValue(login.headers.get("set-cookie"))
+      const sessionAfterLogin = db.refreshSessions.values().next().value
+      if (!sessionAfterLogin) {
+        throw new TypeError("Expected refresh session to be created")
+      }
+      const loginExpiry = sessionAfterLogin.expires_at
+
+      vi.setSystemTime(new Date("2026-02-08T12:00:00.000Z"))
+      const refresh = await authRoutes.request(
+        "/refresh",
+        {
+          method: "POST",
+          headers: { Cookie: `inertia_rt=${originalToken}`, Origin: TEST_ORIGIN },
+        },
+        {
+          DB: db,
+          JWT_SECRET: "secret",
+          GOOGLE_CLIENT_ID: "google-client",
+        }
+      )
+
+      expect(refresh.status).toBe(200)
+
+      const sessionAfterRefresh = db.refreshSessions.get(sessionAfterLogin.session_id)
+      if (!sessionAfterRefresh) {
+        throw new TypeError("Expected refresh session after rotation")
+      }
+      expect(sessionAfterRefresh.expires_at).toBeGreaterThan(loginExpiry)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("allows previous refresh token during grace window then rejects after expiry", async () => {

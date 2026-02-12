@@ -7,7 +7,6 @@ const getRecordVersionMock = vi.fn<(collection: PushChange["collection"], id: st
 const setRecordVersionsBulkMock = vi.fn()
 const rebasePendingChangesFromAcceptedMock = vi.fn()
 const acknowledgeProcessedPendingChangesMock = vi.fn()
-const clearPendingChangesMock = vi.fn()
 
 const pushChangesMock = vi.fn()
 const toCloudRecordMock = vi.fn()
@@ -32,7 +31,6 @@ vi.mock("@/features/sync/changeTracker", () => ({
     setRecordVersionsBulk: (...args: unknown[]) => setRecordVersionsBulkMock(...args),
     rebasePendingChangesFromAccepted: (...args: unknown[]) => rebasePendingChangesFromAcceptedMock(...args),
     acknowledgeProcessedPendingChanges: (...args: unknown[]) => acknowledgeProcessedPendingChangesMock(...args),
-    clearPendingChanges: () => clearPendingChangesMock(),
 }))
 
 vi.mock("@/features/sync/api", () => ({
@@ -98,7 +96,6 @@ describe("pushPipeline partial failure handling", () => {
         setRecordVersionsBulkMock.mockResolvedValue(undefined)
         rebasePendingChangesFromAcceptedMock.mockResolvedValue(undefined)
         acknowledgeProcessedPendingChangesMock.mockResolvedValue(undefined)
-        clearPendingChangesMock.mockResolvedValue(undefined)
         pushChangesMock.mockResolvedValue({ acceptedChanges: [], conflicts: [] })
         toCloudRecordMock.mockReturnValue({ payload: true })
         getDeviceIdMock.mockReturnValue("device-1")
@@ -136,9 +133,8 @@ describe("pushPipeline partial failure handling", () => {
         // Should have made 2 push calls (200 + 50)
         expect(pushChangesMock).toHaveBeenCalledTimes(2)
 
-        // Should have acknowledged after each batch, plus final clear
+        // Should acknowledge each batch immediately.
         expect(acknowledgeProcessedPendingChangesMock).toHaveBeenCalledTimes(2)
-        expect(clearPendingChangesMock).toHaveBeenCalledTimes(1)
     })
 
     it("throws error when overwriteCloudWithLocal encounters conflicts", async () => {
@@ -207,8 +203,6 @@ describe("pushPipeline partial failure handling", () => {
 
         const { overwriteCloudWithLocal } = await loadPushPipeline()
         await expect(overwriteCloudWithLocal("token")).resolves.toBeUndefined()
-
-        expect(clearPendingChangesMock).toHaveBeenCalledTimes(1)
     })
 
     it("includes proper tombstones for remote-only records in overwriteCloudWithLocal", async () => {

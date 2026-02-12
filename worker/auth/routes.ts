@@ -142,6 +142,7 @@ authRoutes.post("/refresh", async (c) => {
 
   const nextRefreshToken = `${session.session_id}.${createOpaqueToken()}`
   const nextRefreshHash = await sha256Hex(nextRefreshToken)
+  const nextRefreshExpiresAtMs = now + REFRESH_TOKEN_TTL_MS
 
   await c.env.DB
     .prepare(`
@@ -149,10 +150,17 @@ authRoutes.post("/refresh", async (c) => {
       SET token_hash_previous = token_hash_current,
           token_hash_current = ?,
           previous_valid_until = ?,
+          expires_at = ?,
           updated_at = ?
       WHERE session_id = ?
     `)
-    .bind(nextRefreshHash, now + PREVIOUS_TOKEN_GRACE_MS, now, session.session_id)
+    .bind(
+      nextRefreshHash,
+      now + PREVIOUS_TOKEN_GRACE_MS,
+      nextRefreshExpiresAtMs,
+      now,
+      session.session_id
+    )
     .run()
 
   const access = await createAccessToken({

@@ -1,12 +1,13 @@
 import { db } from "./db"
 import type { ActiveWorkoutSession } from "@/lib/types"
 import { ACTIVE_SESSION_ID } from "@/lib/constants"
+import { ACTIVE_SESSION_SYNC_WRITE_TABLES } from "@/services/dbTransactionTables"
 
 export const workoutSessionService = {
   async saveActiveSession(session: ActiveWorkoutSession) {
     try {
       // Ensure callers can't accidentally override the primary key
-      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", ACTIVE_SESSION_SYNC_WRITE_TABLES, async () => {
         await db.activeSession.put({ ...session, id: ACTIVE_SESSION_ID })
       })
     } catch (error) {
@@ -31,7 +32,7 @@ export const workoutSessionService = {
 
   async deleteActiveSession() {
     try {
-      await db.transaction("rw", [db.activeSession, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", ACTIVE_SESSION_SYNC_WRITE_TABLES, async () => {
         await db.activeSession.delete(ACTIVE_SESSION_ID)
       })
     } catch (error) {

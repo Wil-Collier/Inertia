@@ -10,6 +10,7 @@ export async function resetSyncState(): Promise<void> {
   const syncStore = useSyncStore.getState()
   syncStore.setInitialSyncState(null)
   syncStore.setStatus("idle")
+  syncStore.setLastSyncedAtMs(null)
   syncStore.setLastError(null)
   syncStore.setConflicts([])
 

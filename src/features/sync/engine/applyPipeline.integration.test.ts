@@ -330,6 +330,13 @@ describe("applyPulledChanges integration", () => {
       },
     })
     await db.workoutTemplates.put({ id: "tpl-clear", name: "Template", exercises: [] })
+    await db.personalRecords.put({
+      exerciseId: "ex-clear",
+      weight: 100,
+      reps: 5,
+      date: "2026-02-10",
+      workoutId: "w-clear",
+    })
     await db.foods.put({
       id: "food-clear",
       name: "Food",
@@ -361,6 +368,24 @@ describe("applyPulledChanges integration", () => {
       isWeighted: true,
       isTimeBased: false,
     })
+    await db.userStats.put({
+      id: "stats",
+      totalWorkouts: 1,
+      totalVolumeLbs: 1000,
+      lastUpdated: "2026-02-10T10:00:00.000Z",
+    })
+    await db.achievements.put({
+      id: "achievements",
+      unlockedAchievements: [{ id: "first-workout", unlockedAt: "2026-02-10T10:00:00.000Z" }],
+      streaks: {
+        currentWorkoutStreak: 1,
+        longestWorkoutStreak: 1,
+        lastWorkoutDate: "2026-02-10",
+        currentNutritionStreak: 0,
+        longestNutritionStreak: 0,
+        lastNutritionDate: null,
+      },
+    })
 
     await setRecordVersion("workouts", "w-clear", 1)
     await setRecordVersion("foods", "food-clear", 1)
@@ -371,11 +396,14 @@ describe("applyPulledChanges integration", () => {
     expect(await db.workoutSessions.count()).toBe(0)
     expect(await db.activeSession.count()).toBe(0)
     expect(await db.workoutTemplates.count()).toBe(0)
+    expect(await db.personalRecords.count()).toBe(0)
     expect(await db.foods.count()).toBe(0)
     expect(await db.nutritionLogs.count()).toBe(0)
     expect(await db.mealTemplates.count()).toBe(0)
     expect(await db.bodyWeight.count()).toBe(0)
     expect(await db.customExercises.count()).toBe(0)
+    expect(await db.userStats.count()).toBe(0)
+    expect(await db.achievements.count()).toBe(0)
     expect(await db.settings.get("settings")).toBeUndefined()
     expect(await db.syncRecordVersions.count()).toBe(0)
     expect(await getLocalDataOwnerUserId()).toBeNull()

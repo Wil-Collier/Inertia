@@ -2,7 +2,6 @@ import { db } from "@/services/db"
 import { pushChanges } from "@/features/sync/api"
 import {
   acknowledgeProcessedPendingChanges,
-  clearPendingChanges,
   getRecordVersion,
   rebasePendingChangesFromAccepted,
   listPendingChanges,
@@ -16,6 +15,7 @@ import { useSyncStore } from "@/features/sync/store"
 import { getLocalRecord } from "@/features/sync/engine/applyPipeline"
 import { ACTIVE_SESSION_ID } from "@/lib/constants"
 import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
+import { shouldAcknowledgePushConflict } from "@/features/sync/conflictPolicy"
 
 const MAX_PUSH_BATCH = 200
 
@@ -58,7 +58,9 @@ export async function pushPendingChangesInternal(accessToken: string, updateStat
       processedKeys.add(`${item.collection}:${item.id}`)
     })
     response.conflicts.forEach((item) => {
-      processedKeys.add(`${item.collection}:${item.id}`)
+      if (shouldAcknowledgePushConflict(item)) {
+        processedKeys.add(`${item.collection}:${item.id}`)
+      }
     })
 
     await acknowledgeProcessedPendingChanges(
@@ -99,8 +101,6 @@ export async function pushFullSnapshot(accessToken: string): Promise<void> {
     )
   })
 
-  // Final cleanup of any remaining pending changes
-  await clearPendingChanges()
 }
 
 export async function overwriteCloudWithLocal(accessToken: string): Promise<void> {
@@ -164,7 +164,6 @@ export async function overwriteCloudWithLocal(accessToken: string): Promise<void
     throw new Error(`Failed to overwrite cloud with local data. Conflicts on: ${conflictIds}`)
   }
 
-  await clearPendingChanges()
 }
 
 async function buildPushChangesFromPending(pending: PendingChange[]): Promise<PreparedPending[]> {

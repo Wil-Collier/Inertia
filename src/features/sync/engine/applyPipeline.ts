@@ -125,11 +125,14 @@ export async function clearLocalSyncData(): Promise<void> {
         db.workoutSessions,
         db.activeSession,
         db.workoutTemplates,
+        db.personalRecords,
         db.foods,
         db.nutritionLogs,
         db.mealTemplates,
         db.bodyWeight,
         db.settings,
+        db.achievements,
+        db.userStats,
         db.customExercises,
         db.syncRecordVersions,
       ],
@@ -137,12 +140,15 @@ export async function clearLocalSyncData(): Promise<void> {
         await db.workoutSessions.clear()
         await db.activeSession.clear()
         await db.workoutTemplates.clear()
+        await db.personalRecords.clear()
         await db.foods.clear()
         await db.nutritionLogs.clear()
         await db.mealTemplates.clear()
         await db.bodyWeight.clear()
         await db.customExercises.clear()
         await db.settings.delete("settings")
+        await db.achievements.clear()
+        await db.userStats.clear()
         await db.syncRecordVersions.clear()
       }
     )
