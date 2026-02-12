@@ -6,7 +6,11 @@ import type { Workout, WorkoutTemplate } from "@/lib/types"
 
 import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
-import { SYNC_TRACKING_TABLES, WORKOUT_HISTORY_SYNC_WRITE_TABLES } from "@/services/dbTransactionTables"
+import {
+  WORKOUT_HISTORY_SYNC_WRITE_TABLES,
+  WORKOUT_SESSION_SYNC_WRITE_TABLES,
+  WORKOUT_TEMPLATE_SYNC_WRITE_TABLES,
+} from "@/services/dbTransactionTables"
 
 // ============ WORKOUT MUTATIONS ============
 
@@ -30,7 +34,7 @@ export function useCreateWorkout() {
 
       const newWorkout: Workout = { ...workout, id, exerciseIds, weightUnit }
 
-      await db.transaction("rw", [db.workoutSessions, ...SYNC_TRACKING_TABLES], async () => {
+      await db.transaction("rw", WORKOUT_SESSION_SYNC_WRITE_TABLES, async () => {
         await db.workoutSessions.add(newWorkout)
       })
       await statsService.addWorkout(newWorkout)
@@ -150,7 +154,7 @@ export function useCreateTemplate() {
     mutationFn: async (template: Omit<WorkoutTemplate, "id">) => {
       const id = crypto.randomUUID()
       const newTemplate = { ...template, id }
-      await db.transaction("rw", [db.workoutTemplates, ...SYNC_TRACKING_TABLES], async () => {
+      await db.transaction("rw", WORKOUT_TEMPLATE_SYNC_WRITE_TABLES, async () => {
         await db.workoutTemplates.add(newTemplate)
       })
 
@@ -175,7 +179,7 @@ export function useUpdateTemplate() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<WorkoutTemplate> }) => {
-      await db.transaction("rw", [db.workoutTemplates, ...SYNC_TRACKING_TABLES], async () => {
+      await db.transaction("rw", WORKOUT_TEMPLATE_SYNC_WRITE_TABLES, async () => {
         await db.workoutTemplates.update(id, updates)
       })
       return db.workoutTemplates.get(id)
@@ -197,7 +201,7 @@ export function useDeleteTemplate() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      await db.transaction("rw", [db.workoutTemplates, ...SYNC_TRACKING_TABLES], async () => {
+      await db.transaction("rw", WORKOUT_TEMPLATE_SYNC_WRITE_TABLES, async () => {
         await db.workoutTemplates.delete(id)
       })
 
