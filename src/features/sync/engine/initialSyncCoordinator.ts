@@ -1,7 +1,7 @@
 import { db } from "@/services/db"
 import { applyPulledChanges, clearLocalSyncData } from "@/features/sync/engine/applyPipeline"
 import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
-import { overwriteCloudWithLocal, pushFullSnapshot } from "@/features/sync/engine/pushPipeline"
+import { mergeCloudAndLocal, overwriteCloudWithLocal, pushFullSnapshot } from "@/features/sync/engine/pushPipeline"
 import {
   clearSyncMetadata,
   getLocalDataOwnerUserId,
@@ -16,7 +16,14 @@ import { pullChanges } from "@/features/sync/api"
 
 export async function ensureInitialSync(accessToken: string, userId: string): Promise<boolean> {
   const existingCursor = await getPullCursor()
-  if (existingCursor) return true
+  if (existingCursor) {
+    const localDataOwnerUserId = await getLocalDataOwnerUserId()
+    if (localDataOwnerUserId === userId) {
+      return true
+    }
+
+    await clearSyncMetadata()
+  }
 
   const localHasData = await hasLocalData()
   const cloudHasData = await hasCloudData(accessToken)
@@ -56,7 +63,7 @@ export async function resolveInitialSyncStrategy(
     await clearSyncMetadata()
     await pullApplyAndPersist(accessToken, userId)
   } else if (strategy === "merge") {
-    await pushFullSnapshot(accessToken, { conflictMode: "error" })
+    await mergeCloudAndLocal(accessToken)
     await pullApplyAndPersist(accessToken, userId)
   } else if (strategy === "use-local") {
     await overwriteCloudWithLocal(accessToken)

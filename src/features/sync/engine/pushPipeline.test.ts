@@ -7,6 +7,7 @@ const getRecordVersionMock = vi.fn<(collection: PushChange["collection"], id: st
 const setRecordVersionsBulkMock = vi.fn()
 const rebasePendingChangesFromAcceptedMock = vi.fn()
 const acknowledgeProcessedPendingChangesMock = vi.fn()
+const removePendingChangesMock = vi.fn()
 
 const pushChangesMock = vi.fn()
 const toCloudRecordMock = vi.fn()
@@ -31,6 +32,7 @@ vi.mock("@/features/sync/changeTracker", () => ({
   setRecordVersionsBulk: (...args: unknown[]) => setRecordVersionsBulkMock(...args),
   rebasePendingChangesFromAccepted: (...args: unknown[]) => rebasePendingChangesFromAcceptedMock(...args),
   acknowledgeProcessedPendingChanges: (...args: unknown[]) => acknowledgeProcessedPendingChangesMock(...args),
+  removePendingChanges: (...args: unknown[]) => removePendingChangesMock(...args),
 }))
 
 vi.mock("@/features/sync/api", () => ({
@@ -122,6 +124,7 @@ describe("pushPipeline", () => {
     setRecordVersionsBulkMock.mockResolvedValue(undefined)
     rebasePendingChangesFromAcceptedMock.mockResolvedValue(undefined)
     acknowledgeProcessedPendingChangesMock.mockResolvedValue(undefined)
+    removePendingChangesMock.mockResolvedValue(undefined)
     pushChangesMock.mockResolvedValue({ acceptedChanges: [], conflicts: [] })
     toCloudRecordMock.mockReturnValue({ payload: true })
     getDeviceIdMock.mockReturnValue("device-1")
@@ -446,6 +449,7 @@ describe("pushPipeline", () => {
 
     expect(pushChangesMock).toHaveBeenCalledTimes(1)
     expect(pushChangesMock.mock.calls[0]?.[1].changes.length).toBeGreaterThan(0)
+    expect(removePendingChangesMock).toHaveBeenCalledTimes(1)
   })
 
   it("fails full snapshot when conflictMode is error and server returns conflicts", async () => {
@@ -469,6 +473,75 @@ describe("pushPipeline", () => {
     await expect(pushFullSnapshot("token", { conflictMode: "error" })).rejects.toThrow(
       "Full snapshot push conflicted on foods:food-1 (VERSION_MISMATCH)"
     )
+    expect(setRecordVersionsBulkMock).not.toHaveBeenCalled()
+    expect(removePendingChangesMock).not.toHaveBeenCalled()
+  })
+
+  it("merges without conflict by skipping unchanged records and using remote versions for revives", async () => {
+    foodsToArrayMock.mockResolvedValue([{ id: "food-same" }, { id: "food-new" }, { id: "food-revive" }])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+
+    pullAllChangesMock.mockResolvedValueOnce({
+      changes: [
+        {
+          collection: "foods",
+          id: "food-same",
+          data: { id: "food-same" },
+          version: 4,
+          deleted: false,
+        },
+        {
+          collection: "foods",
+          id: "food-revive",
+          data: null,
+          version: 7,
+          deleted: true,
+        },
+      ],
+      cursor: { version: 7 },
+      serverTimestampMs: Date.now(),
+      affectedCollections: new Set(["foods"]),
+    })
+
+    pushChangesMock.mockImplementation(async (_token, payload: { changes: PushChange[] }) => ({
+      acceptedChanges: makeAcceptedFromChanges(payload.changes),
+      conflicts: [],
+    }))
+
+    const { mergeCloudAndLocal } = await loadPushPipeline()
+    await mergeCloudAndLocal("token")
+
+    const pushedChanges = readPushedChanges(pushChangesMock.mock.calls[0]?.[1])
+    expect(pushedChanges).toHaveLength(2)
+    expect(pushedChanges.find((change) => change.id === "food-same")).toBeUndefined()
+    expect(pushedChanges.find((change) => change.id === "food-new")?.baseVersion).toBe(0)
+    expect(pushedChanges.find((change) => change.id === "food-revive")?.baseVersion).toBe(7)
+  })
+
+  it("stops merge before push when same record differs between local and cloud", async () => {
+    foodsToArrayMock.mockResolvedValue([{ id: "food-1", name: "local" }])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+
+    pullAllChangesMock.mockResolvedValueOnce({
+      changes: [
+        {
+          collection: "foods",
+          id: "food-1",
+          data: { id: "food-1", name: "cloud" },
+          version: 5,
+          deleted: false,
+        },
+      ],
+      cursor: { version: 5 },
+      serverTimestampMs: Date.now(),
+      affectedCollections: new Set(["foods"]),
+    })
+
+    const { mergeCloudAndLocal } = await loadPushPipeline()
+    await expect(mergeCloudAndLocal("token")).rejects.toThrow(
+      "Merge requires manual resolution for foods:food-1"
+    )
+    expect(pushChangesMock).not.toHaveBeenCalled()
   })
 
   it("overwrites cloud with local and sends tombstones for remote-only records", async () => {

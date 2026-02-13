@@ -7,6 +7,7 @@ const getRecordVersionMock = vi.fn<(collection: PushChange["collection"], id: st
 const setRecordVersionsBulkMock = vi.fn()
 const rebasePendingChangesFromAcceptedMock = vi.fn()
 const acknowledgeProcessedPendingChangesMock = vi.fn()
+const removePendingChangesMock = vi.fn()
 
 const pushChangesMock = vi.fn()
 const toCloudRecordMock = vi.fn()
@@ -31,6 +32,7 @@ vi.mock("@/features/sync/changeTracker", () => ({
     setRecordVersionsBulk: (...args: unknown[]) => setRecordVersionsBulkMock(...args),
     rebasePendingChangesFromAccepted: (...args: unknown[]) => rebasePendingChangesFromAcceptedMock(...args),
     acknowledgeProcessedPendingChanges: (...args: unknown[]) => acknowledgeProcessedPendingChangesMock(...args),
+    removePendingChanges: (...args: unknown[]) => removePendingChangesMock(...args),
 }))
 
 vi.mock("@/features/sync/api", () => ({
@@ -96,6 +98,7 @@ describe("pushPipeline partial failure handling", () => {
         setRecordVersionsBulkMock.mockResolvedValue(undefined)
         rebasePendingChangesFromAcceptedMock.mockResolvedValue(undefined)
         acknowledgeProcessedPendingChangesMock.mockResolvedValue(undefined)
+        removePendingChangesMock.mockResolvedValue(undefined)
         pushChangesMock.mockResolvedValue({ acceptedChanges: [], conflicts: [] })
         toCloudRecordMock.mockReturnValue({ payload: true })
         getDeviceIdMock.mockReturnValue("device-1")
@@ -114,7 +117,7 @@ describe("pushPipeline partial failure handling", () => {
         customExercisesToArrayMock.mockResolvedValue([])
     })
 
-    it("acknowledges each batch immediately after successful push in pushFullSnapshot", async () => {
+    it("removes pending keys for each successful batch in pushFullSnapshot", async () => {
         // Create enough records to span multiple batches (200 per batch)
         const count = 250
         workoutSessionsToArrayMock.mockResolvedValue(
@@ -133,8 +136,8 @@ describe("pushPipeline partial failure handling", () => {
         // Should have made 2 push calls (200 + 50)
         expect(pushChangesMock).toHaveBeenCalledTimes(2)
 
-        // Should acknowledge each batch immediately.
-        expect(acknowledgeProcessedPendingChangesMock).toHaveBeenCalledTimes(2)
+        // Should clean pending keys for each batch immediately.
+        expect(removePendingChangesMock).toHaveBeenCalledTimes(2)
     })
 
     it("throws error when overwriteCloudWithLocal encounters conflicts", async () => {

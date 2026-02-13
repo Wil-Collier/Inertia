@@ -3,8 +3,9 @@ import { pushChanges } from "@/features/sync/api"
 import {
   acknowledgeProcessedPendingChanges,
   getRecordVersion,
-  rebasePendingChangesFromAccepted,
   listPendingChanges,
+  rebasePendingChangesFromAccepted,
+  removePendingChanges,
   setRecordVersionsBulk,
 } from "@/features/sync/changeTracker"
 import type { PendingChange } from "@/features/sync/types"
@@ -85,6 +86,9 @@ export async function pushFullSnapshot(
   const conflictMode = options.conflictMode ?? "ignore"
 
   const chunks = chunkArray(changes, MAX_PUSH_BATCH)
+  const acceptedVersionEntries: Array<{ collection: SyncCollection; id: string; version: number }> = []
+  const acceptedPendingKeys: Array<{ collection: SyncCollection; id: string }> = []
+
   await runSequentially(chunks, async (chunk) => {
     const response = await pushChanges(accessToken, { changes: chunk })
     if (response.conflicts.length > 0 && conflictMode === "error") {
@@ -93,39 +97,106 @@ export async function pushFullSnapshot(
         .join(", ")
       throw new Error(`Full snapshot push conflicted on ${conflictIds}`)
     }
-    await setRecordVersionsBulk(
-      response.acceptedChanges.map((item) => ({
+
+    const acceptedChunkVersions = response.acceptedChanges.map((item) => ({
+      collection: item.collection,
+      id: item.id,
+      version: item.version,
+    }))
+    const acceptedChunkPendingKeys = response.acceptedChanges.map((item) => ({
+      collection: item.collection,
+      id: item.id,
+    }))
+
+    if (conflictMode === "error") {
+      acceptedVersionEntries.push(...acceptedChunkVersions)
+      acceptedPendingKeys.push(...acceptedChunkPendingKeys)
+      return
+    }
+
+    await setRecordVersionsBulk(acceptedChunkVersions)
+    await removePendingChanges(acceptedChunkPendingKeys)
+  })
+
+  if (conflictMode === "error") {
+    await setRecordVersionsBulk(acceptedVersionEntries)
+    await removePendingChanges(acceptedPendingKeys)
+  }
+}
+
+export async function mergeCloudAndLocal(accessToken: string): Promise<void> {
+  const remote = await pullAllChanges(accessToken, { cursor: { version: 0 } })
+  const remoteState = buildRemoteState(remote.changes)
+  const localChanges = await buildFullSnapshot()
+
+  const mergeConflicts: Array<{ collection: SyncCollection; id: string }> = []
+  const changesToPush: PushChange[] = []
+  localChanges.forEach((localChange) => {
+    const key = `${localChange.collection}:${localChange.id}`
+    const remoteChange = remoteState.get(key)
+    if (!remoteChange) {
+      changesToPush.push({
+        ...localChange,
+        baseVersion: 0,
+      })
+      return
+    }
+
+    if (remoteChange.deleted) {
+      changesToPush.push({
+        ...localChange,
+        baseVersion: remoteChange.version,
+      })
+      return
+    }
+
+    if (areJsonValuesEqual(remoteChange.data, localChange.data)) {
+      return
+    }
+
+    mergeConflicts.push({ collection: localChange.collection, id: localChange.id })
+  })
+
+  if (mergeConflicts.length > 0) {
+    const conflictIds = mergeConflicts.map((conflict) => `${conflict.collection}:${conflict.id}`).join(", ")
+    throw new Error(`Merge requires manual resolution for ${conflictIds}`)
+  }
+  if (changesToPush.length === 0) return
+
+  const chunks = chunkArray(changesToPush, MAX_PUSH_BATCH)
+  const acceptedVersionEntries: Array<{ collection: SyncCollection; id: string; version: number }> = []
+  const acceptedPendingKeys: Array<{ collection: SyncCollection; id: string }> = []
+  await runSequentially(chunks, async (chunk) => {
+    const response = await pushChanges(accessToken, { changes: chunk })
+    if (response.conflicts.length > 0) {
+      const conflictIds = response.conflicts
+        .map((conflict) => `${conflict.collection}:${conflict.id} (${conflict.reason})`)
+        .join(", ")
+      throw new Error(`Merge push conflicted on ${conflictIds}`)
+    }
+
+    acceptedVersionEntries.push(
+      ...response.acceptedChanges.map((item) => ({
         collection: item.collection,
         id: item.id,
         version: item.version,
       }))
     )
-
-    // Clear pending changes for this batch immediately after success
-    // This ensures partial failures don't leave orphan pending changes
-    await acknowledgeProcessedPendingChanges(
-      response.acceptedChanges.map((item) => ({
+    acceptedPendingKeys.push(
+      ...response.acceptedChanges.map((item) => ({
         collection: item.collection,
         id: item.id,
-        mutationId: item.mutationId,
       }))
     )
   })
 
+  await setRecordVersionsBulk(acceptedVersionEntries)
+  await removePendingChanges(acceptedPendingKeys)
 }
 
 export async function overwriteCloudWithLocal(accessToken: string): Promise<void> {
   const remote = await pullAllChanges(accessToken, { cursor: { version: 0 } })
-  const remoteState = new Map<string, { collection: SyncCollection; id: string; version: number; deleted: boolean }>()
-  remote.changes.forEach((change) => {
-    const key = `${change.collection}:${change.id}`
-    remoteState.set(key, {
-      collection: change.collection,
-      id: change.id,
-      version: change.version,
-      deleted: change.deleted,
-    })
-  })
+  const remoteState = buildRemoteState(remote.changes)
 
   const localChanges = await buildFullSnapshot()
   const localKeys = new Set(localChanges.map((change) => `${change.collection}:${change.id}`))
@@ -167,6 +238,12 @@ export async function overwriteCloudWithLocal(accessToken: string): Promise<void
         version: item.version,
       }))
     )
+    await removePendingChanges(
+      response.acceptedChanges.map((item) => ({
+        collection: item.collection,
+        id: item.id,
+      }))
+    )
   })
 
   // Fail if any conflicts occurred during "use-local" overwrite
@@ -175,6 +252,52 @@ export async function overwriteCloudWithLocal(accessToken: string): Promise<void
     throw new Error(`Failed to overwrite cloud with local data. Conflicts on: ${conflictIds}`)
   }
 
+}
+
+function buildRemoteState(changes: Array<{ collection: SyncCollection; id: string; version: number; deleted: boolean; data: Record<string, unknown> | null }>): Map<
+  string,
+  { collection: SyncCollection; id: string; version: number; deleted: boolean; data: Record<string, unknown> | null }
+> {
+  const state = new Map<
+    string,
+    { collection: SyncCollection; id: string; version: number; deleted: boolean; data: Record<string, unknown> | null }
+  >()
+  changes.forEach((change) => {
+    const key = `${change.collection}:${change.id}`
+    state.set(key, {
+      collection: change.collection,
+      id: change.id,
+      version: change.version,
+      deleted: change.deleted,
+      data: change.data,
+    })
+  })
+  return state
+}
+
+function areJsonValuesEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(normalizeJsonValue(a)) === JSON.stringify(normalizeJsonValue(b))
+}
+
+function normalizeJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeJsonValue(item))
+  }
+  if (!isRecord(value)) {
+    return value
+  }
+
+  const normalized: Record<string, unknown> = {}
+  Object.keys(value)
+    .toSorted()
+    .forEach((key) => {
+      normalized[key] = normalizeJsonValue(value[key])
+    })
+  return normalized
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
 }
 
 async function buildPushChangesFromPending(pending: PendingChange[]): Promise<PreparedPending[]> {
