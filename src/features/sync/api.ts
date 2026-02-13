@@ -16,6 +16,10 @@ import type {
   RefreshResponse,
 } from "@/features/sync/schemas"
 import { useAuthStore } from "@/features/sync/store"
+import {
+  clearSessionRestoreHint,
+  markSessionRestoreEligible,
+} from "@/features/sync/sessionRestoreHint"
 
 class SyncApiError extends Error {
   readonly code?: string
@@ -58,7 +62,7 @@ async function requestJson<T>(
 }
 
 export async function loginWithGoogle(idToken: string): Promise<LoginResponse> {
-  return await requestJson(
+  const response = await requestJson(
     "/api/auth/login",
     {
       method: "POST",
@@ -70,6 +74,8 @@ export async function loginWithGoogle(idToken: string): Promise<LoginResponse> {
     },
     (data) => LoginResponseSchema.parse(data)
   )
+  markSessionRestoreEligible()
+  return response
 }
 
 export async function refreshAccessToken(): Promise<RefreshResponse> {
@@ -78,23 +84,31 @@ export async function refreshAccessToken(): Promise<RefreshResponse> {
   }
 
   refreshInFlight = (async () => {
-    const refreshed = await requestJson(
-      "/api/auth/refresh",
-      {
-        method: "POST",
-        credentials: "include",
-      },
-      (data) => RefreshResponseSchema.parse(data)
-    )
+    try {
+      const refreshed = await requestJson(
+        "/api/auth/refresh",
+        {
+          method: "POST",
+          credentials: "include",
+        },
+        (data) => RefreshResponseSchema.parse(data)
+      )
 
-    useAuthStore.getState().setAccessToken({
-      accessToken: refreshed.accessToken,
-      userId: refreshed.userId,
-      email: refreshed.email,
-      expiresAtMs: refreshed.expiresAtMs,
-    })
+      useAuthStore.getState().setAccessToken({
+        accessToken: refreshed.accessToken,
+        userId: refreshed.userId,
+        email: refreshed.email,
+        expiresAtMs: refreshed.expiresAtMs,
+      })
+      markSessionRestoreEligible()
 
-    return refreshed
+      return refreshed
+    } catch (error) {
+      if (error instanceof SyncApiError && error.status === 401) {
+        clearSessionRestoreHint()
+      }
+      throw error
+    }
   })()
 
   try {
@@ -109,13 +123,14 @@ export async function restoreSession(): Promise<boolean> {
     await refreshAccessToken()
     return true
   } catch {
+    clearSessionRestoreHint()
     useAuthStore.getState().clearAuth()
     return false
   }
 }
 
 export async function logoutSession(): Promise<LogoutResponse> {
-  return await requestJson(
+  const response = await requestJson(
     "/api/auth/logout",
     {
       method: "POST",
@@ -123,6 +138,8 @@ export async function logoutSession(): Promise<LogoutResponse> {
     },
     (data) => LogoutResponseSchema.parse(data)
   )
+  clearSessionRestoreHint()
+  return response
 }
 
 export async function pushChanges(accessToken: string, payload: PushRequest): Promise<PushResponse> {

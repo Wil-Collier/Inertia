@@ -2,6 +2,7 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import type { SyncStatus, InitialSyncState } from "@/features/sync/types"
 import type { PushConflict } from "@/features/sync/schemas"
+import { clearSessionRestoreHint } from "@/features/sync/sessionRestoreHint"
 
 const SYNC_AUTH_STORAGE_KEY = "inertia-sync-auth"
 
@@ -92,6 +93,7 @@ export const useSyncStore = create<SyncState>()(
 
 export function clearAuthStorage(): void {
   purgeLegacyAuthStorage()
+  clearSessionRestoreHint()
 }
 
 function purgeLegacyAuthStorage(): void {

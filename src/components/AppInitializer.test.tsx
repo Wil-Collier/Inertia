@@ -7,6 +7,7 @@ import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
 import * as dexieHooksModule from "@/features/sync/dexieHooks"
 import * as syncApiModule from "@/features/sync/api"
+import { markSessionRestoreEligible } from "@/features/sync/sessionRestoreHint"
 import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
 
 vi.mock("@/features/sync/useSyncTriggers", () => ({
@@ -44,6 +45,8 @@ describe("AppInitializer", () => {
   })
 
   it("renders children after successful initialization", async () => {
+    markSessionRestoreEligible()
+
     render(
       <AppInitializer>
         <div>ready-state</div>
@@ -57,6 +60,18 @@ describe("AppInitializer", () => {
     expect(ensureInitializedSpy).toHaveBeenCalled()
     expect(updateStreaksSpy).toHaveBeenCalledTimes(1)
     expect(recalculateAllSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("skips session restore when no session hint is present", async () => {
+    render(
+      <AppInitializer>
+        <div>ready-state</div>
+      </AppInitializer>
+    )
+
+    await screen.findByText("ready-state")
+
+    expect(syncApiModule.restoreSession).not.toHaveBeenCalled()
   })
 
   it("shows corruption prompt when health check reports unhealthy", async () => {

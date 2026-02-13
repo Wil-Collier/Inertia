@@ -9,6 +9,7 @@ import { useDebouncedPush } from "@/features/sync/useDebouncedPush"
 import { SYNC_ENABLED } from "@/features/sync/syncEngine"
 import { restoreSession } from "@/features/sync/api"
 import { rebuildLocalOnlyFields } from "@/features/sync/localRebuild"
+import { shouldAttemptSessionRestore } from "@/features/sync/sessionRestoreHint"
 import type { SyncCollection } from "@/features/sync/schemas"
 
 interface AppInitializerProps {
@@ -115,7 +116,9 @@ export function AppInitializer({ children }: AppInitializerProps) {
 
         if (SYNC_ENABLED) {
           registerSyncDexieHooks()
-          void restoreSession()
+          if (shouldAttemptSessionRestore()) {
+            void restoreSession()
+          }
         }
 
         // Initialize/repair derived state (early dev: correctness > micro perf).
