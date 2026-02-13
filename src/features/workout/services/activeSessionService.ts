@@ -5,7 +5,7 @@ import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
 import { buildWorkoutExerciseFromTemplate, calculateOneRepMax } from "@/lib/workoutUtils"
 import { getToday } from "@/lib/dateUtils"
-import { ACTIVE_SESSION_ID } from "@/lib/constants"
+import { ACTIVE_SESSION_ID, KG_TO_LBS } from "@/lib/constants"
 import { ACTIVE_SESSION_SYNC_WRITE_TABLES } from "@/services/dbTransactionTables"
 
 /** Defer a callback to run in the background without blocking UI */
@@ -17,13 +17,20 @@ function deferToBackground(callback: () => void) {
   }
 }
 
+function toLbs(weight: number, unit: "kg" | "lbs"): number {
+  return unit === "kg" ? weight * KG_TO_LBS : weight
+}
+
 /**
  * Updates personal records for a completed workout.
  * Compares the best set from each exercise against existing PRs.
  * Note: Sequential await in loop is intentional for transactional consistency.
  */
 async function updatePersonalRecords(workout: Workout): Promise<void> {
-  const exercisesToUpdate: { exerciseId: string, pr: { exerciseId: string, weight: number, reps: number, date: string, workoutId: string } }[] = []
+  const exercisesToUpdate: {
+    exerciseId: string
+    pr: { exerciseId: string, weight: number, weightUnit: "kg" | "lbs", reps: number, date: string, workoutId: string }
+  }[] = []
   const bestByExerciseId = new Map<
     string,
     {
@@ -48,10 +55,10 @@ async function updatePersonalRecords(workout: Workout): Promise<void> {
 
     // Find the best set by estimated 1RM
     let bestSet = completedSets[0]
-    let bestE1RM = calculateOneRepMax(bestSet.weight, bestSet.reps)
+    let bestE1RM = calculateOneRepMax(toLbs(bestSet.weight, workout.weightUnit), bestSet.reps)
 
     for (const set of completedSets) {
-      const e1rm = calculateOneRepMax(set.weight, set.reps)
+      const e1rm = calculateOneRepMax(toLbs(set.weight, workout.weightUnit), set.reps)
       if (e1rm > bestE1RM) {
         bestE1RM = e1rm
         bestSet = set
@@ -74,16 +81,18 @@ async function updatePersonalRecords(workout: Workout): Promise<void> {
   for (const best of bestByExerciseId.values()) {
     const existingPR = existingPRMap.get(best.exerciseId)
     const existingE1RM = existingPR
-      ? calculateOneRepMax(existingPR.weight, existingPR.reps)
+      ? calculateOneRepMax(toLbs(existingPR.weight, existingPR.weightUnit), existingPR.reps)
       : 0
+    const candidateE1RM = calculateOneRepMax(toLbs(best.weight, workout.weightUnit), best.reps)
 
     // Queue update if this is a new record
-    if (best.e1rm > existingE1RM) {
+    if (candidateE1RM > existingE1RM) {
       exercisesToUpdate.push({
         exerciseId: best.exerciseId,
         pr: {
           exerciseId: best.exerciseId,
           weight: best.weight,
+          weightUnit: workout.weightUnit,
           reps: best.reps,
           date: best.date,
           workoutId: best.workoutId,

@@ -63,12 +63,11 @@ function useTokenExpiryPrompt(expiresAtMs: number | null) {
   useEffect(() => {
     if (!expiresAtMs) return
 
-    const normalizedExpiresAtMs = expiresAtMs < 1_000_000_000_000 ? expiresAtMs * 1000 : expiresAtMs
     const MAX_TIMEOUT_DELAY = 2147483647
     const timeoutIds: number[] = []
 
     const scheduleTimers = () => {
-      const msUntilExpiry = normalizedExpiresAtMs - Date.now()
+      const msUntilExpiry = expiresAtMs - Date.now()
       if (msUntilExpiry <= 0) return
 
       if (msUntilExpiry > MAX_TIMEOUT_DELAY) {

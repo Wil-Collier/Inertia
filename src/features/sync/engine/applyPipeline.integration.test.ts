@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeAll, beforeEach, describe, expect, it } from "vitest"
 import { applyPulledChanges, clearLocalSyncData } from "@/features/sync/engine/applyPipeline"
+import { registerSyncDexieHooks } from "@/features/sync/dexieHooks"
 import { db } from "@/services/db"
-import { clearDatabase } from "@/test/helpers/dbTestUtils"
+import { clearDatabase, flushAsyncTasks } from "@/test/helpers/dbTestUtils"
 import {
   getLocalDataOwnerUserId,
   getRecordVersion,
@@ -10,6 +11,10 @@ import {
 } from "@/features/sync/changeTracker"
 
 describe("applyPulledChanges integration", () => {
+  beforeAll(() => {
+    registerSyncDexieHooks()
+  })
+
   beforeEach(async () => {
     await clearDatabase()
   })
@@ -260,7 +265,7 @@ describe("applyPulledChanges integration", () => {
     expect(await getRecordVersion("workouts", "w-invalid")).toBe(0)
   })
 
-  it("deletes local records and clears versions for tombstone changes", async () => {
+  it("deletes local records and preserves tombstone version for later rebases", async () => {
     await db.workoutSessions.put({
       id: "w-delete",
       name: "Delete Me",
@@ -281,7 +286,27 @@ describe("applyPulledChanges integration", () => {
     ])
 
     expect(await db.workoutSessions.get("w-delete")).toBeUndefined()
-    expect(await getRecordVersion("workouts", "w-delete")).toBe(0)
+    expect(await getRecordVersion("workouts", "w-delete")).toBe(13)
+  })
+
+  it("uses tombstone version when a deterministic id is recreated locally", async () => {
+    await applyPulledChanges([
+      {
+        collection: "nutrition",
+        id: "2026-02-06",
+        data: null,
+        version: 9,
+        deleted: true,
+      },
+    ])
+
+    await db.transaction("rw", [db.nutritionLogs, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.nutritionLogs.put({ date: "2026-02-06", entries: [] })
+    })
+    await flushAsyncTasks()
+
+    const pending = await db.syncPendingChanges.get(["nutrition", "2026-02-06"])
+    expect(pending?.baseVersion).toBe(9)
   })
 
   it("canonicalizes settings to singleton id even when server sends a different record id", async () => {
@@ -333,6 +358,7 @@ describe("applyPulledChanges integration", () => {
     await db.personalRecords.put({
       exerciseId: "ex-clear",
       weight: 100,
+      weightUnit: "kg",
       reps: 5,
       date: "2026-02-10",
       workoutId: "w-clear",

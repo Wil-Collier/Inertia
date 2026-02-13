@@ -2,16 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import type { Exercise, MuscleGroup } from "@/lib/types"
-
-const muscleGroups = [
-  "chest",
-  "back",
-  "shoulders",
-  "arms",
-  "legs",
-  "core",
-  "cardio",
-] as const satisfies ReadonlyArray<MuscleGroup>
+import { muscleGroups } from "@/lib/muscleGroups"
 
 function isMuscleGroup(value: string): value is MuscleGroup {
   return (muscleGroups as readonly string[]).includes(value)

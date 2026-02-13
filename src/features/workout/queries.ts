@@ -85,7 +85,7 @@ export function useTemplate(id: string) {
 
 export function useWorkoutDates() {
   return useQuery({
-    queryKey: [...queryKeys.workouts.all, "dates"],
+    queryKey: queryKeys.workouts.dates(),
     queryFn: async () => {
       // Avoid uniqueKeys() on Safari (can throw "Unable to open cursor").
       const keys = await db.workoutSessions.orderBy("date").keys()
@@ -96,7 +96,7 @@ export function useWorkoutDates() {
 
 export function useWorkoutStats(startDate: string, endDate: string) {
   return useQuery({
-    queryKey: [...queryKeys.workouts.all, "stats", { startDate, endDate }],
+    queryKey: queryKeys.workouts.stats(startDate, endDate),
     queryFn: async () => {
       const workouts = await db.workoutSessions
         .where("date")
@@ -111,7 +111,7 @@ export function useWorkoutStats(startDate: string, endDate: string) {
 
 export function usePersonalRecords() {
   return useQuery({
-    queryKey: [...queryKeys.workouts.all, "prs"],
+    queryKey: queryKeys.workouts.prs(),
     queryFn: async () => {
       const prs = await db.personalRecords.toArray()
       // Return as object keyed by exerciseId for backward compatibility if needed, 
@@ -126,7 +126,7 @@ export function usePersonalRecords() {
 
 export function useExerciseHistory(exerciseId: string) {
   return useQuery({
-    queryKey: [...queryKeys.workouts.all, "history", exerciseId],
+    queryKey: queryKeys.workouts.history(exerciseId),
     queryFn: async () => {
       if (!exerciseId) return []
       const workouts = await db.workoutSessions
@@ -163,7 +163,7 @@ export function useExerciseHistory(exerciseId: string) {
 
 export function useProgressStats() {
   return useQuery({
-    queryKey: [...queryKeys.workouts.all, "progress-stats"],
+    queryKey: queryKeys.workouts.progressStats(),
     queryFn: async () => {
       // Use cached stats for total volume (O(1) instead of O(N))
       const stats = await statsService.getStats()

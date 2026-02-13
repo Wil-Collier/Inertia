@@ -4,12 +4,17 @@ import { calculateOneRepMax } from "@/lib/workoutUtils"
 import { statsService } from "@/services/statsService"
 import { achievementService } from "@/services/achievementService"
 import type { SyncCollection } from "@/features/sync/schemas"
+import { KG_TO_LBS } from "@/lib/constants"
+
+function toLbs(weight: number, unit: "kg" | "lbs"): number {
+  return unit === "kg" ? weight * KG_TO_LBS : weight
+}
 
 async function recalculatePersonalRecords(): Promise<void> {
   const workouts = await db.workoutSessions.toArray()
   const bestByExercise = new Map<
     string,
-    { exerciseId: string; weight: number; reps: number; date: string; workoutId: string; e1rm: number }
+    { exerciseId: string; weight: number; weightUnit: "kg" | "lbs"; reps: number; date: string; workoutId: string; e1rm: number }
   >()
 
   for (const workout of workouts) {
@@ -30,7 +35,7 @@ function updateBestRecordsFromWorkout(
   workout: Workout,
   bestByExercise: Map<
     string,
-    { exerciseId: string; weight: number; reps: number; date: string; workoutId: string; e1rm: number }
+    { exerciseId: string; weight: number; weightUnit: "kg" | "lbs"; reps: number; date: string; workoutId: string; e1rm: number }
   >
 ) {
   for (const exercise of workout.exercises) {
@@ -38,10 +43,10 @@ function updateBestRecordsFromWorkout(
     if (completedSets.length === 0) continue
 
     let bestSet = completedSets[0]
-    let bestE1RM = calculateOneRepMax(bestSet.weight, bestSet.reps)
+    let bestE1RM = calculateOneRepMax(toLbs(bestSet.weight, workout.weightUnit), bestSet.reps)
 
     for (const set of completedSets) {
-      const e1rm = calculateOneRepMax(set.weight, set.reps)
+      const e1rm = calculateOneRepMax(toLbs(set.weight, workout.weightUnit), set.reps)
       if (e1rm > bestE1RM) {
         bestE1RM = e1rm
         bestSet = set
@@ -53,6 +58,7 @@ function updateBestRecordsFromWorkout(
       bestByExercise.set(exercise.exerciseId, {
         exerciseId: exercise.exerciseId,
         weight: bestSet.weight,
+        weightUnit: workout.weightUnit,
         reps: bestSet.reps,
         date: workout.date,
         workoutId: workout.id,

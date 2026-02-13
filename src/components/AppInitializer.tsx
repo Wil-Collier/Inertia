@@ -8,6 +8,8 @@ import { useSyncTriggers } from "@/features/sync/useSyncTriggers"
 import { useDebouncedPush } from "@/features/sync/useDebouncedPush"
 import { SYNC_ENABLED } from "@/features/sync/syncEngine"
 import { restoreSession } from "@/features/sync/api"
+import { rebuildLocalOnlyFields } from "@/features/sync/localRebuild"
+import type { SyncCollection } from "@/features/sync/schemas"
 
 interface AppInitializerProps {
   children: ReactNode
@@ -84,6 +86,8 @@ async function withSafariRetry<T>(label: string, fn: () => Promise<T>): Promise<
   return await attempt(0, undefined)
 }
 
+const STARTUP_REPAIR_COLLECTIONS: Set<SyncCollection> = new Set(["workouts", "nutrition", "foods"])
+
 /**
  * Checks database health and initializes the application.
  */
@@ -115,9 +119,17 @@ export function AppInitializer({ children }: AppInitializerProps) {
         }
 
         // Initialize/repair derived state (early dev: correctness > micro perf).
+        await withSafariRetry("Local-only field rebuild", () =>
+          rebuildLocalOnlyFields(STARTUP_REPAIR_COLLECTIONS)
+        )
         await withSafariRetry("Achievement init", () => achievementService.ensureInitialized())
         await withSafariRetry("Streak recalculation", () => achievementService.updateStreaks())
         await withSafariRetry("Stats recalculation", () => statsService.recalculateAll())
+        await withSafariRetry("Workout achievement reconciliation", async () => {
+          const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
+          await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+        })
+        await withSafariRetry("Nutrition achievement reconciliation", () => achievementService.checkNutritionAchievements())
 
         // Keep streaks correct if the app stays open across midnight.
         const now = new Date()

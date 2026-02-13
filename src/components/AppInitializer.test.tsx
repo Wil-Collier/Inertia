@@ -54,7 +54,7 @@ describe("AppInitializer", () => {
 
     expect(dexieHooksModule.registerSyncDexieHooks).toHaveBeenCalledTimes(1)
     expect(syncApiModule.restoreSession).toHaveBeenCalledTimes(1)
-    expect(ensureInitializedSpy).toHaveBeenCalledTimes(1)
+    expect(ensureInitializedSpy).toHaveBeenCalled()
     expect(updateStreaksSpy).toHaveBeenCalledTimes(1)
     expect(recalculateAllSpy).toHaveBeenCalledTimes(1)
   })

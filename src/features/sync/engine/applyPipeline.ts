@@ -16,21 +16,183 @@ import { withSyncHooksSuppressed } from "@/features/sync/dexieHooks"
 import { rebuildLocalOnlyFields } from "@/features/sync/localRebuild"
 import { recalculateDerivedData } from "@/features/sync/derivedData"
 import { invalidateQueriesForCollections } from "@/features/sync/queryInvalidation"
-import { clearLocalDataOwnerUserId, removeRecordVersion, setRecordVersion } from "@/features/sync/changeTracker"
+import { clearLocalDataOwnerUserId, setRecordVersion } from "@/features/sync/changeTracker"
 import { runSequentially } from "../../../../shared/asyncUtils"
+import { z } from "zod"
 
 type LocalRecord =
   | Workout
-  | (ActiveWorkoutSession & { id: string })
+  | ActiveWorkoutSession
   | WorkoutTemplate
   | FoodItem
   | DailyNutrition
   | MealTemplate
   | WeightEntry
-  | (UserSettings & { id: string })
+  | UserSettings
   | Exercise
 
 const SETTINGS_SINGLETON_ID = "settings"
+const WeightUnitSchema = z.enum(["kg", "lbs"])
+const WorkoutSetSchema = z.object({
+  id: z.string(),
+  reps: z.number(),
+  weight: z.number(),
+  isCompleted: z.boolean(),
+})
+const WorkoutExerciseSchema = z.object({
+  id: z.string(),
+  exerciseId: z.string(),
+  sets: z.array(WorkoutSetSchema),
+  notes: z.string().optional(),
+  lastPerformanceDate: z.string().optional(),
+})
+const WorkoutSchema = z.object({
+  id: z.string(),
+  date: z.string(),
+  name: z.string(),
+  exercises: z.array(WorkoutExerciseSchema),
+  exerciseIds: z.array(z.string()).optional(),
+  duration: z.number().optional(),
+  completedAt: z.string().optional(),
+  weightUnit: WeightUnitSchema,
+  updatedAt: z.number().optional(),
+})
+const ActiveWorkoutSessionSchema = z.object({
+  workout: WorkoutSchema,
+  startedAt: z.string(),
+  templateId: z.string().optional(),
+  updatedAt: z.number().optional(),
+})
+const WorkoutTemplateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  exercises: z.array(
+    z.object({
+      exerciseId: z.string(),
+      targetSets: z.number(),
+      targetReps: z.number().optional(),
+      targetWeight: z.number().optional(),
+    })
+  ),
+  updatedAt: z.number().optional(),
+})
+const FoodItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  brand: z.string().optional(),
+  calories: z.number(),
+  protein: z.number(),
+  carbs: z.number(),
+  fat: z.number(),
+  fiber: z.number(),
+  sugar: z.number(),
+  servingSize: z.string(),
+  servingGrams: z.number().optional(),
+  barcode: z.string().optional(),
+  isCustom: z.boolean(),
+  isFavorite: z.boolean().optional(),
+  usageCount: z.number().optional(),
+  updatedAt: z.number().optional(),
+})
+const MealEntrySchema = z.object({
+  id: z.string(),
+  foodId: z.string(),
+  quantity: z.number(),
+  mealType: z.enum(["breakfast", "lunch", "dinner", "snack"]),
+  templateId: z.string().optional(),
+  templateInstanceId: z.string().optional(),
+  templateName: z.string().optional(),
+})
+const DailyNutritionSchema = z.object({
+  date: z.string(),
+  entries: z.array(MealEntrySchema),
+  updatedAt: z.number().optional(),
+})
+const MealTemplateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  entries: z.array(MealEntrySchema.omit({ id: true })),
+  updatedAt: z.number().optional(),
+})
+const WeightEntrySchema = z.object({
+  id: z.string(),
+  date: z.string(),
+  weight: z.number(),
+  note: z.string().optional(),
+  updatedAt: z.number().optional(),
+})
+const UserSettingsSchema = z.object({
+  theme: z.enum(["light", "dark", "system"]),
+  nutritionGoals: z.object({
+    calories: z.number(),
+    protein: z.number(),
+    carbs: z.number(),
+    fat: z.number(),
+    fiber: z.number(),
+    sugar: z.number(),
+  }),
+  restTimerDuration: z.number(),
+  unitPreferences: z.object({
+    weight: WeightUnitSchema,
+    distance: z.enum(["mi", "km"]),
+  }),
+  areNotificationsEnabled: z.boolean(),
+  updatedAt: z.number().optional(),
+})
+const ExerciseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  muscleGroup: z.enum(["chest", "back", "shoulders", "arms", "legs", "core", "cardio"]),
+  isCustom: z.boolean(),
+  isWeighted: z.boolean(),
+  isTimeBased: z.boolean(),
+  description: z.string().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.number().optional(),
+})
+
+function parseCloudRecord(collection: SyncCollection, data: unknown): LocalRecord | null {
+  switch (collection) {
+    case "workouts": {
+      const parsed = WorkoutSchema.safeParse(data)
+      return parsed.success ? parsed.data : null
+    }
+    case "activeSession": {
+      const parsed = ActiveWorkoutSessionSchema.safeParse(data)
+      return parsed.success ? parsed.data : null
+    }
+    case "templates": {
+      const parsed = WorkoutTemplateSchema.safeParse(data)
+      return parsed.success ? parsed.data : null
+    }
+    case "foods": {
+      const parsed = FoodItemSchema.safeParse(data)
+      return parsed.success ? parsed.data : null
+    }
+    case "nutrition": {
+      const parsed = DailyNutritionSchema.safeParse(data)
+      return parsed.success ? parsed.data : null
+    }
+    case "mealTemplates": {
+      const parsed = MealTemplateSchema.safeParse(data)
+      return parsed.success ? parsed.data : null
+    }
+    case "weight": {
+      const parsed = WeightEntrySchema.safeParse(data)
+      return parsed.success ? parsed.data : null
+    }
+    case "settings": {
+      const parsed = UserSettingsSchema.safeParse(data)
+      return parsed.success ? parsed.data : null
+    }
+    case "exercises": {
+      const parsed = ExerciseSchema.safeParse(data)
+      return parsed.success ? parsed.data : null
+    }
+    default:
+      return null
+  }
+}
 
 export async function applyPulledChanges(changes: PullChange[]): Promise<Set<SyncCollection>> {
   const affectedCollections = new Set<SyncCollection>()
@@ -61,7 +223,7 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
 
           if (change.deleted) {
             await deleteLocalRecord(change.collection, localId)
-            await removeRecordVersion(change.collection, localId, transaction)
+            await setRecordVersion(change.collection, localId, change.version, transaction)
             return
           }
 
@@ -74,8 +236,9 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
           if (isRecord(local)) {
             local.updatedAt = Date.now()
           }
+          const parsedLocal = parseCloudRecord(change.collection, local)
 
-          const applied = await upsertLocalRecord(change.collection, localId, local)
+          const applied = await upsertLocalRecord(change.collection, localId, parsedLocal)
           if (!applied) {
             throw new Error(`Invalid pulled record for ${change.collection}:${change.id}`)
           }
@@ -243,73 +406,38 @@ function resolveLocalId(collection: SyncCollection, incomingId: string): string 
   return incomingId
 }
 
-function hasString(record: Record<string, unknown>, key: string): boolean {
-  return typeof record[key] === "string"
-}
-
-function hasNumber(record: Record<string, unknown>, key: string): boolean {
-  return typeof record[key] === "number"
-}
-
-function hasBoolean(record: Record<string, unknown>, key: string): boolean {
-  return typeof record[key] === "boolean"
-}
-
 function isWorkout(record: unknown): record is Workout {
-  if (!isRecord(record)) return false
-  if (!hasString(record, "id") || !hasString(record, "date") || !hasString(record, "name")) return false
-  if (!Array.isArray(record.exercises)) return false
-  return record.weightUnit === "kg" || record.weightUnit === "lbs"
+  return WorkoutSchema.safeParse(record).success
 }
 
 function isWorkoutTemplate(record: unknown): record is WorkoutTemplate {
-  if (!isRecord(record)) return false
-  if (!hasString(record, "id") || !hasString(record, "name")) return false
-  return Array.isArray(record.exercises)
+  return WorkoutTemplateSchema.safeParse(record).success
 }
 
 function isActiveWorkoutSession(record: unknown): record is ActiveWorkoutSession {
-  if (!isRecord(record)) return false
-  if (!hasString(record, "startedAt")) return false
-  if (!isWorkout(record.workout)) return false
-  return record.templateId === undefined || typeof record.templateId === "string"
+  return ActiveWorkoutSessionSchema.safeParse(record).success
 }
 
 function isFoodItem(record: unknown): record is FoodItem {
-  if (!isRecord(record)) return false
-  if (!hasString(record, "id") || !hasString(record, "name")) return false
-  if (!hasNumber(record, "calories")) return false
-  return hasBoolean(record, "isCustom")
+  return FoodItemSchema.safeParse(record).success
 }
 
 function isDailyNutrition(record: unknown): record is DailyNutrition {
-  if (!isRecord(record)) return false
-  if (!hasString(record, "date")) return false
-  return Array.isArray(record.entries)
+  return DailyNutritionSchema.safeParse(record).success
 }
 
 function isMealTemplate(record: unknown): record is MealTemplate {
-  if (!isRecord(record)) return false
-  if (!hasString(record, "id") || !hasString(record, "name")) return false
-  return Array.isArray(record.entries)
+  return MealTemplateSchema.safeParse(record).success
 }
 
 function isWeightEntry(record: unknown): record is WeightEntry {
-  if (!isRecord(record)) return false
-  if (!hasString(record, "id") || !hasString(record, "date")) return false
-  return hasNumber(record, "weight")
+  return WeightEntrySchema.safeParse(record).success
 }
 
 function isUserSettings(record: unknown): record is UserSettings {
-  if (!isRecord(record)) return false
-  if (!hasString(record, "theme")) return false
-  if (!hasNumber(record, "restTimerDuration")) return false
-  return isRecord(record.unitPreferences) && isRecord(record.nutritionGoals) && hasBoolean(record, "areNotificationsEnabled")
+  return UserSettingsSchema.safeParse(record).success
 }
 
 function isExercise(record: unknown): record is Exercise {
-  if (!isRecord(record)) return false
-  if (!hasString(record, "id") || !hasString(record, "name")) return false
-  if (!hasBoolean(record, "isCustom") || !hasBoolean(record, "isWeighted") || !hasBoolean(record, "isTimeBased")) return false
-  return hasString(record, "muscleGroup")
+  return ExerciseSchema.safeParse(record).success
 }

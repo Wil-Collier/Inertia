@@ -30,10 +30,8 @@ import type {
 
 /**
  * Current database schema version.
- * Increment this when making schema changes and add corresponding
- * migration logic in both:
- * 1. The version().upgrade() chain below (for live DB upgrades)
- * 2. backupMigrations.ts (for importing old backups)
+ * Keep this at 1 while the app is in early development.
+ * Backups are only imported when schemaVersion matches exactly.
  */
 export const CURRENT_SCHEMA_VERSION = 1
 
@@ -59,7 +57,7 @@ export interface SyncRecordVersionRecord {
 }
 
 // Extend Dexie to handle our DB
-export class TrainingAppDatabase extends Dexie {
+export class InertiaDatabase extends Dexie {
   // Tables - customExercises stores ONLY user-created exercises
   // Default exercises come from the static exerciseDatabase module
   customExercises!: Table<Exercise>
@@ -82,7 +80,7 @@ export class TrainingAppDatabase extends Dexie {
   syncRecordVersions!: Table<SyncRecordVersionRecord, [string, string]>
 
   constructor() {
-    super("TrainingAppDB")
+    super("InertiaDB")
 
     // Schema definition
     // Note: ++id means auto-incrementing integer key, but our types use string UUIDs.
@@ -121,7 +119,7 @@ export class TrainingAppDatabase extends Dexie {
   }
 }
 
-export const db = new TrainingAppDatabase()
+export const db = new InertiaDatabase()
 
 const REQUIRED_STORES = [
   "customExercises",
@@ -247,7 +245,7 @@ export async function recoverDatabase(): Promise<void> {
   // Use the native IndexedDB API to ensure complete deletion
   // This must succeed before we can proceed
   await new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase("TrainingAppDB")
+    const request = indexedDB.deleteDatabase("InertiaDB")
     request.addEventListener("success", () => resolve())
     request.addEventListener("error", () => reject(request.error))
     request.addEventListener("blocked", () => {

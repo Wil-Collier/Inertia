@@ -1,4 +1,4 @@
-// Achievement definitions for the training app
+// Achievement definitions for Inertia
 
 export type AchievementCategory = "consistency" | "volume" | "strength" | "nutrition" | "variety"
 

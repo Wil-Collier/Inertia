@@ -12,10 +12,25 @@ import { achievementService } from "@/services/achievementService"
  * Shared helper to remove entries from a daily log and update food usage counts.
  * Handles single or multiple entry removal.
  */
-async function removeEntriesFromLog(date: string, filterFn: (entry: MealEntry) => boolean) {
+async function runNutritionLogMutation(
+  date: string,
+  mutation: (existing: DailyNutrition) => Promise<void>
+): Promise<void> {
   await db.transaction("rw", [db.nutritionLogs, db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
     const existing = await db.nutritionLogs.get(date)
     if (!existing) return
+    await mutation(existing)
+  })
+}
+
+async function updateFoodUsageCount(foodId: string, delta: number): Promise<void> {
+  const food = await db.foods.get(foodId)
+  if (!food) return
+  await db.foods.update(foodId, { usageCount: Math.max(0, (food.usageCount ?? 0) + delta) })
+}
+
+async function removeEntriesFromLog(date: string, filterFn: (entry: MealEntry) => boolean) {
+  await runNutritionLogMutation(date, async (existing) => {
 
     const entriesToRemove = existing.entries.filter(filterFn)
     if (entriesToRemove.length === 0) return
@@ -29,10 +44,7 @@ async function removeEntriesFromLog(date: string, filterFn: (entry: MealEntry) =
     // Update food usage counts
     await Promise.all(
       Array.from(foodCounts).map(async ([foodId, count]) => {
-        const food = await db.foods.get(foodId)
-        if (food && typeof food.usageCount === 'number') {
-          await db.foods.update(foodId, { usageCount: Math.max(0, food.usageCount - count) })
-        }
+        await updateFoodUsageCount(foodId, -count)
       })
     )
 
@@ -70,7 +82,7 @@ export function useAddMealEntry() {
       
       await db.transaction("rw", [db.nutritionLogs, db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
         const existing = await db.nutritionLogs.get(date)
-        
+
         if (existing) {
           await db.nutritionLogs.update(date, {
             entries: [...existing.entries, entry],
@@ -79,11 +91,7 @@ export function useAddMealEntry() {
           await db.nutritionLogs.add({ date, entries: [entry] })
         }
 
-        // Increment usage count for optimization
-        const food = await db.foods.get(foodId)
-        if (food) {
-          await db.foods.update(foodId, { usageCount: (food.usageCount ?? 0) + 1 })
-        }
+        await updateFoodUsageCount(foodId, 1)
       })
 
       // Update streaks and check achievements
@@ -94,7 +102,7 @@ export function useAddMealEntry() {
     },
     onSuccess: (_, { date }) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.nutrition.all, "dates"] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.dates() })
     },
     onError: () => {
       toast.error("Failed to add food entry")
@@ -126,22 +134,13 @@ export function useUpdateMealEntry() {
 
         // If the foodId changes, keep usageCount consistent for safe deletion checks.
         if (updates.foodId && updates.foodId !== previousEntry.foodId) {
-          const [oldFood, newFood] = await Promise.all([
-            db.foods.get(previousEntry.foodId),
-            db.foods.get(nextFoodId),
-          ])
+          const newFood = await db.foods.get(nextFoodId)
 
-          if (oldFood) {
-            await db.foods.update(previousEntry.foodId, {
-              usageCount: Math.max(0, (oldFood.usageCount ?? 0) - 1),
-            })
+          if (!newFood) {
+            throw new Error("Selected food does not exist")
           }
-
-          if (newFood) {
-            await db.foods.update(nextFoodId, {
-              usageCount: (newFood.usageCount ?? 0) + 1,
-            })
-          }
+          await updateFoodUsageCount(previousEntry.foodId, -1)
+          await updateFoodUsageCount(nextFoodId, 1)
         }
 
         const updatedEntries = existing.entries.map((e) =>
@@ -217,7 +216,7 @@ export function useRemoveMealEntry() {
     },
     onSettled: (_data, _error, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(variables.date) })
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.nutrition.all, "dates"] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.dates() })
     }
   })
 }
@@ -228,7 +227,7 @@ export function useAddFood() {
   return useMutation({
     mutationFn: async (food: Omit<FoodItem, "id"> & { id?: string }) => {
       const id = food.id ?? crypto.randomUUID()
-      const newFood: FoodItem = { ...food, id, isCustom: food.isCustom ?? true }
+      const newFood: FoodItem = { ...food, id, isCustom: food.isCustom ?? true, usageCount: food.usageCount ?? 0 }
       // Upsert to avoid duplicates when the ID is canonical (e.g. barcode IDs).
       await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
         await db.foods.put(newFood)
@@ -252,23 +251,7 @@ export function useDeleteFood() {
       const food = await db.foods.get(id)
       if (!food) return // Already deleted?
 
-      // Optimized check using usageCount if available
-      let isUsed = false
-      if (typeof food.usageCount === 'number') {
-        isUsed = food.usageCount > 0
-      } else {
-        // Fallback to full scan for legacy data
-        await db.nutritionLogs
-          .toCollection()
-          .until(() => isUsed)
-          .each((log) => {
-            if (log.entries.some((entry) => entry.foodId === id)) {
-              isUsed = true
-            }
-          })
-      }
-      
-      if (isUsed) {
+      if ((food.usageCount ?? 0) > 0) {
         throw new Error("Cannot delete food that is used in meal entries. Remove the entries first.")
       }
 
@@ -300,7 +283,7 @@ export function useToggleFavoriteFood() {
       } else if (food) {
         // If food doesn't exist locally (e.g. from search), upsert it.
         await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
-          await db.foods.put({ ...food, isFavorite, isCustom: food.isCustom ?? false })
+          await db.foods.put({ ...food, isFavorite, isCustom: food.isCustom ?? false, usageCount: food.usageCount ?? 0 })
         })
       }
     },
@@ -354,7 +337,7 @@ export function useSaveMealTemplate() {
       return id
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.mealTemplates() })
       toast.success("Template saved")
     },
     onError: () => {
@@ -373,7 +356,7 @@ export function useUpdateMealTemplate() {
       })
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.mealTemplates() })
       toast.success("Template updated")
     },
     onError: () => {
@@ -392,7 +375,7 @@ export function useDeleteMealTemplate() {
       })
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.foods.all, "meal-templates"] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.mealTemplates() })
       toast.success("Template deleted")
     },
     onError: () => {
@@ -448,7 +431,7 @@ export function useApplyMealTemplate() {
           Array.from(foodCounts).map(async ([foodId, count]) => {
             const food = await db.foods.get(foodId)
             if (food) {
-              await db.foods.update(foodId, { usageCount: (food.usageCount ?? 0) + count })
+              await updateFoodUsageCount(foodId, count)
             }
           })
         )
@@ -460,7 +443,7 @@ export function useApplyMealTemplate() {
     },
     onSuccess: (_, { date }) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.nutrition.all, "dates"] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.dates() })
       toast.success("Template applied")
     },
     onError: () => {
@@ -481,7 +464,7 @@ export function useRemoveMealEntryGroup() {
     },
     onSuccess: (_, { date }) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.nutrition.all, "dates"] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.dates() })
     },
     onError: () => {
       toast.error("Failed to remove template group")

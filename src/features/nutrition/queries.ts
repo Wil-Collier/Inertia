@@ -16,6 +16,20 @@ export interface CombinedFoodSearchResult {
   remoteError?: string
 }
 
+async function searchLocalFoods(query: string, limit = 20): Promise<FoodItem[]> {
+  const normalizedQuery = query.trim().toLowerCase()
+  if (normalizedQuery.length < 2) return []
+
+  return await db.foods
+    .filter(
+      (food) =>
+        food.name.toLowerCase().includes(normalizedQuery) ||
+        (food.brand?.toLowerCase().includes(normalizedQuery) ?? false)
+    )
+    .limit(limit)
+    .toArray()
+}
+
 export function useDailyNutrition(date: string) {
   return useQuery({
     queryKey: queryKeys.nutrition.daily(date),
@@ -61,7 +75,7 @@ export function useFavoriteFoods() {
 
 export function useCustomFoods() {
   return useQuery({
-    queryKey: [...queryKeys.foods.all, "custom"],
+    queryKey: queryKeys.foods.custom(),
     queryFn: async () => {
       return db.foods
         .filter((food) => !!food.isCustom)
@@ -72,7 +86,7 @@ export function useCustomFoods() {
 
 export function useMealTemplates() {
   return useQuery({
-    queryKey: [...queryKeys.foods.all, "meal-templates"],
+    queryKey: queryKeys.foods.mealTemplates(),
     queryFn: async () => {
       return db.mealTemplates.toArray()
     },
@@ -83,17 +97,7 @@ export function useFoodSearch(query: string) {
   return useQuery({
     queryKey: queryKeys.foods.search(query),
     queryFn: async () => {
-      if (query.length < 2) return []
-
-      const lowerQuery = query.toLowerCase()
-      return db.foods
-        .filter(
-          (food) =>
-            food.name.toLowerCase().includes(lowerQuery) ||
-            (food.brand?.toLowerCase().includes(lowerQuery) ?? false)
-        )
-        .limit(20)
-        .toArray()
+      return await searchLocalFoods(query, 20)
     },
     enabled: query.length >= 2,
   })
@@ -101,7 +105,7 @@ export function useFoodSearch(query: string) {
 
 export function useNutritionDates() {
   return useQuery({
-    queryKey: [...queryKeys.nutrition.all, "dates"],
+    queryKey: queryKeys.nutrition.dates(),
     queryFn: async () => {
       // Avoid uniqueKeys() on Safari (can throw "Unable to open cursor").
       const keys = await db.nutritionLogs.orderBy("date").keys()
@@ -153,17 +157,8 @@ export function useCombinedFoodSearch(query: string) {
         return empty
       }
 
-      const lowerQuery = query.toLowerCase()
-
       // Search local database first
-      const local = await db.foods
-        .filter(
-          (food) =>
-            food.name.toLowerCase().includes(lowerQuery) ||
-            (food.brand?.toLowerCase().includes(lowerQuery) ?? false)
-        )
-        .limit(20)
-        .toArray()
+      const local = await searchLocalFoods(query, 20)
 
       // Then search remote API (but keep local results even if remote fails)
       let remote: FoodItem[] = []

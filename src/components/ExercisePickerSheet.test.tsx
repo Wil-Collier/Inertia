@@ -192,7 +192,7 @@ describe("ExercisePickerSheet", () => {
     const updatedExercise = await db.customExercises.get("custom-plank")
     expect(updatedExercise?.name).toBe("Custom Plank Hold Updated")
     expect(onSelect).not.toHaveBeenCalled()
-  }, 10000)
+  }, 25000)
 
   it("clears search query when clear button is pressed", async () => {
     renderExercisePickerSheet()

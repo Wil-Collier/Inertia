@@ -1,4 +1,4 @@
-// Audio utilities for the training app
+// Audio utilities for Inertia
 
 let audioContext: AudioContext | null = null
 let isUnlocked = false

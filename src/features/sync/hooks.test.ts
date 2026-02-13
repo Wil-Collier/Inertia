@@ -129,7 +129,7 @@ describe("sync hooks", () => {
   })
 
   it("shows one expiry notification when token expiry time is reached", () => {
-    const expiresInTwoSeconds = Math.floor((Date.now() + 2000) / 1000)
+    const expiresInTwoSeconds = Date.now() + 2000
     useAuthStore.getState().setAuth({
       accessToken: "token",
       userId: "user-1",

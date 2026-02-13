@@ -185,6 +185,7 @@ describe("exercise hooks integration", () => {
     await db.personalRecords.put({
       exerciseId: "custom-2",
       weight: 80,
+      weightUnit: "lbs",
       reps: 8,
       date: "2026-02-01",
       workoutId: "w-1",

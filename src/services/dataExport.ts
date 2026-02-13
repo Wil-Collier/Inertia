@@ -1,7 +1,6 @@
 import { exportDatabase, importDatabase, CURRENT_SCHEMA_VERSION, recoverDatabase } from "@/services/db"
 import { resetSyncState } from "@/features/sync/reset"
 import { withSyncHooksSuppressed } from "@/features/sync/dexieHooks"
-import { migrateBackupData, backupNeedsMigration, type DexieExportData } from "@/services/backupMigrations"
 import { z } from "zod"
 
 const APP_LOCAL_STORAGE_KEYS = [
@@ -17,7 +16,7 @@ const DexieExportSchema = z.object({
   formatName: z.literal("dexie"),
   formatVersion: z.number(),
   data: z.object({
-    databaseName: z.literal("TrainingAppDB"),
+    databaseName: z.literal("InertiaDB"),
     databaseVersion: z.number(),
     tables: z.array(z.object({
       name: z.string(),
@@ -41,6 +40,7 @@ const WrappedExportSchema = z.object({
 })
 
 export type WrappedExport = z.infer<typeof WrappedExportSchema>
+type DexieExportData = z.infer<typeof DexieExportSchema>
 
 /**
  * Validate a backup file and return parsed content.
@@ -70,7 +70,6 @@ async function parseAndValidateBackup(file: File): Promise<WrappedExport> {
 
 /**
  * Export database with version metadata.
- * Creates a wrapped export that includes schema version for future migration compatibility.
  */
 export async function downloadExport(): Promise<void> {
   try {
@@ -105,27 +104,22 @@ export async function downloadExport(): Promise<void> {
 
 /**
  * Import data from a backup file.
- * Handles schema migrations for older backups automatically.
+ * Backups must match the current schema version exactly.
  */
 export async function importData(file: File): Promise<{ success: boolean; message: string; shouldReload?: boolean }> {
   try {
     const backup = await parseAndValidateBackup(file)
 
-    let dataToImport = backup.data
-
-    // Check if backup needs migration
-    if (backupNeedsMigration(backup.schemaVersion)) {
-      if (import.meta.env.DEV) {
-        console.log(
-          `Backup is from schema v${backup.schemaVersion}, ` +
-            `current is v${CURRENT_SCHEMA_VERSION}. Running migrations...`
-        )
+    if (backup.schemaVersion !== CURRENT_SCHEMA_VERSION) {
+      return {
+        success: false,
+        message:
+          `Backup schema v${backup.schemaVersion} is not supported by this build (expected v${CURRENT_SCHEMA_VERSION}).`
       }
-      dataToImport = migrateBackupData(backup.data, backup.schemaVersion)
     }
 
     // Convert migrated data back to blob for Dexie import
-    const importBlob = new Blob([JSON.stringify(dataToImport)], {
+    const importBlob = new Blob([JSON.stringify(backup.data)], {
       type: "application/json",
     })
 

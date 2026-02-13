@@ -8,6 +8,12 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.workouts.all, "detail", id] as const,
     byDate: (date: string) => [...queryKeys.workouts.all, "date", date] as const,
     byExercise: (exerciseId: string) => [...queryKeys.workouts.all, "exercise", exerciseId] as const,
+    dates: () => [...queryKeys.workouts.all, "dates"] as const,
+    stats: (startDate: string, endDate: string) =>
+      [...queryKeys.workouts.all, "stats", { startDate, endDate }] as const,
+    prs: () => [...queryKeys.workouts.all, "prs"] as const,
+    history: (exerciseId: string) => [...queryKeys.workouts.all, "history", exerciseId] as const,
+    progressStats: () => [...queryKeys.workouts.all, "progress-stats"] as const,
   },
   
   // Templates
@@ -31,6 +37,7 @@ export const queryKeys = {
     all: ["nutrition"] as const,
     daily: (date: string) => [...queryKeys.nutrition.all, "daily", date] as const,
     range: (start: string, end: string) => [...queryKeys.nutrition.all, "range", start, end] as const,
+    dates: () => [...queryKeys.nutrition.all, "dates"] as const,
   },
   
   // Foods
@@ -41,6 +48,8 @@ export const queryKeys = {
     combinedSearch: (query: string) => [...queryKeys.foods.all, "combinedSearch", query] as const,
     favorites: () => [...queryKeys.foods.all, "favorites"] as const,
     detail: (id: string) => [...queryKeys.foods.all, "detail", id] as const,
+    custom: () => [...queryKeys.foods.all, "custom"] as const,
+    mealTemplates: () => [...queryKeys.foods.all, "meal-templates"] as const,
   },
   
   // Body Weight

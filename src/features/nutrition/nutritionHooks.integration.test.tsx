@@ -190,6 +190,44 @@ describe("nutrition hooks integration", () => {
     expect((await db.foods.get("food-2"))?.usageCount).toBe(1)
   })
 
+  it("rejects meal entry updates that reference a missing food", async () => {
+    await db.foods.put({
+      id: "food-1",
+      name: "Rice",
+      calories: 130,
+      protein: 2.4,
+      carbs: 28,
+      fat: 0.3,
+      fiber: 0.4,
+      sugar: 0.1,
+      servingSize: "100g",
+      isCustom: true,
+      usageCount: 1,
+    })
+    await db.nutritionLogs.put({
+      date: "2026-02-08",
+      entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "dinner" }],
+    })
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useUpdateMealEntry(), { wrapper })
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          date: "2026-02-08",
+          entryId: "entry-1",
+          updates: { foodId: "missing-food" },
+        })
+      ).rejects.toThrow("Selected food does not exist")
+    })
+
+    const log = await db.nutritionLogs.get("2026-02-08")
+    expect(log?.entries[0]?.foodId).toBe("food-1")
+    expect((await db.foods.get("food-1"))?.usageCount).toBe(1)
+  })
+
   it("surfaces update errors when the requested log does not exist", async () => {
     const queryClient = createTestQueryClient()
     const wrapper = createQueryWrapper(queryClient)
@@ -365,7 +403,7 @@ describe("nutrition hooks integration", () => {
     expect((await db.foods.get("food-1"))?.usageCount).toBe(1)
   })
 
-  it("falls back to full log scan for delete checks when usageCount is missing", async () => {
+  it("deletes foods when usageCount is missing (legacy fallback removed)", async () => {
     await db.foods.put({
       id: "food-legacy",
       name: "Legacy Food",
@@ -388,10 +426,10 @@ describe("nutrition hooks integration", () => {
     const { result } = renderHook(() => useDeleteFood(), { wrapper })
 
     await act(async () => {
-      await expect(result.current.mutateAsync("food-legacy")).rejects.toThrow(
-        "Cannot delete food that is used in meal entries. Remove the entries first."
-      )
+      await result.current.mutateAsync("food-legacy")
     })
+
+    expect(await db.foods.get("food-legacy")).toBeUndefined()
   })
 
   it("adds foods with generated or caller-provided ids", async () => {

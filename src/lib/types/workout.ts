@@ -56,6 +56,7 @@ export interface WorkoutTemplate extends SyncableWithId {
 export interface PersonalRecord {
   exerciseId: string
   weight: number
+  weightUnit: "kg" | "lbs"
   reps: number
   date: string
   workoutId: string

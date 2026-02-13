@@ -111,6 +111,7 @@ await achievementService.checkNutritionAchievements()
 - **Input validation:** Treat all request inputs as untrusted. Validate with Zod before any DB or provider calls.
 - **Request size limits:** Enforce payload size limits on sync endpoints (`/api/sync/push`, `/api/sync/pull`).
 - **Rate limiting:** Keep route-level rate limits enabled for `/api/auth/*`, `/api/sync/*`, and `/api/nutrition/*`.
+  - **Early dev exception:** Do not prioritize distributed/durable rate-limit architecture changes yet. In-memory middleware limits are acceptable until production hardening is explicitly requested.
 - **SQL safety:** Use parameterized D1 queries only; never build SQL with string interpolation from user input.
 - **Error hygiene:** Do not leak internal stack traces or secrets in API responses.
 - **Security headers:** Preserve API security headers middleware (`nosniff`, referrer policy, permissions policy, CSP for API responses).

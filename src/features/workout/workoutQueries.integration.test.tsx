@@ -193,8 +193,8 @@ describe("workout query hooks integration", () => {
 
   it("returns personal records as a map keyed by exercise id", async () => {
     await db.personalRecords.bulkPut([
-      { exerciseId: "bench", weight: 225, reps: 5, date: "2026-02-01", workoutId: "w1" },
-      { exerciseId: "row", weight: 185, reps: 8, date: "2026-02-02", workoutId: "w2" },
+      { exerciseId: "bench", weight: 225, weightUnit: "lbs", reps: 5, date: "2026-02-01", workoutId: "w1" },
+      { exerciseId: "row", weight: 185, weightUnit: "lbs", reps: 8, date: "2026-02-02", workoutId: "w2" },
     ])
 
     const queryClient = createTestQueryClient()
@@ -237,8 +237,8 @@ describe("workout query hooks integration", () => {
     ])
 
     await db.personalRecords.bulkPut([
-      { exerciseId: "bench", weight: 225, reps: 5, date: "2026-02-01", workoutId: "w1" },
-      { exerciseId: "row", weight: 185, reps: 8, date: "2026-02-02", workoutId: "w2" },
+      { exerciseId: "bench", weight: 225, weightUnit: "lbs", reps: 5, date: "2026-02-01", workoutId: "w1" },
+      { exerciseId: "row", weight: 185, weightUnit: "lbs", reps: 8, date: "2026-02-02", workoutId: "w2" },
     ])
 
     const queryClient = createTestQueryClient()

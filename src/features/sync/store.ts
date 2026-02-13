@@ -4,11 +4,6 @@ import type { SyncStatus, InitialSyncState } from "@/features/sync/types"
 import type { PushConflict } from "@/features/sync/schemas"
 
 const SYNC_AUTH_STORAGE_KEY = "inertia-sync-auth"
-const EXPIRY_MS_THRESHOLD = 1_000_000_000_000
-
-function normalizeExpiresAtMs(expiresAtMs: number): number {
-  return expiresAtMs < EXPIRY_MS_THRESHOLD ? expiresAtMs * 1000 : expiresAtMs
-}
 
 interface AuthState {
   accessToken: string | null
@@ -32,7 +27,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
       accessToken,
       userId,
       email,
-      expiresAtMs: normalizeExpiresAtMs(expiresAtMs),
+      expiresAtMs,
       isAuthenticated: true,
     }),
   setAccessToken: ({ accessToken, userId, email, expiresAtMs }) =>
@@ -40,7 +35,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
       accessToken,
       userId,
       email,
-      expiresAtMs: normalizeExpiresAtMs(expiresAtMs),
+      expiresAtMs,
       isAuthenticated: true,
     }),
   clearAuth: () =>
