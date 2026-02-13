@@ -127,7 +127,7 @@ export function SyncSettings() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                Sync your workouts and nutrition across devices. Only approved Google accounts can sign in.
+                Sync keeps workouts and nutrition aligned across devices. Food search works without sign-in.
               </p>
             </div>
           )}

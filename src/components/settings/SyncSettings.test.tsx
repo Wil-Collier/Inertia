@@ -102,7 +102,7 @@ describe("SyncSettings", () => {
     expect(screen.getByRole("button", { name: "Google Login" })).toBeTruthy()
     expect(
       screen.getByText(
-        "Sync your workouts and nutrition across devices. Only approved Google accounts can sign in."
+        "Sync keeps workouts and nutrition aligned across devices. Food search works without sign-in."
       )
     ).toBeTruthy()
   })

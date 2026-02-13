@@ -256,9 +256,9 @@ describe("Security Controls", () => {
             expect(body).toMatchObject({ error: "UNAUTHORIZED", message: "Missing bearer token" })
         })
 
-        it("returns 401 for nutrition endpoints without bearer token", async () => {
+        it("allows unauthenticated nutrition endpoints", async () => {
             const response = await app.request(
-                "/api/nutrition/search?q=oats",
+                "/api/nutrition/search",
                 {
                     method: "GET",
                     headers: {},
@@ -266,7 +266,9 @@ describe("Security Controls", () => {
                 createEnv(db)
             )
 
-            expect(response.status).toBe(401)
+            expect(response.status).toBe(400)
+            const body = await response.json()
+            expect(body).toMatchObject({ error: "Invalid search parameters" })
         })
 
         it("returns 401 for expired JWT token", async () => {

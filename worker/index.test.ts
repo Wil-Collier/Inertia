@@ -62,6 +62,14 @@ describe("worker app integration", () => {
     expect(body.error).toBe("UNAUTHORIZED")
   })
 
+  it("allows unauthenticated nutrition route access", async () => {
+    const response = await app.request("/api/nutrition/search", {}, createEnv())
+    const body = await readJson(response)
+
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("Invalid search parameters")
+  })
+
   it("accepts valid auth and validates pull payload", async () => {
     const token = await sign(
       {

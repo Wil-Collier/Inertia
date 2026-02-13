@@ -6,6 +6,7 @@
 import type { FoodItem } from "@/lib/types"
 import { refreshAccessToken } from "@/features/sync/api"
 import { useAuthStore } from "@/features/sync/store"
+import { shouldAttemptSessionRestore } from "@/features/sync/sessionRestoreHint"
 
 export interface NutritionSearchResponse {
   items: FoodItem[]
@@ -86,55 +87,58 @@ function getErrorMessage(data: unknown, fallback: string): string {
   return fallback
 }
 
-async function resolveAccessToken(): Promise<string> {
+async function resolveAccessToken(): Promise<string | null> {
   const token = useAuthStore.getState().accessToken
   if (token) {
     return token
   }
 
+  if (!shouldAttemptSessionRestore()) {
+    return null
+  }
+
   try {
     const refreshed = await refreshAccessToken()
     return refreshed.accessToken
-  } catch (error) {
+  } catch {
     useAuthStore.getState().clearAuth()
-    throw new NutritionApiError(
-      "http",
-      error instanceof Error ? error.message : "Session expired. Please sign in again.",
-      { status: 401, cause: error }
-    )
+    return null
   }
 }
 
-function buildAuthorizedRequestInit(accessToken: string): RequestInit {
+function buildRequestInit(accessToken?: string | null): RequestInit {
+  const headers: Record<string, string> = {}
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`
+  }
+
   return {
     credentials: "include",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers,
   }
 }
 
 async function fetchAuthorized(url: string): Promise<Response> {
   const accessToken = await resolveAccessToken()
-  const response = await fetchWithTimeout(url, buildAuthorizedRequestInit(accessToken))
+  const response = await fetchWithTimeout(url, buildRequestInit(accessToken))
   if (response.status !== 401) {
+    return response
+  }
+
+  if (!accessToken && !shouldAttemptSessionRestore()) {
     return response
   }
 
   try {
     const refreshed = await refreshAccessToken()
-    const retryResponse = await fetchWithTimeout(url, buildAuthorizedRequestInit(refreshed.accessToken))
+    const retryResponse = await fetchWithTimeout(url, buildRequestInit(refreshed.accessToken))
     if (retryResponse.status === 401) {
       useAuthStore.getState().clearAuth()
     }
     return retryResponse
-  } catch (error) {
+  } catch {
     useAuthStore.getState().clearAuth()
-    throw new NutritionApiError(
-      "http",
-      error instanceof Error ? error.message : "Session expired. Please sign in again.",
-      { status: 401, cause: error }
-    )
+    return response
   }
 }
 

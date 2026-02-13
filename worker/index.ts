@@ -32,7 +32,7 @@ app.onError((err, c) => {
 })
 
 // Mount nutrition routes (auth required)
-app.use("/api/nutrition/*", authMiddleware)
+// Nutrition catalog routes are public (search/barcode) and remain rate limited.
 app.route("/api/nutrition", nutrition)
 
 // Auth routes (no auth required)

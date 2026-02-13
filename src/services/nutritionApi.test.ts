@@ -6,6 +6,14 @@ const refreshAccessTokenMock = vi.fn()
 
 vi.mock("@/features/sync/api", () => ({
   refreshAccessToken: (...args: unknown[]) => refreshAccessTokenMock(...args),
+  SyncApiError: class SyncApiError extends Error {
+    readonly status?: number
+
+    constructor(message: string, _code?: string, status?: number) {
+      super(message)
+      this.status = status
+    }
+  },
 }))
 
 describe("nutritionApi service", () => {
@@ -13,6 +21,7 @@ describe("nutritionApi service", () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     refreshAccessTokenMock.mockReset()
+    localStorage.clear()
     useAuthStore.getState().clearAuth()
   })
 
@@ -164,5 +173,29 @@ describe("nutritionApi service", () => {
     expect(result).toEqual({ foods: [], hasMore: false })
     expect(refreshAccessTokenMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("searches without sign-in when no auth session exists", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      return new Response(
+        JSON.stringify({
+          items: [],
+          provider: "openfoodfacts",
+          page: 0,
+          hasMore: false,
+        }),
+        { status: 200 }
+      )
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const result = await searchFoods("rice")
+    expect(result).toEqual({ foods: [], hasMore: false })
+
+    expect(refreshAccessTokenMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const init = fetchMock.mock.calls[0]?.[1]
+    const authHeader = init?.headers ? new Headers(init.headers).get("Authorization") : null
+    expect(authHeader).toBeNull()
   })
 })

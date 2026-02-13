@@ -144,7 +144,7 @@ export function FoodSearch({
                 </p>
               ) : (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  Search for foods using the Open Food Facts database
+                  Search foods from local data and public nutrition databases. No sign-in required.
                 </p>
               )}
             </div>
