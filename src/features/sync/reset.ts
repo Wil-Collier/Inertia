@@ -13,6 +13,7 @@ export async function resetSyncState(): Promise<void> {
   syncStore.setLastSyncedAtMs(null)
   syncStore.setLastError(null)
   syncStore.setConflicts([])
+  syncStore.setLastAutoMergeSummary(null)
 
   await clearSyncMetadata()
 }

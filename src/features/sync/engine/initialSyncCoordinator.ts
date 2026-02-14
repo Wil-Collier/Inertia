@@ -1,7 +1,12 @@
 import { db } from "@/services/db"
 import { applyPulledChanges, clearLocalSyncData } from "@/features/sync/engine/applyPipeline"
 import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
-import { mergeCloudAndLocal, overwriteCloudWithLocal, pushFullSnapshot } from "@/features/sync/engine/pushPipeline"
+import {
+  mergeCloudAndLocal,
+  overwriteCloudWithLocal,
+  pushFullSnapshot,
+  type MergeCloudAndLocalResult,
+} from "@/features/sync/engine/pushPipeline"
 import {
   clearSyncMetadata,
   getLocalDataOwnerUserId,
@@ -49,6 +54,14 @@ export async function ensureInitialSync(accessToken: string, userId: string): Pr
     return true
   }
 
+  const localDataOwnerUserId = await getLocalDataOwnerUserId()
+  if (localDataOwnerUserId === userId) {
+    const summary = await mergeCloudAndLocal(accessToken)
+    persistMergeSummary(summary)
+    await pullApplyAndPersist(accessToken, userId)
+    return true
+  }
+
   useSyncStore.getState().setInitialSyncState({ localHasData, cloudHasData })
   return false
 }
@@ -63,7 +76,8 @@ export async function resolveInitialSyncStrategy(
     await clearSyncMetadata()
     await pullApplyAndPersist(accessToken, userId)
   } else if (strategy === "merge") {
-    await mergeCloudAndLocal(accessToken)
+    const summary = await mergeCloudAndLocal(accessToken)
+    persistMergeSummary(summary)
     await pullApplyAndPersist(accessToken, userId)
   } else if (strategy === "use-local") {
     await overwriteCloudWithLocal(accessToken)
@@ -71,6 +85,14 @@ export async function resolveInitialSyncStrategy(
   }
 
   useSyncStore.getState().setInitialSyncState(null)
+}
+
+function persistMergeSummary(summary: MergeCloudAndLocalResult | null | undefined): void {
+  if (!summary) return
+  useSyncStore.getState().setLastAutoMergeSummary({
+    resolvedAtMs: Date.now(),
+    ...summary,
+  })
 }
 
 async function pullApplyAndPersist(accessToken: string, userId: string): Promise<void> {

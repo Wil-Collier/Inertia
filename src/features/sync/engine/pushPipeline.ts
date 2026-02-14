@@ -5,7 +5,6 @@ import {
   getRecordVersion,
   listPendingChanges,
   rebasePendingChangesFromAccepted,
-  removePendingChanges,
   setRecordVersionsBulk,
 } from "@/features/sync/changeTracker"
 import type { PendingChange } from "@/features/sync/types"
@@ -22,6 +21,15 @@ import { runSequentially } from "../../../../shared/asyncUtils"
 const MAX_PUSH_BATCH = 200
 
 type PreparedPending = { pending: PendingChange; change: PushChange | null }
+type AcceptedEntry = { collection: SyncCollection; id: string; version: number; mutationId: string }
+
+export interface MergeCloudAndLocalResult {
+  pushed: number
+  localWins: number
+  remoteWins: number
+  mergedRecords: number
+  skippedEqual: number
+}
 
 export async function pushPendingChangesInternal(accessToken: string, updateStatus: boolean): Promise<void> {
   const pending = await listPendingChanges()
@@ -86,8 +94,7 @@ export async function pushFullSnapshot(
   const conflictMode = options.conflictMode ?? "ignore"
 
   const chunks = chunkArray(changes, MAX_PUSH_BATCH)
-  const acceptedVersionEntries: Array<{ collection: SyncCollection; id: string; version: number }> = []
-  const acceptedPendingKeys: Array<{ collection: SyncCollection; id: string }> = []
+  const acceptedEntries: AcceptedEntry[] = []
 
   await runSequentially(chunks, async (chunk) => {
     const response = await pushChanges(accessToken, { changes: chunk })
@@ -98,38 +105,35 @@ export async function pushFullSnapshot(
       throw new Error(`Full snapshot push conflicted on ${conflictIds}`)
     }
 
-    const acceptedChunkVersions = response.acceptedChanges.map((item) => ({
+    const acceptedChunkEntries = response.acceptedChanges.map((item) => ({
       collection: item.collection,
       id: item.id,
       version: item.version,
-    }))
-    const acceptedChunkPendingKeys = response.acceptedChanges.map((item) => ({
-      collection: item.collection,
-      id: item.id,
+      mutationId: item.mutationId,
     }))
 
     if (conflictMode === "error") {
-      acceptedVersionEntries.push(...acceptedChunkVersions)
-      acceptedPendingKeys.push(...acceptedChunkPendingKeys)
+      acceptedEntries.push(...acceptedChunkEntries)
       return
     }
 
-    await setRecordVersionsBulk(acceptedChunkVersions)
-    await removePendingChanges(acceptedChunkPendingKeys)
+    await acknowledgeAcceptedEntries(acceptedChunkEntries)
   })
 
   if (conflictMode === "error") {
-    await setRecordVersionsBulk(acceptedVersionEntries)
-    await removePendingChanges(acceptedPendingKeys)
+    await acknowledgeAcceptedEntries(acceptedEntries)
   }
 }
 
-export async function mergeCloudAndLocal(accessToken: string): Promise<void> {
+export async function mergeCloudAndLocal(accessToken: string): Promise<MergeCloudAndLocalResult> {
   const remote = await pullAllChanges(accessToken, { cursor: { version: 0 } })
   const remoteState = buildRemoteState(remote.changes)
   const localChanges = await buildFullSnapshot()
 
-  const mergeConflicts: Array<{ collection: SyncCollection; id: string }> = []
+  let localWins = 0
+  let remoteWins = 0
+  let mergedRecords = 0
+  let skippedEqual = 0
   const changesToPush: PushChange[] = []
   localChanges.forEach((localChange) => {
     const key = `${localChange.collection}:${localChange.id}`
@@ -139,6 +143,7 @@ export async function mergeCloudAndLocal(accessToken: string): Promise<void> {
         ...localChange,
         baseVersion: 0,
       })
+      localWins += 1
       return
     }
 
@@ -147,25 +152,46 @@ export async function mergeCloudAndLocal(accessToken: string): Promise<void> {
         ...localChange,
         baseVersion: remoteChange.version,
       })
+      localWins += 1
       return
     }
 
-    if (areJsonValuesEqual(remoteChange.data, localChange.data)) {
+    const decision = resolveMergeDecision(localChange.collection, localChange.data, remoteChange.data)
+    if (decision.action === "skip") {
+      if (decision.reason === "equal") {
+        skippedEqual += 1
+      } else {
+        remoteWins += 1
+      }
       return
     }
 
-    mergeConflicts.push({ collection: localChange.collection, id: localChange.id })
+    changesToPush.push({
+      ...localChange,
+      data: decision.data,
+      baseVersion: remoteChange.version,
+    })
+    if (decision.merged) {
+      mergedRecords += 1
+    } else if (decision.localWins) {
+      localWins += 1
+    } else {
+      remoteWins += 1
+    }
   })
 
-  if (mergeConflicts.length > 0) {
-    const conflictIds = mergeConflicts.map((conflict) => `${conflict.collection}:${conflict.id}`).join(", ")
-    throw new Error(`Merge requires manual resolution for ${conflictIds}`)
+  if (changesToPush.length === 0) {
+    return {
+      pushed: 0,
+      localWins,
+      remoteWins,
+      mergedRecords,
+      skippedEqual,
+    }
   }
-  if (changesToPush.length === 0) return
 
   const chunks = chunkArray(changesToPush, MAX_PUSH_BATCH)
-  const acceptedVersionEntries: Array<{ collection: SyncCollection; id: string; version: number }> = []
-  const acceptedPendingKeys: Array<{ collection: SyncCollection; id: string }> = []
+  const acceptedEntries: AcceptedEntry[] = []
   await runSequentially(chunks, async (chunk) => {
     const response = await pushChanges(accessToken, { changes: chunk })
     if (response.conflicts.length > 0) {
@@ -175,23 +201,24 @@ export async function mergeCloudAndLocal(accessToken: string): Promise<void> {
       throw new Error(`Merge push conflicted on ${conflictIds}`)
     }
 
-    acceptedVersionEntries.push(
+    acceptedEntries.push(
       ...response.acceptedChanges.map((item) => ({
         collection: item.collection,
         id: item.id,
         version: item.version,
-      }))
-    )
-    acceptedPendingKeys.push(
-      ...response.acceptedChanges.map((item) => ({
-        collection: item.collection,
-        id: item.id,
+        mutationId: item.mutationId,
       }))
     )
   })
 
-  await setRecordVersionsBulk(acceptedVersionEntries)
-  await removePendingChanges(acceptedPendingKeys)
+  await acknowledgeAcceptedEntries(acceptedEntries)
+  return {
+    pushed: changesToPush.length,
+    localWins,
+    remoteWins,
+    mergedRecords,
+    skippedEqual,
+  }
 }
 
 export async function overwriteCloudWithLocal(accessToken: string): Promise<void> {
@@ -220,6 +247,7 @@ export async function overwriteCloudWithLocal(accessToken: string): Promise<void
   const combined = [...tombstones, ...localChanges]
   const chunks = chunkArray(combined, MAX_PUSH_BATCH)
   const allConflicts: Array<{ collection: string; id: string }> = []
+  const acceptedEntries: AcceptedEntry[] = []
 
   await runSequentially(chunks, async (chunk) => {
     const response = await pushChanges(accessToken, { changes: chunk })
@@ -231,17 +259,12 @@ export async function overwriteCloudWithLocal(accessToken: string): Promise<void
       )
     }
 
-    await setRecordVersionsBulk(
-      response.acceptedChanges.map((item) => ({
+    acceptedEntries.push(
+      ...response.acceptedChanges.map((item) => ({
         collection: item.collection,
         id: item.id,
         version: item.version,
-      }))
-    )
-    await removePendingChanges(
-      response.acceptedChanges.map((item) => ({
-        collection: item.collection,
-        id: item.id,
+        mutationId: item.mutationId,
       }))
     )
   })
@@ -252,6 +275,7 @@ export async function overwriteCloudWithLocal(accessToken: string): Promise<void
     throw new Error(`Failed to overwrite cloud with local data. Conflicts on: ${conflictIds}`)
   }
 
+  await acknowledgeAcceptedEntries(acceptedEntries)
 }
 
 function buildRemoteState(changes: Array<{ collection: SyncCollection; id: string; version: number; deleted: boolean; data: Record<string, unknown> | null }>): Map<
@@ -291,9 +315,109 @@ function normalizeJsonValue(value: unknown): unknown {
   Object.keys(value)
     .toSorted()
     .forEach((key) => {
+      if (key === "updatedAt") return
       normalized[key] = normalizeJsonValue(value[key])
     })
   return normalized
+}
+
+function resolveMergeDecision(
+  collection: SyncCollection,
+  localData: Record<string, unknown> | null,
+  remoteData: Record<string, unknown> | null
+):
+  | { action: "skip"; reason: "equal" | "remote-newer" }
+  | { action: "push"; data: Record<string, unknown>; localWins: boolean; merged: boolean } {
+  if (areJsonValuesEqual(localData, remoteData)) {
+    return { action: "skip", reason: "equal" }
+  }
+
+  if (collection === "nutrition") {
+    const mergedData = mergeNutritionRecords(localData, remoteData)
+    if (areJsonValuesEqual(mergedData, remoteData)) {
+      return { action: "skip", reason: "remote-newer" }
+    }
+    return { action: "push", data: mergedData, localWins: false, merged: true }
+  }
+
+  const localUpdatedAt = getUpdatedAt(localData)
+  const remoteUpdatedAt = getUpdatedAt(remoteData)
+  if (localUpdatedAt === null && remoteUpdatedAt !== null) {
+    return { action: "skip", reason: "remote-newer" }
+  }
+  if (localUpdatedAt !== null && remoteUpdatedAt !== null && localUpdatedAt < remoteUpdatedAt) {
+    return { action: "skip", reason: "remote-newer" }
+  }
+
+  return {
+    action: "push",
+    data: localData ?? {},
+    localWins: true,
+    merged: false,
+  }
+}
+
+function mergeNutritionRecords(
+  localData: Record<string, unknown> | null,
+  remoteData: Record<string, unknown> | null
+): Record<string, unknown> {
+  const localEntries = readNutritionEntries(localData)
+  const remoteEntries = readNutritionEntries(remoteData)
+  const mergedEntries = [...remoteEntries]
+  const indexById = new Map(
+    remoteEntries.map((entry, index) => [typeof entry.id === "string" ? entry.id : `idx:${index}`, index])
+  )
+
+  localEntries.forEach((entry, index) => {
+    const entryId = typeof entry.id === "string" ? entry.id : `local:${index}`
+    const existingIndex = indexById.get(entryId)
+    if (existingIndex === undefined) {
+      indexById.set(entryId, mergedEntries.length)
+      mergedEntries.push(entry)
+      return
+    }
+    mergedEntries[existingIndex] = entry
+  })
+
+  const updatedAt = Math.max(getUpdatedAt(localData) ?? 0, getUpdatedAt(remoteData) ?? 0)
+  const remoteRecord = isRecord(remoteData) ? remoteData : {}
+  const localRecord = isRecord(localData) ? localData : {}
+
+  return {
+    ...remoteRecord,
+    ...localRecord,
+    entries: mergedEntries,
+    ...(updatedAt > 0 ? { updatedAt } : {}),
+  }
+}
+
+function readNutritionEntries(data: Record<string, unknown> | null): Array<Record<string, unknown>> {
+  if (!isRecord(data) || !Array.isArray(data.entries)) return []
+  return data.entries.filter((entry): entry is Record<string, unknown> => isRecord(entry))
+}
+
+function getUpdatedAt(data: Record<string, unknown> | null): number | null {
+  if (!isRecord(data)) return null
+  return typeof data.updatedAt === "number" ? data.updatedAt : null
+}
+
+async function acknowledgeAcceptedEntries(entries: AcceptedEntry[]): Promise<void> {
+  if (entries.length === 0) return
+  await setRecordVersionsBulk(
+    entries.map((entry) => ({
+      collection: entry.collection,
+      id: entry.id,
+      version: entry.version,
+    }))
+  )
+  await rebasePendingChangesFromAccepted(entries)
+  await acknowledgeProcessedPendingChanges(
+    entries.map((entry) => ({
+      collection: entry.collection,
+      id: entry.id,
+      mutationId: entry.mutationId,
+    }))
+  )
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

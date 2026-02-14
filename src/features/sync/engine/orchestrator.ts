@@ -3,6 +3,7 @@ import { handleSyncError } from "@/features/sync/engine/errors"
 import { ensureInitialSync, resolveInitialSyncStrategy } from "@/features/sync/engine/initialSyncCoordinator"
 import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
 import { pushPendingChangesInternal } from "@/features/sync/engine/pushPipeline"
+import { SyncApiError } from "@/features/sync/api"
 import { setLastSyncedAtMs, setLocalDataOwnerUserId, setPullCursor } from "@/features/sync/changeTracker"
 import { lastPullTimestamp } from "@/features/sync/lastPullTracker"
 import type { InitialSyncStrategy } from "@/features/sync/types"
@@ -41,6 +42,7 @@ async function runAuthenticatedSyncCycle(): Promise<void> {
   syncStore.setStatus("syncing")
   syncStore.setLastError(null)
   syncStore.setConflicts([])
+  syncStore.setLastAutoMergeSummary(null)
 
   try {
     await syncWithRetry(async () => {
@@ -63,6 +65,9 @@ async function runAuthenticatedSyncCycle(): Promise<void> {
       await setLastSyncedAtMs(pullResult.serverTimestampMs)
       await setLocalDataOwnerUserId(userId)
       syncStore.setStatus("success")
+    }, () => {
+      const authState = useAuthStore.getState()
+      return authState.isAuthenticated && authState.accessToken === accessToken && authState.userId === userId
     })
   } catch (error) {
     handleSyncError(error)
@@ -90,15 +95,22 @@ export async function resolveInitialSync(strategy: InitialSyncStrategy): Promise
   }
 }
 
-async function syncWithRetry(fn: () => Promise<void>, attempt = 0): Promise<void> {
+async function syncWithRetry(fn: () => Promise<void>, shouldContinue: () => boolean, attempt = 0): Promise<void> {
   try {
     await fn()
   } catch (error) {
-    if (attempt < MAX_RETRIES - 1) {
+    if (attempt < MAX_RETRIES - 1 && isRetryableSyncError(error) && shouldContinue()) {
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]))
-      await syncWithRetry(fn, attempt + 1)
+      await syncWithRetry(fn, shouldContinue, attempt + 1)
       return
     }
     throw error
   }
+}
+
+function isRetryableSyncError(error: unknown): boolean {
+  if (error instanceof SyncApiError) {
+    return false
+  }
+  return error instanceof Error
 }

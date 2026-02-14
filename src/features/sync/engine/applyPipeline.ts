@@ -233,9 +233,6 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
             return
           }
           const local = fromCloudRecord(change.collection, change.data)
-          if (isRecord(local)) {
-            local.updatedAt = Date.now()
-          }
           const parsedLocal = parseCloudRecord(change.collection, local)
 
           const applied = await upsertLocalRecord(change.collection, localId, parsedLocal)
@@ -395,10 +392,6 @@ async function deleteLocalRecord(collection: SyncCollection, id: string): Promis
     default:
       return
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
 }
 
 function resolveLocalId(collection: SyncCollection, incomingId: string): string {

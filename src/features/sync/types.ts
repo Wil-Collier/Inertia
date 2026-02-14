@@ -48,3 +48,12 @@ export interface InitialSyncState {
   localHasData: boolean
   cloudHasData: boolean
 }
+
+export interface SyncAutoMergeSummary {
+  resolvedAtMs: number
+  pushed: number
+  localWins: number
+  remoteWins: number
+  mergedRecords: number
+  skippedEqual: number
+}

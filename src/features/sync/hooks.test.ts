@@ -115,7 +115,7 @@ describe("sync hooks", () => {
     expect(useSyncStore.getState().status).toBe("idle")
     expect(useSyncStore.getState().lastError).toBeNull()
     expect(useSyncStore.getState().initialSyncState).toBeNull()
-    expect(clearSyncMetadataMock).toHaveBeenCalledTimes(1)
+    expect(clearSyncMetadataMock).not.toHaveBeenCalled()
   })
 
   it("delegates initial sync resolution to the sync engine", async () => {

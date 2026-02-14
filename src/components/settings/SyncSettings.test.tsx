@@ -183,7 +183,7 @@ describe("SyncSettings", () => {
     await waitFor(() => {
       expect(syncEngineModule.syncNow).toHaveBeenCalledTimes(1)
       expect(syncApiModule.logoutSession).toHaveBeenCalledTimes(1)
-      expect(changeTrackerModule.clearSyncMetadata).toHaveBeenCalledTimes(1)
+      expect(changeTrackerModule.clearSyncMetadata).not.toHaveBeenCalled()
     })
 
     expect(useAuthStore.getState().isAuthenticated).toBe(false)

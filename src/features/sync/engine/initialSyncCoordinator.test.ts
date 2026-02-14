@@ -104,6 +104,30 @@ describe("initialSyncCoordinator", () => {
     expect(useSyncStore.getState().initialSyncState).toEqual({ localHasData: true, cloudHasData: true })
   })
 
+  it("auto-merges when local and cloud both have data for the same owner", async () => {
+    await db.workoutSessions.put({ id: "w1", name: "Local", date: "2026-02-08", weightUnit: "kg", exercises: [] })
+    await setLocalDataOwnerUserId("user-1")
+    pullChangesMock.mockResolvedValue({
+      changes: [{ collection: "workouts", id: "c1", data: { id: "c1" }, version: 1, deleted: false }],
+      nextCursor: { version: 1 },
+      serverTimestampMs: 1,
+      hasMore: false,
+    })
+    mergeCloudAndLocalMock.mockResolvedValue({
+      pushed: 1,
+      localWins: 1,
+      remoteWins: 0,
+      mergedRecords: 0,
+      skippedEqual: 0,
+    })
+
+    const canProceed = await ensureInitialSync("token", "user-1")
+
+    expect(canProceed).toBe(true)
+    expect(mergeCloudAndLocalMock).toHaveBeenCalledWith("token")
+    expect(useSyncStore.getState().initialSyncState).toBeNull()
+  })
+
   it("blocks auto-push when local owner differs from authenticated user", async () => {
     await db.workoutSessions.put({ id: "w1", name: "Local", date: "2026-02-08", weightUnit: "kg", exercises: [] })
     await setLocalDataOwnerUserId("different-user")

@@ -104,6 +104,16 @@ export function SyncSettings() {
                 </div>
               )}
 
+              {sync.lastAutoMergeSummary && (
+                <div className="rounded-lg border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground">Auto-merge completed</p>
+                  <p className="mt-1">
+                    merged: {sync.lastAutoMergeSummary.mergedRecords}, local wins: {sync.lastAutoMergeSummary.localWins},
+                    cloud wins: {sync.lastAutoMergeSummary.remoteWins}
+                  </p>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => void syncNow()}>
                   <RefreshCw className="mr-2 h-4 w-4" />

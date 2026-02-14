@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { SyncStatus, InitialSyncState } from "@/features/sync/types"
+import type { SyncStatus, InitialSyncState, SyncAutoMergeSummary } from "@/features/sync/types"
 import type { PushConflict } from "@/features/sync/schemas"
 import { clearSessionRestoreHint } from "@/features/sync/sessionRestoreHint"
 
@@ -58,12 +58,14 @@ interface SyncState {
   pendingCount: number
   conflicts: PushConflict[]
   initialSyncState: InitialSyncState | null
+  lastAutoMergeSummary: SyncAutoMergeSummary | null
   setStatus: (status: SyncStatus) => void
   setLastSyncedAtMs: (timestamp: number | null) => void
   setLastError: (error: string | null) => void
   setPendingCount: (count: number) => void
   setConflicts: (conflicts: PushConflict[]) => void
   setInitialSyncState: (state: InitialSyncState | null) => void
+  setLastAutoMergeSummary: (summary: SyncAutoMergeSummary | null) => void
 }
 
 export const useSyncStore = create<SyncState>()(
@@ -75,12 +77,14 @@ export const useSyncStore = create<SyncState>()(
       pendingCount: 0,
       conflicts: [],
       initialSyncState: null,
+      lastAutoMergeSummary: null,
       setStatus: (status) => set({ status }),
       setLastSyncedAtMs: (timestamp) => set({ lastSyncedAtMs: timestamp }),
       setLastError: (error) => set({ lastError: error }),
       setPendingCount: (count) => set({ pendingCount: count }),
       setConflicts: (conflicts) => set({ conflicts }),
       setInitialSyncState: (state) => set({ initialSyncState: state }),
+      setLastAutoMergeSummary: (summary) => set({ lastAutoMergeSummary: summary }),
     }),
     {
       name: "inertia-sync-store",

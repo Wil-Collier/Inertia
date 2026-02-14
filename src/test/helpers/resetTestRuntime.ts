@@ -17,6 +17,7 @@ const DEFAULT_SYNC_STATE = {
   pendingCount: 0,
   conflicts: [],
   initialSyncState: null,
+  lastAutoMergeSummary: null,
 }
 
 export async function resetTestRuntime(queryClient?: QueryClient): Promise<void> {
