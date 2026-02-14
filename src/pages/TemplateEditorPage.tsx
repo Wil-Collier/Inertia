@@ -28,6 +28,8 @@ import { toast } from "sonner"
 import { Route } from "@/routes/nutrition/template-editor"
 
 export function TemplateEditorPage() {
+  type TemplateEditorEntry = Omit<MealEntry, "id"> & { localId: string }
+
   const navigate = useNavigate()
   const { templateId } = useSearch({ from: Route.fullPath })
   const { data: templates = [] } = useMealTemplates()
@@ -38,7 +40,7 @@ export function TemplateEditorPage() {
   )
 
   const [name, setName] = useState("")
-  const [entries, setEntries] = useState<Omit<MealEntry, "id">[]>([])
+  const [entries, setEntries] = useState<TemplateEditorEntry[]>([])
   const [initializedTemplateId, setInitializedTemplateId] = useState<string | null>(null)
   
   // Sheet state for adding foods
@@ -63,7 +65,7 @@ export function TemplateEditorPage() {
 
     if (initializedTemplateId !== templateId) {
       setName(existingTemplate.name)
-      setEntries(existingTemplate.entries)
+      setEntries(existingTemplate.entries.map((entry) => ({ ...entry, localId: crypto.randomUUID() })))
       setInitializedTemplateId(templateId)
     }
   }, [templateId, existingTemplate, initializedTemplateId])
@@ -101,12 +103,12 @@ export function TemplateEditorPage() {
         await updateMutation.mutateAsync({
           id: templateId,
           name: name.trim(),
-          entries,
+          entries: entries.map(({ localId: _localId, ...entry }) => entry),
         })
       } else {
         await saveMutation.mutateAsync({
           name: name.trim(),
-          entries,
+          entries: entries.map(({ localId: _localId, ...entry }) => entry),
         })
       }
       await navigate({ to: "/nutrition" })
@@ -131,6 +133,7 @@ export function TemplateEditorPage() {
     setEntries((prev) => [
       ...prev,
       {
+        localId: crypto.randomUUID(),
         foodId: food.id,
         quantity,
         mealType: "snack", // Default, will be overridden when applied
@@ -266,7 +269,7 @@ export function TemplateEditorPage() {
                 
                 return (
                   <MealEntryItem
-                    key={`${entry.foodId}-${index}`}
+                    key={entry.localId}
                     entry={{ id: index.toString(), quantity: entry.quantity }}
                     food={food}
                     onRemove={() => handleRemoveEntry(index)}
