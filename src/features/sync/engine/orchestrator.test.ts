@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { SyncApiError } from "@/features/sync/api"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
 import { clearDatabase } from "@/test/helpers/dbTestUtils"
 
@@ -133,6 +134,40 @@ describe("sync orchestrator", () => {
 
     expect(ensureInitialSyncMock).toHaveBeenCalledTimes(3)
     expect(handleSyncErrorMock).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it("retries transient SyncApiError responses (503)", async () => {
+    vi.useFakeTimers()
+    setOnline(true)
+    ensureInitialSyncMock
+      .mockRejectedValueOnce(new SyncApiError("temporarily unavailable", "SERVER_ERROR", 503))
+      .mockRejectedValueOnce(new SyncApiError("temporarily unavailable", "SERVER_ERROR", 503))
+      .mockResolvedValue(true)
+
+    const { syncNow } = await loadOrchestrator()
+    const syncPromise = syncNow()
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    await vi.advanceTimersByTimeAsync(5_000)
+    await syncPromise
+
+    expect(ensureInitialSyncMock).toHaveBeenCalledTimes(3)
+    vi.useRealTimers()
+  })
+
+  it("does not retry non-retryable SyncApiError responses (400)", async () => {
+    vi.useFakeTimers()
+    setOnline(true)
+    ensureInitialSyncMock.mockRejectedValue(new SyncApiError("invalid request", "INVALID_REQUEST", 400))
+
+    const { syncNow } = await loadOrchestrator()
+    const syncPromise = syncNow()
+    await vi.advanceTimersByTimeAsync(30_000)
+    await syncPromise
+
+    expect(ensureInitialSyncMock).toHaveBeenCalledTimes(1)
+    expect(handleSyncErrorMock).toHaveBeenCalledTimes(1)
     vi.useRealTimers()
   })
 

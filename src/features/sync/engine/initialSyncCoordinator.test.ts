@@ -104,6 +104,29 @@ describe("initialSyncCoordinator", () => {
     expect(useSyncStore.getState().initialSyncState).toEqual({ localHasData: true, cloudHasData: true })
   })
 
+  it("treats pending-only local state as local data and blocks auto-sync for unknown owner", async () => {
+    await db.syncPendingChanges.put({
+      collection: "nutrition",
+      id: "2026-02-12",
+      deleted: false,
+      baseVersion: 0,
+      mutationId: "m-pending-only",
+      enqueuedAt: Date.now(),
+    })
+    pullChangesMock.mockResolvedValue({
+      changes: [],
+      nextCursor: null,
+      serverTimestampMs: 1,
+      hasMore: false,
+    })
+
+    const canProceed = await ensureInitialSync("token", "user-1")
+
+    expect(canProceed).toBe(false)
+    expect(pushFullSnapshotMock).not.toHaveBeenCalled()
+    expect(useSyncStore.getState().initialSyncState).toEqual({ localHasData: true, cloudHasData: false })
+  })
+
   it("auto-merges when local and cloud both have data for the same owner", async () => {
     await db.workoutSessions.put({ id: "w1", name: "Local", date: "2026-02-08", weightUnit: "kg", exercises: [] })
     await setLocalDataOwnerUserId("user-1")

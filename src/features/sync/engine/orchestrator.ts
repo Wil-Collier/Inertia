@@ -110,7 +110,9 @@ async function syncWithRetry(fn: () => Promise<void>, shouldContinue: () => bool
 
 function isRetryableSyncError(error: unknown): boolean {
   if (error instanceof SyncApiError) {
-    return false
+    const status = error.status
+    if (typeof status !== "number") return false
+    return status === 429 || (status >= 500 && status <= 599)
   }
   return error instanceof Error
 }

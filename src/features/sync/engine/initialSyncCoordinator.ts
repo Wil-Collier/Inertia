@@ -122,6 +122,7 @@ async function hasLocalData(): Promise<boolean> {
     bodyWeight,
     exercises,
     settings,
+    pendingChanges,
   ] = await Promise.all([
     db.workoutSessions.count(),
     db.activeSession.count(),
@@ -132,7 +133,11 @@ async function hasLocalData(): Promise<boolean> {
     db.bodyWeight.count(),
     db.customExercises.count(),
     db.settings.get("settings"),
+    db.syncPendingChanges.count(),
   ])
 
-  return workouts + activeSession + templates + foods + nutrition + mealTemplates + bodyWeight + exercises > 0 || !!settings
+  return (
+    workouts + activeSession + templates + foods + nutrition + mealTemplates + bodyWeight + exercises + pendingChanges > 0 ||
+    !!settings
+  )
 }

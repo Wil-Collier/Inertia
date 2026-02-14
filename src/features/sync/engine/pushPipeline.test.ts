@@ -515,7 +515,7 @@ describe("pushPipeline", () => {
     expect(pushedChanges.find((change) => change.id === "food-revive")?.baseVersion).toBe(7)
   })
 
-  it("auto-resolves same-record merge differences with local newest-wins", async () => {
+  it("auto-resolves same-record merge differences with local preference when remote is not newer", async () => {
     foodsToArrayMock.mockResolvedValue([{ id: "food-1", name: "local" }])
     toCloudRecordMock.mockImplementation((_collection, record) => record)
 
@@ -583,6 +583,57 @@ describe("pushPipeline", () => {
       pushed: 0,
       skippedEqual: 1,
     })
+    expect(pushChangesMock).not.toHaveBeenCalled()
+  })
+
+  it("keeps remote nutrition entry when remote record is newer", async () => {
+    nutritionToArrayMock.mockResolvedValue([
+      {
+        date: "2026-02-12",
+        updatedAt: 100,
+        entries: [
+          {
+            id: "entry-1",
+            foodId: "food-1",
+            quantity: 1,
+            mealType: "breakfast",
+          },
+        ],
+      },
+    ])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+
+    pullAllChangesMock.mockResolvedValueOnce({
+      changes: [
+        {
+          collection: "nutrition",
+          id: "2026-02-12",
+          data: {
+            date: "2026-02-12",
+            updatedAt: 200,
+            entries: [
+              {
+                id: "entry-1",
+                foodId: "food-1",
+                quantity: 2,
+                mealType: "breakfast",
+              },
+            ],
+          },
+          version: 7,
+          deleted: false,
+        },
+      ],
+      cursor: { version: 7 },
+      serverTimestampMs: Date.now(),
+      affectedCollections: new Set(["nutrition"]),
+    })
+
+    const { mergeCloudAndLocal } = await loadPushPipeline()
+    const summary = await mergeCloudAndLocal("token")
+
+    expect(summary.pushed).toBe(0)
+    expect(summary.remoteWins).toBe(1)
     expect(pushChangesMock).not.toHaveBeenCalled()
   })
 

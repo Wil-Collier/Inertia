@@ -303,9 +303,9 @@ function areJsonValuesEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(normalizeJsonValue(a)) === JSON.stringify(normalizeJsonValue(b))
 }
 
-function normalizeJsonValue(value: unknown): unknown {
+function normalizeJsonValue(value: unknown, depth = 0): unknown {
   if (Array.isArray(value)) {
-    return value.map((item) => normalizeJsonValue(item))
+    return value.map((item) => normalizeJsonValue(item, depth + 1))
   }
   if (!isRecord(value)) {
     return value
@@ -315,8 +315,8 @@ function normalizeJsonValue(value: unknown): unknown {
   Object.keys(value)
     .toSorted()
     .forEach((key) => {
-      if (key === "updatedAt") return
-      normalized[key] = normalizeJsonValue(value[key])
+      if (depth === 0 && key === "updatedAt") return
+      normalized[key] = normalizeJsonValue(value[key], depth + 1)
     })
   return normalized
 }
@@ -333,11 +333,11 @@ function resolveMergeDecision(
   }
 
   if (collection === "nutrition") {
-    const mergedData = mergeNutritionRecords(localData, remoteData)
+    const { data: mergedData, localWins, merged } = mergeNutritionRecords(localData, remoteData)
     if (areJsonValuesEqual(mergedData, remoteData)) {
       return { action: "skip", reason: "remote-newer" }
     }
-    return { action: "push", data: mergedData, localWins: false, merged: true }
+    return { action: "push", data: mergedData, localWins, merged }
   }
 
   const localUpdatedAt = getUpdatedAt(localData)
@@ -360,13 +360,17 @@ function resolveMergeDecision(
 function mergeNutritionRecords(
   localData: Record<string, unknown> | null,
   remoteData: Record<string, unknown> | null
-): Record<string, unknown> {
+): { data: Record<string, unknown>; localWins: boolean; merged: boolean } {
   const localEntries = readNutritionEntries(localData)
   const remoteEntries = readNutritionEntries(remoteData)
+  const winner = compareRecordFreshness(localData, remoteData)
+  const preferLocalOnConflict = winner !== "remote"
   const mergedEntries = [...remoteEntries]
   const indexById = new Map(
     remoteEntries.map((entry, index) => [typeof entry.id === "string" ? entry.id : `idx:${index}`, index])
   )
+  let addedLocalEntries = 0
+  let replacedWithLocal = 0
 
   localEntries.forEach((entry, index) => {
     const entryId = typeof entry.id === "string" ? entry.id : `local:${index}`
@@ -374,20 +378,35 @@ function mergeNutritionRecords(
     if (existingIndex === undefined) {
       indexById.set(entryId, mergedEntries.length)
       mergedEntries.push(entry)
+      addedLocalEntries += 1
       return
     }
-    mergedEntries[existingIndex] = entry
+
+    if (!preferLocalOnConflict) {
+      return
+    }
+
+    if (!areJsonValuesEqual(mergedEntries[existingIndex], entry)) {
+      replacedWithLocal += 1
+      mergedEntries[existingIndex] = entry
+    }
   })
 
   const updatedAt = Math.max(getUpdatedAt(localData) ?? 0, getUpdatedAt(remoteData) ?? 0)
   const remoteRecord = isRecord(remoteData) ? remoteData : {}
   const localRecord = isRecord(localData) ? localData : {}
+  const baseRecord = winner === "remote"
+    ? { ...localRecord, ...remoteRecord }
+    : { ...remoteRecord, ...localRecord }
 
   return {
-    ...remoteRecord,
-    ...localRecord,
-    entries: mergedEntries,
-    ...(updatedAt > 0 ? { updatedAt } : {}),
+    data: {
+      ...baseRecord,
+      entries: mergedEntries,
+      ...(updatedAt > 0 ? { updatedAt } : {}),
+    },
+    localWins: addedLocalEntries + replacedWithLocal > 0 && winner !== "remote",
+    merged: addedLocalEntries > 0 && remoteEntries.length > 0,
   }
 }
 
@@ -399,6 +418,19 @@ function readNutritionEntries(data: Record<string, unknown> | null): Array<Recor
 function getUpdatedAt(data: Record<string, unknown> | null): number | null {
   if (!isRecord(data)) return null
   return typeof data.updatedAt === "number" ? data.updatedAt : null
+}
+
+function compareRecordFreshness(
+  localData: Record<string, unknown> | null,
+  remoteData: Record<string, unknown> | null
+): "local" | "remote" | "tie" {
+  const localUpdatedAt = getUpdatedAt(localData)
+  const remoteUpdatedAt = getUpdatedAt(remoteData)
+  if (localUpdatedAt === null && remoteUpdatedAt === null) return "tie"
+  if (localUpdatedAt === null) return "remote"
+  if (remoteUpdatedAt === null) return "local"
+  if (localUpdatedAt === remoteUpdatedAt) return "tie"
+  return localUpdatedAt > remoteUpdatedAt ? "local" : "remote"
 }
 
 async function acknowledgeAcceptedEntries(entries: AcceptedEntry[]): Promise<void> {
