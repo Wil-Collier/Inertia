@@ -1,10 +1,7 @@
 import type { SyncCollection } from "@/features/sync/schemas"
+import { isRecord } from "@/features/sync/typeGuards"
 
 type CloudRecord = Record<string, unknown>
-
-function isRecord(value: unknown): value is CloudRecord {
-  return typeof value === "object" && value !== null
-}
 
 export function toCloudRecord(collection: SyncCollection, record: unknown): CloudRecord | null {
   if (!isRecord(record)) return null

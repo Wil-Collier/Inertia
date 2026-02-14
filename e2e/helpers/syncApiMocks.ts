@@ -118,6 +118,10 @@ export async function registerSyncApiMocks(page: Page, options: SyncApiMockOptio
 }
 
 export async function registerUnauthenticatedSyncApiMocks(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    localStorage.removeItem("inertia-sync-session-hint")
+  })
+
   await registerSyncApiMocks(page, {
     refreshStatus: 401,
     refreshBody: DEFAULT_REFRESH_ERROR,
@@ -138,6 +142,10 @@ export async function registerAuthenticatedSyncApiMocks(
   page: Page,
   options: AuthenticatedSyncMockOptions = {}
 ): Promise<void> {
+  await page.addInitScript(() => {
+    localStorage.setItem("inertia-sync-session-hint", "1")
+  })
+
   await registerSyncApiMocks(page, {
     refreshStatus: 200,
     refreshBody: options.refreshBody ?? DEFAULT_AUTH_REFRESH_RESPONSE,

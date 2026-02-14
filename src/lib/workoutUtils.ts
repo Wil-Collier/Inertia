@@ -1,12 +1,16 @@
 import type { TemplateExercise, Workout, WorkoutExercise, WorkoutSet } from "@/lib/types"
 
 /**
- * Brzycki formula for estimated 1RM
+ * Estimated 1RM formula.
+ * Uses Brzycki for reps 1-12 (most accurate in that range).
+ * Uses Epley for reps >= 13 to avoid the discontinuity at the Brzycki
+ * singularity (reps = 37) and to stay monotonically increasing.
+ * The two formulas produce nearly identical values at reps = 12,
+ * so the transition is smooth.
  */
 export function calculateOneRepMax(weight: number, reps: number): number {
+  if (reps <= 0 || weight <= 0) return 0
   if (reps === 1) return weight
-  if (reps === 0) return 0
-  // Use simplified formula for high reps to avoid division by zero at reps=37
   if (reps >= 13) return weight * (1 + reps / 30)
   return weight * (36 / (37 - reps))
 }

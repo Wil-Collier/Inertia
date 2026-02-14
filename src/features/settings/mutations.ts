@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import type { UserSettings, ThemeMode } from "@/lib/types"
@@ -60,6 +61,7 @@ export function useUpdateSettings() {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.settings.all, context.previous)
       }
+      toast.error("Failed to update settings")
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.settings.all })

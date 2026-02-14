@@ -5,6 +5,7 @@
 
 import type { Env } from "../env"
 import type { FoodItem, NutritionProvider } from "./types"
+import { z } from "zod"
 
 const TOKEN_URL = "https://oauth.fatsecret.com/connect/token"
 const API_BASE = "https://platform.fatsecret.com/rest"
@@ -45,27 +46,6 @@ interface FatSecretFood {
     }
 }
 
-interface FatSecretSearchResponse {
-    foods_search?: {
-        max_results?: string | number
-        total_results?: string | number
-        page_number?: string | number
-        results?: {
-            food?: FatSecretFood | FatSecretFood[]
-        }
-    }
-}
-
-interface FatSecretBarcodeResponse {
-    food_id?: {
-        value?: string
-    }
-}
-
-interface FatSecretFoodGetResponse {
-    food?: FatSecretFood
-}
-
 async function fetchWithTimeout(
     url: string,
     options?: RequestInit,
@@ -95,6 +75,57 @@ interface TokenResponse {
     expires_in: number
     token_type: string
 }
+
+// Zod schemas for runtime validation of external API responses
+const TokenResponseSchema = z.object({
+    access_token: z.string(),
+    expires_in: z.number(),
+    token_type: z.string(),
+})
+
+const FatSecretServingSchema = z.object({
+    serving_id: z.union([z.string(), z.number()]).optional(),
+    serving_description: z.string().optional(),
+    metric_serving_amount: z.union([z.string(), z.number()]).optional(),
+    metric_serving_unit: z.string().optional(),
+    calories: z.union([z.string(), z.number()]).optional(),
+    protein: z.union([z.string(), z.number()]).optional(),
+    carbohydrate: z.union([z.string(), z.number()]).optional(),
+    fat: z.union([z.string(), z.number()]).optional(),
+    fiber: z.union([z.string(), z.number()]).optional(),
+    sugar: z.union([z.string(), z.number()]).optional(),
+})
+
+const FatSecretFoodSchema = z.object({
+    food_id: z.string(),
+    food_name: z.string(),
+    brand_name: z.string().optional(),
+    food_type: z.string().optional(),
+    servings: z.object({
+        serving: z.union([FatSecretServingSchema, z.array(FatSecretServingSchema)]),
+    }).optional(),
+})
+
+const FatSecretSearchResponseSchema = z.object({
+    foods_search: z.object({
+        max_results: z.union([z.string(), z.number()]).optional(),
+        total_results: z.union([z.string(), z.number()]).optional(),
+        page_number: z.union([z.string(), z.number()]).optional(),
+        results: z.object({
+            food: z.union([FatSecretFoodSchema, z.array(FatSecretFoodSchema)]).optional(),
+        }).optional(),
+    }).optional(),
+})
+
+const FatSecretBarcodeResponseSchema = z.object({
+    food_id: z.object({
+        value: z.string().optional(),
+    }).optional(),
+})
+
+const FatSecretFoodGetResponseSchema = z.object({
+    food: FatSecretFoodSchema.optional(),
+})
 
 async function getAccessToken(env: Env): Promise<string> {
     const now = Date.now()
@@ -132,7 +163,7 @@ async function getAccessToken(env: Env): Promise<string> {
                 throw new Error(`Token request failed: ${response.status} - ${text}`)
             }
 
-            const data: TokenResponse = await response.json()
+            const data: TokenResponse = TokenResponseSchema.parse(await response.json())
 
             const expiresAt = now + data.expires_in * 1000
 
@@ -242,7 +273,7 @@ export function createFatSecretProvider(env: Env): NutritionProvider {
                 throw new Error(`FatSecret search failed: ${response.status} - ${text}`)
             }
 
-            const data: FatSecretSearchResponse = await response.json()
+            const data = FatSecretSearchResponseSchema.parse(await response.json())
 
             const foods = data.foods_search?.results?.food
             if (!foods) {
@@ -291,7 +322,7 @@ export function createFatSecretProvider(env: Env): NutritionProvider {
                 )
             }
 
-            const barcodeData: FatSecretBarcodeResponse = await barcodeResponse.json()
+            const barcodeData = FatSecretBarcodeResponseSchema.parse(await barcodeResponse.json())
 
             const foodId = barcodeData.food_id?.value
             if (!foodId) {
@@ -322,7 +353,7 @@ export function createFatSecretProvider(env: Env): NutritionProvider {
                 )
             }
 
-            const foodData: FatSecretFoodGetResponse = await foodResponse.json()
+            const foodData = FatSecretFoodGetResponseSchema.parse(await foodResponse.json())
 
             if (!foodData.food) {
                 return null

@@ -23,6 +23,8 @@ import { useWorkoutStats, usePersonalRecords, useExerciseHistory, useProgressSta
 import { calculateOneRepMax, calculateSetVolume } from "@/lib/workoutUtils"
 import { getNinetyDaysAgo, getToday, parseDbDate } from "@/lib/dateUtils"
 import { useWeightUnit } from "@/hooks/useWeightUnit"
+import { toLbs } from "@/lib/conversions"
+import { KG_TO_LBS, LBS_TO_KG } from "@/lib/constants"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 import type { PersonalRecord } from "@/lib/types"
 
@@ -99,7 +101,13 @@ export function ProgressPage() {
         return (
           total +
           workout.exercises.reduce((exTotal, ex) => {
-            return exTotal + calculateSetVolume(ex.sets)
+            // calculateSetVolume gives raw weight*reps — normalize to user's display unit
+            const rawVolume = calculateSetVolume(ex.sets)
+            // Sets store weight in the workout's recording unit; convert to lbs then
+            // the conversion to display unit happens via the ratio
+            const volumeInLbs = workout.weightUnit === "kg" ? rawVolume * KG_TO_LBS : rawVolume
+            // Convert from lbs to display unit
+            return exTotal + (weightUnit.unit === "kg" ? volumeInLbs * LBS_TO_KG : volumeInLbs)
           }, 0)
         )
       }, 0)
@@ -112,7 +120,7 @@ export function ProgressPage() {
     }
 
     return weeks
-  }, [recentWorkouts])
+  }, [recentWorkouts, weightUnit.unit])
 
   // Get sorted personal records
   const sortedPRs = useMemo(() => {
@@ -120,7 +128,8 @@ export function ProgressPage() {
       .map((pr) => ({
         ...pr,
         exercise: prExerciseMap.get(pr.exerciseId),
-        oneRepMax: calculateOneRepMax(pr.weight, pr.reps),
+        // Normalize PR weight to lbs before computing 1RM (PRs store weight in recording unit)
+        oneRepMax: calculateOneRepMax(toLbs(pr.weight, pr.weightUnit), pr.reps),
       }))
       .filter((pr) => pr.exercise)
       .toSorted((a, b) => parseDbDate(b.date).getTime() - parseDbDate(a.date).getTime())
@@ -264,7 +273,7 @@ export function ProgressPage() {
                         <div className="flex-1">
                           <p className="font-medium">{personalRecord.exercise?.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {weightUnit.format(personalRecord.weight, { shouldShowUnit: false })} {weightUnit.unitLabel} x {personalRecord.reps} reps
+                            {weightUnit.format(toLbs(personalRecord.weight, personalRecord.weightUnit), { shouldShowUnit: false })} {weightUnit.unitLabel} x {personalRecord.reps} reps
                           </p>
                         </div>
                         <div className="text-right">

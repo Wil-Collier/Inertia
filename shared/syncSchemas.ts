@@ -23,7 +23,7 @@ export type SyncCursor = z.infer<typeof SyncCursorSchema>
 export const PushChangeSchema = z.object({
   collection: SyncCollectionSchema,
   id: z.string(),
-  data: z.record(z.string(), z.any()).nullable(),
+  data: z.record(z.string(), z.unknown()).nullable(),
   baseVersion: z.number().int().nonnegative(),
   mutationId: z.string().min(1),
   deviceId: z.string().optional(),
@@ -82,7 +82,7 @@ export type PullRequest = z.infer<typeof PullRequestSchema>
 export const PullChangeSchema = z.object({
   collection: SyncCollectionSchema,
   id: z.string(),
-  data: z.record(z.string(), z.any()).nullable(),
+  data: z.record(z.string(), z.unknown()).nullable(),
   version: z.number().int().positive(),
   deleted: z.boolean(),
 })

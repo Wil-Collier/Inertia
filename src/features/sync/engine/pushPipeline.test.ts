@@ -392,7 +392,7 @@ describe("pushPipeline", () => {
     expect(setConflictsMock).not.toHaveBeenCalled()
   })
 
-  it("keeps pending changes when conflict reason is unknown to policy", async () => {
+  it("acknowledges pending changes even when conflict reason is unknown to policy", async () => {
     listPendingChangesMock.mockResolvedValue([
       {
         collection: "foods",
@@ -420,7 +420,9 @@ describe("pushPipeline", () => {
     const { pushPendingChangesInternal } = await loadPushPipeline()
     await pushPendingChangesInternal("token", true)
 
-    expect(acknowledgeProcessedPendingChangesMock).toHaveBeenCalledWith([])
+    expect(acknowledgeProcessedPendingChangesMock).toHaveBeenCalledWith([
+      { collection: "foods", id: "food-1", mutationId: "m1" },
+    ])
   })
 
   it("pushes a full snapshot and acknowledges accepted changes safely", async () => {

@@ -106,6 +106,11 @@ class FakePrepared {
     }
 
     if (sql.includes("INSERT INTO sync_store")) {
+      if (this.db.failNextSyncStoreUpsert) {
+        this.db.failNextSyncStoreUpsert = false
+        throw new Error("sync_store write failed")
+      }
+
       const userId = this.readString(0)
       const userEmail = this.readString(1)
       const collection = this.readString(2)
@@ -135,7 +140,16 @@ class FakePrepared {
       }
 
       if (existingIndex >= 0) {
-        this.db.syncStore[existingIndex] = nextRow
+        // Respect the version guard in upsertSyncStoreSnapshotIfNewer
+        if (sql.includes("excluded.record_version > sync_store.record_version")) {
+          const existing = this.db.syncStore[existingIndex]
+          if (existing && recordVersion > existing.record_version) {
+            this.db.syncStore[existingIndex] = nextRow
+          }
+          // Otherwise skip — do not downgrade
+        } else {
+          this.db.syncStore[existingIndex] = nextRow
+        }
       } else {
         this.db.syncStore.push(nextRow)
       }
@@ -297,6 +311,7 @@ class FakeD1 {
   auditCount = 0
   insertWithoutLastRowId = false
   ignoreMutationLookupOnce = new Set<string>()
+  failNextSyncStoreUpsert = false
 
   prepare(sql: string) {
     return new FakePrepared(this, sql)
@@ -322,6 +337,10 @@ class FakeD1 {
 
   forceOneLookupMissForMutation(mutationId: string) {
     this.ignoreMutationLookupOnce.add(mutationId)
+  }
+
+  forceNextSyncStoreUpsertFailure() {
+    this.failNextSyncStoreUpsert = true
   }
 }
 
@@ -553,6 +572,45 @@ describe("sync routes integration", () => {
       mutation_id: "m1",
       device_id: "device-a",
     })
+  })
+
+  it("returns server error when sync_store write fails and recovers on retry", async () => {
+    db.forceNextSyncStoreUpsertFailure()
+
+    const firstResponse = await requestSync(db, "/api/sync/push", {
+      changes: [
+        {
+          collection: "foods",
+          id: "food-1",
+          data: { id: "food-1", name: "Rice" },
+          baseVersion: 0,
+          mutationId: "m-fail-once",
+        },
+      ],
+    })
+
+    expect(firstResponse.status).toBe(500)
+    expect(db.syncEvents).toHaveLength(1)
+    expect(db.syncStore).toHaveLength(0)
+
+    const retryResponse = await requestSync(db, "/api/sync/push", {
+      changes: [
+        {
+          collection: "foods",
+          id: "food-1",
+          data: { id: "food-1", name: "Rice" },
+          baseVersion: 0,
+          mutationId: "m-fail-once",
+        },
+      ],
+    })
+
+    const retryBody = await readJson(retryResponse)
+    expect(retryResponse.status).toBe(200)
+    expect(readNumber(retryBody, "accepted")).toBe(1)
+    expect(readArray(retryBody, "conflicts")).toEqual([])
+    expect(db.syncStore).toHaveLength(1)
+    expect(db.syncStore[0]?.record_version).toBe(1)
   })
 
   it("returns version-mismatch conflict when baseVersion is stale", async () => {

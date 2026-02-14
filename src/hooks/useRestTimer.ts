@@ -32,6 +32,7 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
   const { timer } = store
   const onCompleteRef = useRef(onComplete)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const completedRef = useRef(false) // Guard against multiple onComplete firings
   
   // Local state for display updates (triggers re-renders on tick)
   const [, forceUpdate] = useState(0)
@@ -57,10 +58,12 @@ export function useRestTimer(options: UseRestTimerOptions = {}): UseRestTimerRet
   // Set up interval for ticking the timer
   useEffect(() => {
     if (timer.isRunning && !timer.isPaused) {
+      completedRef.current = false
       intervalRef.current = setInterval(() => {
         const remaining = store.getTimeRemaining()
         
-        if (remaining <= 0) {
+        if (remaining <= 0 && !completedRef.current) {
+          completedRef.current = true
           store.reset()
           
           // Show notification if enabled (use ref to avoid stale closure or restarting interval)

@@ -8,7 +8,6 @@ import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
 import {
   WORKOUT_HISTORY_SYNC_WRITE_TABLES,
-  WORKOUT_SESSION_SYNC_WRITE_TABLES,
   WORKOUT_TEMPLATE_SYNC_WRITE_TABLES,
 } from "@/services/dbTransactionTables"
 
@@ -34,12 +33,12 @@ export function useCreateWorkout() {
 
       const newWorkout: Workout = { ...workout, id, exerciseIds, weightUnit }
 
-      await db.transaction("rw", WORKOUT_SESSION_SYNC_WRITE_TABLES, async () => {
+      await db.transaction("rw", WORKOUT_HISTORY_SYNC_WRITE_TABLES, async () => {
         await db.workoutSessions.add(newWorkout)
+        await statsService.addWorkout(newWorkout)
+        await achievementService.updateStreaks()
+        await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
       })
-      await statsService.addWorkout(newWorkout)
-      await achievementService.updateStreaks()
-      await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
 
       return newWorkout
     },

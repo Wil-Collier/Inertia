@@ -51,32 +51,25 @@ export function normalizeOpenFoodFactsProduct(
   if (!product.product_name) return null
 
   const nutriments = product.nutriments ?? {}
-  const hasServing = nutriments["energy-kcal_serving"] !== undefined
   const servingSize = product.serving_size || "100g"
 
-  const calories = hasServing
-    ? nutriments["energy-kcal_serving"] ?? 0
-    : nutriments["energy-kcal_100g"] ?? 0
+  // Per-field serving detection: use the _serving variant if it exists for that field,
+  // otherwise fall back to the _100g variant.
+  const calories = nutriments["energy-kcal_serving"] ?? nutriments["energy-kcal_100g"] ?? 0
+  const protein = nutriments.proteins_serving ?? nutriments.proteins_100g ?? 0
+  const carbs = nutriments.carbohydrates_serving ?? nutriments.carbohydrates_100g ?? 0
+  const fat = nutriments.fat_serving ?? nutriments.fat_100g ?? 0
+  const fiber = nutriments.fiber_serving ?? nutriments.fiber_100g ?? 0
+  const sugar = nutriments.sugars_serving ?? nutriments.sugars_100g ?? 0
 
-  const protein = hasServing
-    ? nutriments.proteins_serving ?? 0
-    : nutriments.proteins_100g ?? 0
-
-  const carbs = hasServing
-    ? nutriments.carbohydrates_serving ?? 0
-    : nutriments.carbohydrates_100g ?? 0
-
-  const fat = hasServing
-    ? nutriments.fat_serving ?? 0
-    : nutriments.fat_100g ?? 0
-
-  const fiber = hasServing
-    ? nutriments.fiber_serving ?? 0
-    : nutriments.fiber_100g ?? 0
-
-  const sugar = hasServing
-    ? nutriments.sugars_serving ?? 0
-    : nutriments.sugars_100g ?? 0
+  // Determine if any per-serving data was available (for servingSize label)
+  const hasAnyServing =
+    nutriments["energy-kcal_serving"] !== undefined ||
+    nutriments.proteins_serving !== undefined ||
+    nutriments.carbohydrates_serving !== undefined ||
+    nutriments.fat_serving !== undefined ||
+    nutriments.fiber_serving !== undefined ||
+    nutriments.sugars_serving !== undefined
 
   const servingQuantity = parseServingQuantity(product.serving_quantity)
 
@@ -90,7 +83,7 @@ export function normalizeOpenFoodFactsProduct(
     fat: Math.round(fat * 10) / 10,
     fiber: Math.round(fiber * 10) / 10,
     sugar: Math.round(sugar * 10) / 10,
-    servingSize: hasServing ? servingSize : "100g",
+    servingSize: hasAnyServing ? servingSize : "100g",
     servingGrams: servingQuantity ?? 100,
     barcode: product.code,
     isCustom: false,

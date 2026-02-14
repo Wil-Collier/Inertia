@@ -12,7 +12,7 @@ interface StoredSettings {
 export async function readStoredSettings(page: Page): Promise<StoredSettings | null> {
   return await page.evaluate(async () => {
     const value = await new Promise<unknown>((resolve, reject) => {
-      const request = indexedDB.open("TrainingAppDB")
+      const request = indexedDB.open("InertiaDB")
 
       request.addEventListener("success", () => {
         const db = request.result

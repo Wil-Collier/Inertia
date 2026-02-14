@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { applyPulledChanges, clearLocalSyncData } from "@/features/sync/engine/applyPipeline"
 import { registerSyncDexieHooks } from "@/features/sync/dexieHooks"
 import { db } from "@/services/db"
@@ -227,42 +227,56 @@ describe("applyPulledChanges integration", () => {
     expect(await getRecordVersion("workouts", "w1")).toBe(10)
   })
 
-  it("fails atomically for multi-change batches with invalid payloads", async () => {
-    await expect(
-      applyPulledChanges([
-        {
-          collection: "foods",
-          id: "food-valid",
-          data: {
-            id: "food-valid",
-            name: "Valid Food",
-            calories: 100,
-            protein: 10,
-            carbs: 10,
-            fat: 2,
-            fiber: 1,
-            sugar: 1,
-            servingSize: "100g",
-            isCustom: true,
-          },
-          version: 11,
-          deleted: false,
-        },
-        {
-          collection: "workouts",
-          id: "w-invalid",
-          data: {
-            foo: "bar",
-          },
-          version: 12,
-          deleted: false,
-        },
-      ])
-    ).rejects.toThrow("Invalid pulled record for workouts:w-invalid")
+  it("skips invalid records and persists valid ones in multi-change batches", async () => {
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
 
-    expect(await db.foods.get("food-valid")).toBeUndefined()
-    expect(await getRecordVersion("foods", "food-valid")).toBe(0)
-    expect(await getRecordVersion("workouts", "w-invalid")).toBe(0)
+    const affected = await applyPulledChanges([
+      {
+        collection: "foods",
+        id: "food-valid",
+        data: {
+          id: "food-valid",
+          name: "Valid Food",
+          calories: 100,
+          protein: 10,
+          carbs: 10,
+          fat: 2,
+          fiber: 1,
+          sugar: 1,
+          servingSize: "100g",
+          isCustom: true,
+        },
+        version: 11,
+        deleted: false,
+      },
+      {
+        collection: "workouts",
+        id: "w-invalid",
+        data: {
+          foo: "bar",
+        },
+        version: 12,
+        deleted: false,
+      },
+    ])
+
+    // Valid food should be persisted
+    expect(await db.foods.get("food-valid")).toBeDefined()
+    expect(await getRecordVersion("foods", "food-valid")).toBe(11)
+
+    // Invalid workout should be skipped but its version still recorded
+    // so the cursor advances past it
+    expect(await db.workoutSessions.get("w-invalid")).toBeUndefined()
+    expect(await getRecordVersion("workouts", "w-invalid")).toBe(12)
+
+    // Both collections affected
+    expect(affected).toEqual(new Set(["foods", "workouts"]))
+
+    // Warning logged for the invalid record
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("workouts:w-invalid")
+    )
+    consoleSpy.mockRestore()
   })
 
   it("deletes local records and preserves tombstone version for later rebases", async () => {

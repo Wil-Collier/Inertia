@@ -14,11 +14,25 @@ export function parseDbDate(dateStr: string): Date {
   const monthIndex = Number(mStr) - 1
   const day = Number(dStr)
 
-  if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || !Number.isFinite(day)) {
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(monthIndex) ||
+    !Number.isFinite(day) ||
+    monthIndex < 0 ||
+    monthIndex > 11 ||
+    day < 1 ||
+    day > 31
+  ) {
     throw new Error(`Invalid DB date: ${dateStr}`)
   }
 
-  return new Date(year, monthIndex, day)
+  const date = new Date(year, monthIndex, day)
+  // Reject dates that overflow (e.g. Feb 30 → March 2)
+  if (date.getMonth() !== monthIndex || date.getDate() !== day) {
+    throw new Error(`Invalid DB date: ${dateStr}`)
+  }
+
+  return date
 }
 
 /**

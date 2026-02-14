@@ -14,7 +14,6 @@ interface RestTimerStore {
   pause: () => void
   resume: () => void
   reset: () => void
-  tick: () => void // Called by the hook to update timeRemaining
   getTimeRemaining: () => number // Calculate current time remaining
 }
 
@@ -77,18 +76,6 @@ export const useRestTimerStore = create<RestTimerStore>()((set, get) => ({
 
   reset: () => {
     set({ timer: initialTimerState })
-  },
-
-  tick: () => {
-    const { timer } = get()
-    if (!timer.isRunning || timer.isPaused || !timer.startedAt) return
-
-    const elapsed = Math.floor((Date.now() - timer.startedAt) / 1000)
-    const remaining = Math.max(0, timer.timeRemaining - elapsed)
-
-    if (remaining <= 0) {
-      set({ timer: initialTimerState })
-    }
   },
 
   getTimeRemaining: () => {

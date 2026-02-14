@@ -4,11 +4,7 @@ import { calculateOneRepMax } from "@/lib/workoutUtils"
 import { statsService } from "@/services/statsService"
 import { achievementService } from "@/services/achievementService"
 import type { SyncCollection } from "@/features/sync/schemas"
-import { KG_TO_LBS } from "@/lib/constants"
-
-function toLbs(weight: number, unit: "kg" | "lbs"): number {
-  return unit === "kg" ? weight * KG_TO_LBS : weight
-}
+import { toLbs } from "@/lib/conversions"
 
 async function recalculatePersonalRecords(): Promise<void> {
   const workouts = await db.workoutSessions.toArray()

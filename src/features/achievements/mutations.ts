@@ -52,5 +52,8 @@ export function useUnlockAchievement() {
         })
       }
     },
+    onError: (error) => {
+      console.error("Failed to unlock achievement:", error)
+    },
   })
 }

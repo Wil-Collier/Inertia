@@ -92,6 +92,45 @@ describe("OpenFoodFacts provider", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it("skips malformed products instead of failing the entire search", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          count: 2,
+          page: 1,
+          page_size: 20,
+          products: [
+            {
+              code: 123,
+              product_name: "Bad Product",
+            },
+            {
+              code: "ok-1",
+              product_name: "Good Product",
+              brands: "Acme",
+              nutriments: {
+                "energy-kcal_100g": 100,
+                proteins_100g: 5,
+                carbohydrates_100g: 10,
+                fat_100g: 2,
+              },
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    )
+
+    const provider = await loadProvider()
+    const result = await provider.search("test", 0, 20)
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]).toMatchObject({
+      id: "ok-1",
+      name: "Good Product",
+    })
+  })
+
   it("throws typed error message when search endpoint fails", async () => {
     fetchMock.mockResolvedValueOnce(new Response("", { status: 503 }))
 

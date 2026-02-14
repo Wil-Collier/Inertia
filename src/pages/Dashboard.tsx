@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { useMemo } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { format } from "date-fns"
 import { Dumbbell, Utensils, Clock, Flame, Target, Trophy, Plus, ChevronRight } from "lucide-react"
 
@@ -19,9 +19,24 @@ import { achievements } from "@/data/achievements"
 import { cn } from "@/lib/utils"
 
 export function Dashboard() {
-  // Memoize today's date string to avoid creating new Date objects on every render
-  const today = useMemo(() => getToday(), [])
-  const todayFormatted = useMemo(() => format(new Date(), "EEEE, MMMM d"), [])
+  // Refresh date strings at midnight so the dashboard stays current
+  const [dateCounter, setDateCounter] = useState(0)
+  useEffect(() => {
+    const now = new Date()
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    const msUntilMidnight = tomorrow.getTime() - now.getTime()
+
+    const timerId = setTimeout(() => {
+      setDateCounter((n) => n + 1)
+    }, msUntilMidnight)
+
+    return () => clearTimeout(timerId)
+  }, [dateCounter])
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- dateCounter ensures refresh at midnight
+  const today = useMemo(() => getToday(), [dateCounter])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- dateCounter ensures refresh at midnight
+  const todayFormatted = useMemo(() => format(new Date(), "EEEE, MMMM d"), [dateCounter])
 
   const { data: activeSession } = useActiveSession()
   const { data: nutritionData } = useDailyNutrition(today)

@@ -225,9 +225,35 @@ async function upsertSyncStoreSnapshotIfNewer(
   db: Env["DB"],
   event: Parameters<typeof upsertSyncStoreSnapshot>[1]
 ): Promise<void> {
-  const currentVersion = await getSyncStoreRecordVersion(db, event.userId, event.collection, event.id)
-  if (currentVersion >= event.version) return
-  await upsertSyncStoreSnapshot(db, event)
+  // Atomic upsert with version guard — avoids TOCTOU race from SELECT-then-UPDATE
+  await db
+    .prepare(`
+      INSERT INTO sync_store
+        (user_id, user_email, collection, id, data, deleted, record_version, updated_at, mutation_id, device_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, collection, id) DO UPDATE SET
+        user_email = excluded.user_email,
+        data = excluded.data,
+        deleted = excluded.deleted,
+        record_version = excluded.record_version,
+        updated_at = excluded.updated_at,
+        mutation_id = excluded.mutation_id,
+        device_id = excluded.device_id
+      WHERE excluded.record_version > sync_store.record_version
+    `)
+    .bind(
+      event.userId,
+      event.userEmail,
+      event.collection,
+      event.id,
+      event.dataJson,
+      event.deleted ? 1 : 0,
+      event.version,
+      event.updatedAtMs,
+      event.mutationId,
+      event.deviceId
+    )
+    .run()
 }
 
 export const syncRoutes = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -425,18 +451,30 @@ syncRoutes.post("/push", async (c) => {
       throw new Error("Failed to resolve event version")
     }
 
-    await upsertSyncStoreSnapshot(c.env.DB, {
-      userId,
-      userEmail,
-      collection: change.collection,
-      id: change.id,
-      dataJson,
-      deleted,
-      version,
-      updatedAtMs: now,
-      mutationId: change.mutationId,
-      deviceId,
-    })
+    // The sync_events INSERT and sync_store UPSERT cannot share a D1 batch
+    // because the version (ROWID) is only known after the INSERT.
+    // If the snapshot write fails, propagate a server error so clients keep
+    // pending changes and retry idempotently with the same mutation id.
+    try {
+      await upsertSyncStoreSnapshot(c.env.DB, {
+        userId,
+        userEmail,
+        collection: change.collection,
+        id: change.id,
+        dataJson,
+        deleted,
+        version,
+        updatedAtMs: now,
+        mutationId: change.mutationId,
+        deviceId,
+      })
+    } catch (storeError) {
+      console.error(
+        `[Sync] sync_store upsert failed for ${change.collection}/${change.id} (event version ${version})`,
+        storeError
+      )
+      throw new Error("Failed to persist sync snapshot", { cause: storeError })
+    }
 
     accepted += 1
     acceptedChanges.push({

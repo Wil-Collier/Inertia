@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { db } from "@/services/db"
 import { applyPulledChanges } from "@/features/sync/engine/applyPipeline"
 import { acknowledgeProcessedPendingChanges, getRecordVersion } from "@/features/sync/changeTracker"
@@ -17,7 +17,9 @@ describe("sync pipeline safety", () => {
     await clearSyncTables()
   })
 
-  it("does not advance record version when pulled payload fails validation", async () => {
+  it("skips invalid pulled records and advances version to prevent infinite retries", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+
     const invalidChange: PullChange = {
       collection: "workouts",
       id: "w-invalid",
@@ -29,12 +31,21 @@ describe("sync pipeline safety", () => {
       deleted: false,
     }
 
-    await expect(applyPulledChanges([invalidChange])).rejects.toThrow(
-      "Invalid pulled record for workouts:w-invalid"
+    // Should resolve (not throw) — invalid records are skipped with a warning
+    await applyPulledChanges([invalidChange])
+
+    // Invalid record should NOT be persisted
+    expect(await db.workoutSessions.get("w-invalid")).toBeUndefined()
+
+    // Version IS advanced so the sync cursor moves past the bad record
+    expect(await getRecordVersion("workouts", "w-invalid")).toBe(10)
+
+    // A warning should have been logged
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("workouts:w-invalid")
     )
 
-    expect(await db.workoutSessions.get("w-invalid")).toBeUndefined()
-    expect(await getRecordVersion("workouts", "w-invalid")).toBe(0)
+    warnSpy.mockRestore()
   })
 
   it("only clears pending change rows when mutation id matches", async () => {

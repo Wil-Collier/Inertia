@@ -14,7 +14,7 @@ describe("sync conflict policy", () => {
     ).toBe(true)
   })
 
-  it("keeps pending changes for unknown conflict reasons", () => {
+  it("acknowledges pending changes even for unknown conflict reasons", () => {
     expect(
       shouldAcknowledgePushConflict({
         collection: "foods",
@@ -23,7 +23,7 @@ describe("sync conflict policy", () => {
         clientBaseVersion: 1,
         reason: "SOMETHING_NEW",
       })
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it("defines explicit data ownership behavior for every initial sync strategy", () => {

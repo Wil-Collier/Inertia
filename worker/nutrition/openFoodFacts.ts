@@ -5,43 +5,47 @@
 
 import type { FoodItem, NutritionProvider } from "./types"
 import { normalizeOpenFoodFactsProduct } from "../../shared/openFoodFactsNormalizer"
+import { z } from "zod"
 
 const API_BASE = "https://world.openfoodfacts.org"
 const REQUEST_TIMEOUT_MS = 15000
 
-interface OpenFoodFactsProduct {
-    code: string
-    product_name?: string
-    brands?: string
-    nutriments?: {
-        "energy-kcal_100g"?: number
-        "energy-kcal_serving"?: number
-        proteins_100g?: number
-        proteins_serving?: number
-        carbohydrates_100g?: number
-        carbohydrates_serving?: number
-        fat_100g?: number
-        fat_serving?: number
-        fiber_100g?: number
-        fiber_serving?: number
-        sugars_100g?: number
-        sugars_serving?: number
-    }
-    serving_size?: string
-    serving_quantity?: number | string
-}
+// Zod schemas for runtime validation of external API responses
+const NutrimentsSchema = z.object({
+    "energy-kcal_100g": z.number().optional(),
+    "energy-kcal_serving": z.number().optional(),
+    proteins_100g: z.number().optional(),
+    proteins_serving: z.number().optional(),
+    carbohydrates_100g: z.number().optional(),
+    carbohydrates_serving: z.number().optional(),
+    fat_100g: z.number().optional(),
+    fat_serving: z.number().optional(),
+    fiber_100g: z.number().optional(),
+    fiber_serving: z.number().optional(),
+    sugars_100g: z.number().optional(),
+    sugars_serving: z.number().optional(),
+}).passthrough()
 
-interface OpenFoodFactsSearchResponse {
-    count: number
-    page: number
-    page_size: number
-    products: OpenFoodFactsProduct[]
-}
+const OpenFoodFactsProductSchema = z.object({
+    code: z.string(),
+    product_name: z.string().optional(),
+    brands: z.string().optional(),
+    nutriments: NutrimentsSchema.optional(),
+    serving_size: z.string().optional(),
+    serving_quantity: z.union([z.number(), z.string()]).optional(),
+})
 
-interface OpenFoodFactsProductResponse {
-    status: number
-    product?: OpenFoodFactsProduct
-}
+const OpenFoodFactsSearchResponseSchema = z.object({
+    count: z.number(),
+    page: z.number(),
+    page_size: z.number(),
+    products: z.array(z.unknown()),
+})
+
+const OpenFoodFactsProductResponseSchema = z.object({
+    status: z.number(),
+    product: OpenFoodFactsProductSchema.optional(),
+})
 
 async function fetchWithTimeout(
     url: string,
@@ -101,10 +105,14 @@ export function createOpenFoodFactsProvider(): NutritionProvider {
                 throw new Error(`OpenFoodFacts search failed: ${response.status}`)
             }
 
-            const data: OpenFoodFactsSearchResponse = await response.json()
+            const data = OpenFoodFactsSearchResponseSchema.parse(await response.json())
 
             const items = data.products
-                .map((product) => normalizeOpenFoodFactsProduct(product) as FoodItem | null)
+                .map((rawProduct) => {
+                    const parsedProduct = OpenFoodFactsProductSchema.safeParse(rawProduct)
+                    if (!parsedProduct.success) return null
+                    return normalizeOpenFoodFactsProduct(parsedProduct.data) as FoodItem | null
+                })
                 .filter((f): f is FoodItem => f !== null)
 
             const hasMore = data.count > (page + 1) * limit
@@ -123,7 +131,7 @@ export function createOpenFoodFactsProvider(): NutritionProvider {
                 throw new Error(`OpenFoodFacts product lookup failed: ${response.status}`)
             }
 
-            const data: OpenFoodFactsProductResponse = await response.json()
+            const data = OpenFoodFactsProductResponseSchema.parse(await response.json())
 
             if (data.status !== 1 || !data.product) {
                 return null

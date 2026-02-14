@@ -12,7 +12,7 @@ test.describe("authentication journey via sync settings", () => {
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible()
     await expect(page.getByText("Cloud Sync")).toBeVisible()
     await expect(
-      page.getByText("Sync your workouts and nutrition across devices. Only approved Google accounts can sign in.")
+      page.getByText("Sync keeps workouts and nutrition aligned across devices. Food search works without sign-in.")
     ).toBeVisible()
     await expect(page.getByText("Signed in as")).toHaveCount(0)
   })
@@ -36,8 +36,7 @@ test.describe("authentication journey via sync settings", () => {
 
     await expect(page.getByText("Signed in as")).toHaveCount(0)
     await expect(
-      page.getByText("Sync your workouts and nutrition across devices. Only approved Google accounts can sign in.")
+      page.getByText("Sync keeps workouts and nutrition aligned across devices. Food search works without sign-in.")
     ).toBeVisible()
   })
 })
-

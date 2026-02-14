@@ -1,10 +1,10 @@
-// Weight Conversion
-export const LBS_TO_KG = 0.453592
-export const KG_TO_LBS = 2.20462
+// Weight Conversion (exact reciprocals)
+export const LBS_TO_KG = 0.45359237
+export const KG_TO_LBS = 1 / LBS_TO_KG
 
-// Distance Conversion
-export const MI_TO_KM = 1.60934
-export const KM_TO_MI = 0.621371
+// Distance Conversion (exact reciprocals)
+export const MI_TO_KM = 1.609344
+export const KM_TO_MI = 1 / MI_TO_KM
 
 // Nutrition Keys
 export const MACROS = {

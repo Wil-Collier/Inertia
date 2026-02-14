@@ -237,7 +237,10 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
 
           const applied = await upsertLocalRecord(change.collection, localId, parsedLocal)
           if (!applied) {
-            throw new Error(`Invalid pulled record for ${change.collection}:${change.id}`)
+            // Warn and skip invalid records instead of throwing — throwing would abort
+            // the entire transaction, rolling back the cursor, and causing an infinite
+            // retry loop since the same invalid record would be pulled again.
+            console.warn(`[Sync] Skipping invalid pulled record for ${change.collection}:${change.id}`)
           }
 
           await setRecordVersion(change.collection, localId, change.version, transaction)

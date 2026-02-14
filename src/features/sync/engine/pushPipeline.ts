@@ -10,6 +10,7 @@ import {
 import type { PendingChange } from "@/features/sync/types"
 import type { PushChange, SyncCollection } from "@/features/sync/schemas"
 import { toCloudRecord } from "@/features/sync/projection"
+import { isRecord } from "@/features/sync/typeGuards"
 import { getDeviceId } from "@/features/sync/deviceId"
 import { useSyncStore } from "@/features/sync/store"
 import { getLocalRecord } from "@/features/sync/engine/applyPipeline"
@@ -450,10 +451,6 @@ async function acknowledgeAcceptedEntries(entries: AcceptedEntry[]): Promise<voi
       mutationId: entry.mutationId,
     }))
   )
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
 }
 
 async function buildPushChangesFromPending(pending: PendingChange[]): Promise<PreparedPending[]> {

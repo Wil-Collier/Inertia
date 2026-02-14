@@ -30,6 +30,7 @@ export function useCountdownTimer(
   const onCompleteRef = useRef(onComplete)
   const activeSetIdRef = useRef<string | null>(null)
   const activeWorkoutExerciseIdRef = useRef<string | null>(null)
+  const timeRemainingRef = useRef(0)
 
   // Keep callback ref updated
   useEffect(() => {
@@ -43,37 +44,45 @@ export function useCountdownTimer(
     }
   }, [])
 
+  /** Shared interval tick handler used by both start() and resume(). */
+  const createTickHandler = useCallback(() => {
+    return () => {
+      timeRemainingRef.current -= 1
+      const next = timeRemainingRef.current
+
+      if (next <= 0) {
+        clearTimer()
+        setIsRunning(false)
+        setTimeRemaining(0)
+        const completedSetId = activeSetIdRef.current
+        const completedWorkoutExerciseId = activeWorkoutExerciseIdRef.current
+        activeSetIdRef.current = null
+        activeWorkoutExerciseIdRef.current = null
+        setActiveSetId(null)
+        if (completedSetId && completedWorkoutExerciseId) {
+          onCompleteRef.current?.(completedSetId, completedWorkoutExerciseId)
+        }
+      } else {
+        setTimeRemaining(next)
+      }
+    }
+  }, [clearTimer])
+
   const start = useCallback(
     (setId: string, workoutExerciseId: string, durationSeconds: number) => {
       clearTimer()
       // Update refs immediately so they're available in the interval callback
       activeSetIdRef.current = setId
       activeWorkoutExerciseIdRef.current = workoutExerciseId
+      timeRemainingRef.current = durationSeconds
       setActiveSetId(setId)
       setDuration(durationSeconds)
       setTimeRemaining(durationSeconds)
       setIsRunning(true)
 
-      intervalRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearTimer()
-            setIsRunning(false)
-            const completedSetId = activeSetIdRef.current
-            const completedWorkoutExerciseId = activeWorkoutExerciseIdRef.current
-            activeSetIdRef.current = null
-            activeWorkoutExerciseIdRef.current = null
-            setActiveSetId(null)
-            if (completedSetId && completedWorkoutExerciseId) {
-              onCompleteRef.current?.(completedSetId, completedWorkoutExerciseId)
-            }
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
+      intervalRef.current = setInterval(createTickHandler(), 1000)
     },
-    [clearTimer]
+    [clearTimer, createTickHandler]
   )
 
   const pause = useCallback(() => {
@@ -84,27 +93,11 @@ export function useCountdownTimer(
   const resume = useCallback(() => {
     if (timeRemaining > 0 && activeSetIdRef.current) {
       clearTimer() // Clear any existing interval before creating a new one
+      timeRemainingRef.current = timeRemaining
       setIsRunning(true)
-      intervalRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearTimer()
-            setIsRunning(false)
-            const completedSetId = activeSetIdRef.current
-            const completedWorkoutExerciseId = activeWorkoutExerciseIdRef.current
-            activeSetIdRef.current = null
-            activeWorkoutExerciseIdRef.current = null
-            setActiveSetId(null)
-            if (completedSetId && completedWorkoutExerciseId) {
-              onCompleteRef.current?.(completedSetId, completedWorkoutExerciseId)
-            }
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
+      intervalRef.current = setInterval(createTickHandler(), 1000)
     }
-  }, [timeRemaining, clearTimer])
+  }, [timeRemaining, clearTimer, createTickHandler])
 
   const stop = useCallback(() => {
     clearTimer()

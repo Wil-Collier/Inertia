@@ -10,8 +10,10 @@ export const PUSH_CONFLICT_POLICY: Record<string, PushConflictResolution> = {
   RECORD_TOO_LARGE: "reject_local_change",
 }
 
-export function shouldAcknowledgePushConflict(conflict: PushConflict): boolean {
-  return conflict.reason in PUSH_CONFLICT_POLICY
+export function shouldAcknowledgePushConflict(_conflict: PushConflict): boolean {
+  // Always acknowledge conflicts so pending changes don't get stuck.
+  // The conflict policy determines the *resolution strategy*, not whether to clear the pending change.
+  return true
 }
 
 export const INITIAL_SYNC_POLICY: Record<

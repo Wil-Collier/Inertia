@@ -5,7 +5,8 @@ import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
 import { buildWorkoutExerciseFromTemplate, calculateOneRepMax } from "@/lib/workoutUtils"
 import { getToday } from "@/lib/dateUtils"
-import { ACTIVE_SESSION_ID, KG_TO_LBS } from "@/lib/constants"
+import { ACTIVE_SESSION_ID } from "@/lib/constants"
+import { toLbs } from "@/lib/conversions"
 import { ACTIVE_SESSION_SYNC_WRITE_TABLES } from "@/services/dbTransactionTables"
 
 /** Defer a callback to run in the background without blocking UI */
@@ -15,10 +16,6 @@ function deferToBackground(callback: () => void) {
   } else {
     setTimeout(callback, 0)
   }
-}
-
-function toLbs(weight: number, unit: "kg" | "lbs"): number {
-  return unit === "kg" ? weight * KG_TO_LBS : weight
 }
 
 /**
@@ -170,6 +167,10 @@ export const activeSessionService = {
         ...session.workout,
         completedAt: new Date().toISOString(),
         exerciseIds: session.workout.exercises.map((e) => e.exerciseId),
+        // Compute duration in minutes from session start to now
+        duration: Math.round(
+          (Date.now() - new Date(session.startedAt).getTime()) / 60000
+        ),
       }
 
       await db.transaction(
