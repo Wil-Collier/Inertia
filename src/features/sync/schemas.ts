@@ -13,6 +13,7 @@ export {
   RefreshResponseSchema,
   LogoutResponseSchema,
   ErrorResponseSchema,
+  MAX_PUSH_BATCH,
   MAX_PULL_LIMIT,
   SYNC_COLLECTIONS,
   KNOWN_PUSH_CONFLICT_REASONS,

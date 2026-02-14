@@ -61,7 +61,7 @@ test.describe("sync error handling", () => {
   test("handles 500 server error gracefully during pull", async ({ page }) => {
     await registerAuthenticatedSyncApiMocks(page, {
       pullStatus: 500,
-      pullBody: createServerErrorResponse(500, "Internal Server Error"),
+      pullBody: createServerErrorResponse("Internal Server Error"),
     })
 
     await page.goto("/settings")
@@ -77,7 +77,7 @@ test.describe("sync error handling", () => {
   test("handles 503 service unavailable gracefully", async ({ page }) => {
     await registerAuthenticatedSyncApiMocks(page, {
       pullStatus: 503,
-      pullBody: createServerErrorResponse(503, "Service Unavailable"),
+      pullBody: createServerErrorResponse("Service Unavailable"),
     })
 
     await page.goto("/workout")
@@ -91,7 +91,7 @@ test.describe("sync error handling", () => {
   test("handles push failure without data loss", async ({ page }) => {
     await registerAuthenticatedSyncApiMocks(page, {
       pushStatus: 500,
-      pushBody: createServerErrorResponse(500, "Push failed"),
+      pushBody: createServerErrorResponse("Push failed"),
     })
 
     await page.goto("/nutrition")

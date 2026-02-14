@@ -3,6 +3,7 @@ import { db, type SyncPendingChangeRecord, type SyncRecordVersionRecord } from "
 import { useSyncStore } from "@/features/sync/store"
 import type { PendingChange, PendingChangeKey } from "@/features/sync/types"
 import { SYNC_COLLECTIONS, type SyncCollection, type SyncCursor } from "@/features/sync/schemas"
+import { isRecord } from "@/features/sync/typeGuards"
 
 const PULL_CURSOR_KEY = "sync.pullCursor"
 const LAST_SYNCED_AT_KEY = "sync.lastSyncedAtMs"
@@ -272,8 +273,4 @@ function isSyncCursor(value: unknown): value is SyncCursor {
 
 function isSyncCollection(value: string): value is SyncCollection {
   return syncCollections.has(value)
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
 }

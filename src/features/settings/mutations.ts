@@ -9,6 +9,7 @@ import {
   DEFAULT_REST_TIMER_DURATION, 
   DEFAULT_NUTRITION_GOALS 
 } from "@/lib/constants"
+import { SETTINGS_SYNC_WRITE_TABLES } from "@/services/dbTransactionTables"
 
 type UserSettingsUpdate = Partial<Omit<UserSettings, "unitPreferences" | "nutritionGoals">> & {
   unitPreferences?: Partial<UserSettings["unitPreferences"]>
@@ -20,7 +21,7 @@ export function useUpdateSettings() {
   
   return useMutation({
     mutationFn: async (updates: UserSettingsUpdate) => {
-      return await db.transaction("rw", [db.settings, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      return await db.transaction("rw", SETTINGS_SYNC_WRITE_TABLES, async () => {
         const existing = await db.settings.get("settings")
 
         const newSettings: UserSettings & { id: string } = { 

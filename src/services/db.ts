@@ -72,7 +72,6 @@ export class InertiaDatabase extends Dexie {
   settings!: Table<UserSettings & { id: string }>
   bodyWeight!: Table<WeightEntry>
   achievements!: Table<{ id: string; unlockedAchievements: UnlockedAchievement[]; streaks: StreakData }>
-  restTimer!: Table<{ id: string; duration: number }>
   activeSession!: Table<ActiveWorkoutSession & { id: string }>
   metadata!: Table<MetadataRecord>
   userStats!: Table<UserStats & { id: string }>
@@ -102,7 +101,6 @@ export class InertiaDatabase extends Dexie {
       settings: "id",
       bodyWeight: "id, date",
       achievements: "id",
-      restTimer: "id",
       activeSession: "id",
       metadata: "key",
       userStats: "id",
@@ -132,7 +130,6 @@ const REQUIRED_STORES = [
   "settings",
   "bodyWeight",
   "achievements",
-  "restTimer",
   "activeSession",
   "metadata",
   "userStats",

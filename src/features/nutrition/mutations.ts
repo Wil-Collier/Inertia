@@ -5,6 +5,11 @@ import { queryKeys } from "@/lib/queryKeys"
 import type { MealEntry, FoodItem, MealType, DailyNutrition, NutritionTotals } from "@/lib/types"
 import { calculateNutritionTotals, INITIAL_TOTALS } from "@/lib/nutritionUtils"
 import type { MealEntryWithFood } from "./queries"
+import {
+  FOODS_SYNC_WRITE_TABLES,
+  MEAL_TEMPLATES_SYNC_WRITE_TABLES,
+  NUTRITION_LOG_AND_FOODS_SYNC_WRITE_TABLES,
+} from "@/services/dbTransactionTables"
 
 import { achievementService } from "@/services/achievementService"
 
@@ -16,7 +21,7 @@ async function runNutritionLogMutation(
   date: string,
   mutation: (existing: DailyNutrition) => Promise<void>
 ): Promise<void> {
-  await db.transaction("rw", [db.nutritionLogs, db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+  await db.transaction("rw", NUTRITION_LOG_AND_FOODS_SYNC_WRITE_TABLES, async () => {
     const existing = await db.nutritionLogs.get(date)
     if (!existing) return
     await mutation(existing)
@@ -80,7 +85,7 @@ export function useAddMealEntry() {
         mealType,
       }
       
-      await db.transaction("rw", [db.nutritionLogs, db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", NUTRITION_LOG_AND_FOODS_SYNC_WRITE_TABLES, async () => {
         const existing = await db.nutritionLogs.get(date)
 
         if (existing) {
@@ -123,7 +128,7 @@ export function useUpdateMealEntry() {
       entryId: string; 
       updates: Partial<MealEntry> 
     }) => {
-      await db.transaction("rw", [db.nutritionLogs, db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", NUTRITION_LOG_AND_FOODS_SYNC_WRITE_TABLES, async () => {
         const existing = await db.nutritionLogs.get(date)
         if (!existing) throw new Error("Log not found")
 
@@ -229,7 +234,7 @@ export function useAddFood() {
       const id = food.id ?? crypto.randomUUID()
       const newFood: FoodItem = { ...food, id, isCustom: food.isCustom ?? true, usageCount: food.usageCount ?? 0 }
       // Upsert to avoid duplicates when the ID is canonical (e.g. barcode IDs).
-      await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", FOODS_SYNC_WRITE_TABLES, async () => {
         await db.foods.put(newFood)
       })
       return newFood
@@ -255,7 +260,7 @@ export function useDeleteFood() {
         throw new Error("Cannot delete food that is used in meal entries. Remove the entries first.")
       }
 
-      await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", FOODS_SYNC_WRITE_TABLES, async () => {
         await db.foods.delete(id)
       })
     },
@@ -277,12 +282,12 @@ export function useToggleFavoriteFood() {
       const existing = await db.foods.get(id)
       
       if (existing) {
-        await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.transaction("rw", FOODS_SYNC_WRITE_TABLES, async () => {
           await db.foods.update(id, { isFavorite })
         })
       } else if (food) {
         // If food doesn't exist locally (e.g. from search), upsert it.
-        await db.transaction("rw", [db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+        await db.transaction("rw", FOODS_SYNC_WRITE_TABLES, async () => {
           await db.foods.put({ ...food, isFavorite, isCustom: food.isCustom ?? false, usageCount: food.usageCount ?? 0 })
         })
       }
@@ -331,7 +336,7 @@ export function useSaveMealTemplate() {
   return useMutation({
     mutationFn: async ({ name, entries }: { name: string; entries: Omit<MealEntry, "id">[] }) => {
       const id = crypto.randomUUID()
-      await db.transaction("rw", [db.mealTemplates, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", MEAL_TEMPLATES_SYNC_WRITE_TABLES, async () => {
         await db.mealTemplates.add({ id, name, entries })
       })
       return id
@@ -351,7 +356,7 @@ export function useUpdateMealTemplate() {
   
   return useMutation({
     mutationFn: async ({ id, name, entries }: { id: string; name: string; entries: Omit<MealEntry, "id">[] }) => {
-      await db.transaction("rw", [db.mealTemplates, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", MEAL_TEMPLATES_SYNC_WRITE_TABLES, async () => {
         await db.mealTemplates.update(id, { name, entries })
       })
     },
@@ -370,7 +375,7 @@ export function useDeleteMealTemplate() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await db.transaction("rw", [db.mealTemplates, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", MEAL_TEMPLATES_SYNC_WRITE_TABLES, async () => {
         await db.mealTemplates.delete(id)
       })
     },
@@ -411,7 +416,7 @@ export function useApplyMealTemplate() {
         templateName: template.name
       }))
       
-      await db.transaction("rw", [db.nutritionLogs, db.foods, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", NUTRITION_LOG_AND_FOODS_SYNC_WRITE_TABLES, async () => {
         const existing = await db.nutritionLogs.get(date)
         if (existing) {
           await db.nutritionLogs.update(date, {

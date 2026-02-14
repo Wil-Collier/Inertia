@@ -6,16 +6,6 @@ export const KG_TO_LBS = 1 / LBS_TO_KG
 export const MI_TO_KM = 1.609344
 export const KM_TO_MI = 1 / MI_TO_KM
 
-// Nutrition Keys
-export const MACROS = {
-  CALORIES: "calories",
-  PROTEIN: "protein",
-  CARBS: "carbs",
-  FAT: "fat",
-  FIBER: "fiber",
-  SUGAR: "sugar",
-} as const
-
 // Default Settings
 export const DEFAULT_UNIT_PREFERENCES = { weight: "kg", distance: "km" } as const
 export const DEFAULT_NUTRITION_GOALS = { 

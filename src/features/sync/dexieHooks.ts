@@ -6,6 +6,7 @@ import {
   enqueuePendingChangeInTransaction,
   getRecordVersion,
 } from "@/features/sync/changeTracker"
+import { isRecord } from "@/features/sync/typeGuards"
 
 let hooksRegistered = false
 let suppressionDepth = 0
@@ -143,10 +144,6 @@ export async function withSyncHooksSuppressed<T>(fn: () => Promise<T>): Promise<
 
 export function areHooksSuppressed(): boolean {
   return suppressionDepth > 0
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
 }
 
 function isSyncableTableName(value: string): value is SyncableTableName {

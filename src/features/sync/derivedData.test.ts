@@ -7,7 +7,6 @@ import { statsService } from "@/services/statsService"
 import { achievementService } from "@/services/achievementService"
 
 let recalculateAllSpy: MockInstance
-let checkAllSpy: MockInstance
 let ensureInitializedSpy: MockInstance
 let checkWorkoutAchievementsSpy: MockInstance
 let checkNutritionAchievementsSpy: MockInstance
@@ -23,7 +22,6 @@ describe("recalculateDerivedData", () => {
       totalVolumeLbs: 0,
       lastUpdated: new Date().toISOString(),
     })
-    checkAllSpy = vi.spyOn(achievementService, "checkAll").mockResolvedValue(undefined)
     ensureInitializedSpy = vi.spyOn(achievementService, "ensureInitialized").mockResolvedValue(undefined)
     checkWorkoutAchievementsSpy = vi.spyOn(achievementService, "checkWorkoutAchievements").mockResolvedValue(undefined)
     checkNutritionAchievementsSpy = vi.spyOn(achievementService, "checkNutritionAchievements").mockResolvedValue(undefined)
@@ -31,7 +29,7 @@ describe("recalculateDerivedData", () => {
     updateStreaksSpy = vi.spyOn(achievementService, "updateStreaks").mockResolvedValue(undefined)
   })
 
-  it("rebuilds personal records, stats, and all achievements for legacy full recalculation", async () => {
+  it("rebuilds personal records and stats when workouts change", async () => {
     await db.workoutSessions.bulkPut([
       {
         id: "w1",
@@ -66,7 +64,7 @@ describe("recalculateDerivedData", () => {
       },
     ])
 
-    await recalculateDerivedData()
+    await recalculateDerivedData(new Set(["workouts"]))
 
     const pr = await db.personalRecords.get("bench")
     expect(pr).toMatchObject({
@@ -77,7 +75,6 @@ describe("recalculateDerivedData", () => {
       reps: 3,
     })
     expect(recalculateAllSpy).toHaveBeenCalledTimes(1)
-    expect(checkAllSpy).toHaveBeenCalledTimes(1)
   })
 
   it("runs nutrition achievement checks and streak updates when nutrition changes", async () => {

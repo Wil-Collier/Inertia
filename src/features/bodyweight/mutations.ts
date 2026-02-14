@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import type { WeightEntry } from "@/lib/types"
+import { BODY_WEIGHT_SYNC_WRITE_TABLES } from "@/services/dbTransactionTables"
 
 export function useAddWeightEntry() {
   const queryClient = useQueryClient()
@@ -11,7 +12,7 @@ export function useAddWeightEntry() {
     mutationFn: async (entry: Omit<WeightEntry, "id">) => {
       const id = crypto.randomUUID()
       const newEntry = { ...entry, id }
-      await db.transaction("rw", [db.bodyWeight, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", BODY_WEIGHT_SYNC_WRITE_TABLES, async () => {
         await db.bodyWeight.add(newEntry)
       })
       return newEntry
@@ -31,7 +32,7 @@ export function useDeleteWeightEntry() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await db.transaction("rw", [db.bodyWeight, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", BODY_WEIGHT_SYNC_WRITE_TABLES, async () => {
         await db.bodyWeight.delete(id)
       })
     },

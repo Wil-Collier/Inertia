@@ -177,30 +177,9 @@ export function createConflictPushResponse(
 }
 
 /**
- * Helper to create a pull response with changes for testing sync scenarios
- */
-export function createPullResponseWithChanges(
-  changes: Array<{
-    collection: SyncCollection
-    id: string
-    data: Record<string, unknown> | null
-    version: number
-    deleted: boolean
-  }>
-): PullResponse {
-  const maxVersion = Math.max(...changes.map((c) => c.version), 0)
-  return {
-    changes: changes,
-    nextCursor: maxVersion > 0 ? { version: maxVersion } : null,
-    serverTimestampMs: Date.now(),
-    hasMore: false,
-  }
-}
-
-/**
  * Helper for server error responses
  */
-export function createServerErrorResponse(status: number, message: string): ErrorResponse {
+export function createServerErrorResponse(message: string): ErrorResponse {
   return {
     error: "SERVER_ERROR",
     message,

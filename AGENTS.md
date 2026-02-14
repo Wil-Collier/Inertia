@@ -183,6 +183,7 @@ Security-relevant scope includes: auth, sync, middleware, API routes, request pa
 - Prefer composition over prop drilling.
 - Styling: Tailwind v4 with theme CSS variables. Use `cn()` from `@/lib/utils` for conditional classes.
 - shadcn/ui components in `src/components/ui/`.
+- If a previously removed shadcn/base-ui primitive is needed again, regenerate/re-add only the exact primitive needed (for example via `shadcn add <component>`), then add a real feature/page call site in the same change so it does not become dead code again.
 
 ### Formatting
 

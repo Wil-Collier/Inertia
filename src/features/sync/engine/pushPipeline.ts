@@ -8,7 +8,7 @@ import {
   setRecordVersionsBulk,
 } from "@/features/sync/changeTracker"
 import type { PendingChange } from "@/features/sync/types"
-import type { PushChange, SyncCollection } from "@/features/sync/schemas"
+import { MAX_PUSH_BATCH, type PushChange, type SyncCollection } from "@/features/sync/schemas"
 import { toCloudRecord } from "@/features/sync/projection"
 import { isRecord } from "@/features/sync/typeGuards"
 import { getDeviceId } from "@/features/sync/deviceId"
@@ -18,8 +18,6 @@ import { ACTIVE_SESSION_ID } from "@/lib/constants"
 import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
 import { shouldAcknowledgePushConflict } from "@/features/sync/conflictPolicy"
 import { runSequentially } from "../../../../shared/asyncUtils"
-
-const MAX_PUSH_BATCH = 200
 
 type PreparedPending = { pending: PendingChange; change: PushChange | null }
 type AcceptedEntry = { collection: SyncCollection; id: string; version: number; mutationId: string }

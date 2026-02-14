@@ -4,6 +4,7 @@ import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import type { Exercise } from "@/lib/types"
 import { ACTIVE_SESSION_ID } from "@/lib/constants"
+import { CUSTOM_EXERCISES_SYNC_WRITE_TABLES } from "@/services/dbTransactionTables"
 
 export function useAddExercise() {
   const queryClient = useQueryClient()
@@ -20,7 +21,7 @@ export function useAddExercise() {
         description: exercise.description,
         createdAt: new Date().toISOString(),
       }
-      await db.transaction("rw", [db.customExercises, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", CUSTOM_EXERCISES_SYNC_WRITE_TABLES, async () => {
         await db.customExercises.add(newExercise)
       })
       return newExercise
@@ -100,7 +101,7 @@ export function useUpdateExercise() {
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Exercise> }) => {
       let updatedExercise: Exercise | undefined
-      await db.transaction("rw", [db.customExercises, db.syncPendingChanges, db.syncRecordVersions], async () => {
+      await db.transaction("rw", CUSTOM_EXERCISES_SYNC_WRITE_TABLES, async () => {
         await db.customExercises.update(id, updates)
         updatedExercise = await db.customExercises.get(id)
       })

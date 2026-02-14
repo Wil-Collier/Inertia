@@ -64,15 +64,7 @@ function updateBestRecordsFromWorkout(
   }
 }
 
-export async function recalculateDerivedData(affectedCollections?: Set<SyncCollection>): Promise<void> {
-  // If no specific collections provided (legacy call), run everything
-  if (!affectedCollections) {
-    await recalculatePersonalRecords()
-    await statsService.recalculateAll()
-    await achievementService.checkAll()
-    return
-  }
-
+export async function recalculateDerivedData(affectedCollections: Set<SyncCollection>): Promise<void> {
   const hasWorkouts = affectedCollections.has("workouts")
   const hasNutrition = affectedCollections.has("nutrition")
   const hasTemplates = affectedCollections.has("templates")
