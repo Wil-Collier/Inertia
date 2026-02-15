@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import type { Workout, WorkoutTemplate } from "@/lib/types"
+import type { MuscleGroup, Workout, WorkoutTemplate } from "@/lib/types"
 
 import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
@@ -10,6 +10,16 @@ import {
   WORKOUT_HISTORY_SYNC_WRITE_TABLES,
   WORKOUT_TEMPLATE_SYNC_WRITE_TABLES,
 } from "@/services/dbTransactionTables"
+
+async function runWorkoutSideEffectsSafely(
+  defaultExerciseMap: Map<string, { muscleGroup: MuscleGroup }>
+): Promise<void> {
+  try {
+    await achievementService.runWorkoutSideEffects(defaultExerciseMap)
+  } catch (error) {
+    console.error("Workout saved but achievement refresh failed:", error)
+  }
+}
 
 // ============ WORKOUT MUTATIONS ============
 
@@ -36,9 +46,9 @@ export function useCreateWorkout() {
       await db.transaction("rw", WORKOUT_HISTORY_SYNC_WRITE_TABLES, async () => {
         await db.workoutSessions.add(newWorkout)
         await statsService.addWorkout(newWorkout)
-        await achievementService.updateStreaks()
-        await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
       })
+
+      await runWorkoutSideEffectsSafely(exerciseDatabaseMap)
 
       return newWorkout
     },
@@ -82,13 +92,11 @@ export function useUpdateWorkout() {
           await statsService.updateWorkout(oldWorkout, workout)
         }
 
-        // Recalculate streaks and check achievements after workout update
-        if (workout) {
-          await achievementService.updateStreaks()
-        }
-        
-        await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
       })
+
+      if (workout) {
+        await runWorkoutSideEffectsSafely(exerciseDatabaseMap)
+      }
 
       return workout
     },
@@ -124,12 +132,9 @@ export function useDeleteWorkout() {
           await statsService.removeWorkout(workout)
         }
 
-        // Deletion can invalidate current/last streak state.
-        await achievementService.updateStreaks()
-
-        // Check achievements after workout deletion (volume/count may change)
-        await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
       })
+
+      await runWorkoutSideEffectsSafely(exerciseDatabaseMap)
 
       return id
     },

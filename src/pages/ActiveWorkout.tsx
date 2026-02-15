@@ -17,7 +17,7 @@ import { useExercisesByIds } from "@/features/exercises/queries"
 import { useSettings } from "@/features/settings/queries"
 import { useRestTimerControls } from "@/hooks/useRestTimer"
 import { useCountdownTimer } from "@/hooks/useCountdownTimer"
-import { useWeightUnit } from "@/hooks/useWeightUnit"
+import { useWeightUnit } from "@/hooks/useUnits"
 import { useWorkoutChanges } from "@/hooks/useWorkoutChanges"
 import { playDingSound, unlockAudio } from "@/lib/audio"
 

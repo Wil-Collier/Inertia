@@ -4,9 +4,9 @@ export const SYNC_TRACKING_TABLES = [db.syncPendingChanges, db.syncRecordVersion
 
 export const ACTIVE_SESSION_SYNC_WRITE_TABLES = [db.activeSession, ...SYNC_TRACKING_TABLES] as const
 
-export const WORKOUT_SESSION_WRITE_TABLES = [db.workoutSessions] as const
+const WORKOUT_SESSION_WRITE_TABLES = [db.workoutSessions] as const
 
-export const WORKOUT_TEMPLATE_WRITE_TABLES = [db.workoutTemplates] as const
+const WORKOUT_TEMPLATE_WRITE_TABLES = [db.workoutTemplates] as const
 
 export const FOODS_SYNC_WRITE_TABLES = [db.foods, ...SYNC_TRACKING_TABLES] as const
 
@@ -38,7 +38,29 @@ export const WORKOUT_SESSION_SYNC_WRITE_TABLES = [...WORKOUT_SESSION_WRITE_TABLE
 
 export const WORKOUT_TEMPLATE_SYNC_WRITE_TABLES = [...WORKOUT_TEMPLATE_WRITE_TABLES, ...SYNC_TRACKING_TABLES] as const
 
+export const WORKOUT_COMPLETION_SYNC_WRITE_TABLES = [
+  db.workoutSessions,
+  db.activeSession,
+  db.personalRecords,
+  db.userStats,
+  ...SYNC_TRACKING_TABLES,
+] as const
+
+export const EXERCISE_DELETE_SYNC_WRITE_TABLES = [
+  db.workoutTemplates,
+  db.workoutSessions,
+  db.activeSession,
+  db.customExercises,
+  db.personalRecords,
+  ...SYNC_TRACKING_TABLES,
+] as const
+
 export const WORKOUT_HISTORY_SYNC_WRITE_TABLES = [
-  ...WORKOUT_HISTORY_DERIVED_DATA_TABLES,
+  db.workoutSessions,
+  db.userStats,
+  db.workoutTemplates,
+  db.personalRecords,
+  db.customExercises,
+  db.nutritionLogs,
   ...SYNC_TRACKING_TABLES,
 ] as const

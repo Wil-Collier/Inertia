@@ -18,7 +18,7 @@ import { WorkoutHistoryCard } from "@/components/workout/WorkoutHistoryCard"
 import { useDeleteWorkout } from "@/features/workout/mutations"
 import { useExercisesByIds } from "@/features/exercises/queries"
 import { useWorkouts } from "@/features/workout/queries"
-import { useWeightUnit } from "@/hooks/useWeightUnit"
+import { useWeightUnit } from "@/hooks/useUnits"
 import type { Workout } from "@/lib/types"
 
 export function WorkoutHistory() {

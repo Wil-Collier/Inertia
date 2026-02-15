@@ -26,6 +26,7 @@ vi.mock("@/services/achievementService", () => ({
     achievementService: {
         updateStreaks: vi.fn().mockResolvedValue(undefined),
         checkWorkoutAchievements: vi.fn().mockResolvedValue(undefined),
+        runWorkoutSideEffects: vi.fn().mockResolvedValue(undefined),
     },
 }))
 

@@ -29,6 +29,7 @@ export function useActiveSessionActions() {
     onSuccess: () => {
       invalidate()
       void queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
     }
   })
 

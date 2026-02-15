@@ -1,4 +1,4 @@
-import type { TemplateExercise, Workout, WorkoutExercise, WorkoutSet } from "@/lib/types"
+import type { TemplateExercise, WorkoutExercise, WorkoutSet } from "@/lib/types"
 
 /**
  * Estimated 1RM formula.
@@ -34,22 +34,6 @@ export function sumSetVolume(sets: WorkoutSet[]): number {
  */
 export function calculateSetVolume(sets: WorkoutSet[]): number {
   return sumSetVolume(getCompletedSets(sets))
-}
-
-/**
- * Calculates total volume for a full workout
- */
-export function calculateWorkoutVolume(workout: Workout): number {
-  return workout.exercises.reduce((total, exercise) => {
-    return total + calculateSetVolume(exercise.sets)
-  }, 0)
-}
-
-/**
- * Calculate total volume for an exercise across multiple sets
- */
-export function calculateExerciseVolume(exercise: WorkoutExercise): number {
-  return calculateSetVolume(exercise.sets)
 }
 
 /**

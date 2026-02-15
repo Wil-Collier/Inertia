@@ -54,7 +54,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  * @param title - The notification title
  * @param options - Notification options (body, icon, tag, etc.)
  */
-export function showNotification(
+function showNotification(
   title: string,
   options?: NotificationOptions
 ): Notification | null {

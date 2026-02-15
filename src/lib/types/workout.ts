@@ -13,12 +13,6 @@ export interface WorkoutExercise {
   lastPerformanceDate?: string
 }
 
-export interface LastPerformance {
-  sets: { weight: number; reps: number }[]
-  date: string
-  workoutId: string
-}
-
 import type { SyncableWithId } from "./syncable"
 
 export interface Workout extends SyncableWithId {

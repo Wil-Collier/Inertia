@@ -4,7 +4,6 @@ import {
   getNotificationPermission,
   isNotificationSupported,
   requestNotificationPermission,
-  showNotification,
   showRestTimerNotification,
 } from "@/services/notifications"
 
@@ -81,15 +80,15 @@ describe("notifications service", () => {
   it("shows notification with defaults and auto-closes after 5 seconds", () => {
     MockNotification.permission = "granted"
 
-    showNotification("Lift now", { body: "Set timer done", tag: "rest-timer" })
+    showRestTimerNotification()
     const notification = MockNotification.instances[0]
     if (!notification) {
       throw new Error("Expected notification instance")
     }
 
-    expect(notification.title).toBe("Lift now")
+    expect(notification.title).toBe("Rest Complete!")
     expect(notification.options).toMatchObject({
-      body: "Set timer done",
+      body: "Time to start your next set",
       tag: "rest-timer",
       icon: "/icon.svg",
       badge: "/icon.svg",
@@ -101,7 +100,7 @@ describe("notifications service", () => {
 
   it("does not show notification when permission is not granted", () => {
     MockNotification.permission = "denied"
-    expect(showNotification("Title")).toBeNull()
+    expect(showRestTimerNotification()).toBeNull()
     expect(canShowNotifications()).toBe(false)
   })
 

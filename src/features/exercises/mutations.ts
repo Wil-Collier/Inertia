@@ -2,9 +2,23 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import type { Exercise } from "@/lib/types"
+import type { Exercise, MuscleGroup } from "@/lib/types"
 import { ACTIVE_SESSION_ID } from "@/lib/constants"
-import { CUSTOM_EXERCISES_SYNC_WRITE_TABLES } from "@/services/dbTransactionTables"
+import {
+  CUSTOM_EXERCISES_SYNC_WRITE_TABLES,
+  EXERCISE_DELETE_SYNC_WRITE_TABLES,
+} from "@/services/dbTransactionTables"
+import { achievementService } from "@/services/achievementService"
+
+async function refreshWorkoutAchievementsSafely(
+  defaultExerciseMap: Map<string, { muscleGroup: MuscleGroup }>
+): Promise<void> {
+  try {
+    await achievementService.checkWorkoutAchievements(defaultExerciseMap)
+  } catch (error) {
+    console.error("Exercise deleted but achievement refresh failed:", error)
+  }
+}
 
 export function useAddExercise() {
   const queryClient = useQueryClient()
@@ -49,15 +63,7 @@ export function useDeleteExercise() {
 
       await db.transaction(
         "rw",
-        [
-          db.workoutTemplates,
-          db.workoutSessions,
-          db.activeSession,
-          db.customExercises,
-          db.personalRecords,
-          db.syncPendingChanges,
-          db.syncRecordVersions,
-        ],
+        EXERCISE_DELETE_SYNC_WRITE_TABLES,
         async () => {
         // Check if exercise is used in any templates (inside the same transaction as delete)
         const templates = await db.workoutTemplates.toArray()
@@ -80,19 +86,23 @@ export function useDeleteExercise() {
           throw new Error("Cannot delete: exercise is used in workout history")
         }
 
-        // Only delete custom exercises and their associated PRs
-      await db.customExercises.delete(id)
-      await db.personalRecords.where("exerciseId").equals(id).delete()
-    })
-  },
-  onSuccess: () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
-    toast.success("Exercise deleted")
-  },
-  onError: (error) => {
-    toast.error(error instanceof Error ? error.message : "Failed to delete exercise")
-  }
-})
+          // Only delete custom exercises and their associated PRs
+          await db.customExercises.delete(id)
+          await db.personalRecords.where("exerciseId").equals(id).delete()
+        })
+
+      const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
+      await refreshWorkoutAchievementsSafely(exerciseDatabaseMap)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
+      toast.success("Exercise deleted")
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to delete exercise")
+    }
+  })
 }
 
 export function useUpdateExercise() {

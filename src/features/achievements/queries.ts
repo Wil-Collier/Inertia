@@ -1,16 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import type { StreakData } from "@/lib/types"
-
-const defaultStreaks: StreakData = {
-  currentWorkoutStreak: 0,
-  longestWorkoutStreak: 0,
-  lastWorkoutDate: null,
-  currentNutritionStreak: 0,
-  longestNutritionStreak: 0,
-  lastNutritionDate: null,
-}
+import { DEFAULT_STREAKS } from "@/services/achievementService"
 
 export function useAchievements() {
   return useQuery({
@@ -20,7 +11,7 @@ export function useAchievements() {
       return data ?? {
         id: "achievements",
         unlockedAchievements: [],
-        streaks: defaultStreaks,
+        streaks: DEFAULT_STREAKS,
       }
     },
   })

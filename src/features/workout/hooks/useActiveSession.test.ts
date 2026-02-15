@@ -107,5 +107,6 @@ describe("useActiveSession hooks", () => {
     expect(activeSessionServiceMock.finishWorkout).toHaveBeenCalledTimes(1)
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.activeSession.current })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.workouts.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.achievements.all })
   })
 })

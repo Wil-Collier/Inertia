@@ -7,7 +7,10 @@ import { buildWorkoutExerciseFromTemplate, calculateOneRepMax } from "@/lib/work
 import { getToday } from "@/lib/dateUtils"
 import { ACTIVE_SESSION_ID } from "@/lib/constants"
 import { toLbs } from "@/lib/conversions"
-import { ACTIVE_SESSION_SYNC_WRITE_TABLES } from "@/services/dbTransactionTables"
+import {
+  ACTIVE_SESSION_SYNC_WRITE_TABLES,
+  WORKOUT_COMPLETION_SYNC_WRITE_TABLES,
+} from "@/services/dbTransactionTables"
 
 /** Defer a callback to run in the background without blocking UI */
 function deferToBackground(callback: () => void) {
@@ -175,7 +178,7 @@ export const activeSessionService = {
 
       await db.transaction(
         "rw",
-        [db.workoutSessions, db.activeSession, db.personalRecords, db.userStats, db.syncPendingChanges, db.syncRecordVersions],
+        WORKOUT_COMPLETION_SYNC_WRITE_TABLES,
         async () => {
         await db.workoutSessions.add(completedWorkout)
         await db.activeSession.delete(ACTIVE_SESSION_ID)
@@ -191,11 +194,8 @@ export const activeSessionService = {
       deferToBackground(() => {
         // Run streak update and achievement checks without blocking
         // The dynamic import is safe here since we're not in a transaction
-        achievementService.updateStreaks()
-          .then(async () => {
-            const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-            return achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
-          })
+        import("@/data/exerciseDatabase")
+          .then(({ exerciseDatabaseMap }) => achievementService.runWorkoutSideEffects(exerciseDatabaseMap))
           .catch((error) => console.error("Background achievement check failed:", error))
       })
 

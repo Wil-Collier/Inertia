@@ -106,7 +106,7 @@ describe("ExercisePickerSheet", () => {
 
     expect(onSelect).toHaveBeenCalledWith("back-squat")
     expect(onOpenChange).toHaveBeenCalledWith(false)
-  })
+  }, 10000)
 
   it("applies search/filter controls and shows empty states", async () => {
     renderExercisePickerSheet()

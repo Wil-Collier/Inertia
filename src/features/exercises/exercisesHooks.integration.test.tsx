@@ -6,8 +6,10 @@ import { createQueryWrapper, createTestQueryClient } from "@/test/helpers/queryH
 import { useAddExercise, useDeleteExercise, useUpdateExercise } from "@/features/exercises/mutations"
 import { exerciseDatabase } from "@/data/exerciseDatabase"
 import { ACTIVE_SESSION_ID } from "@/lib/constants"
+import { achievementService } from "@/services/achievementService"
 
 const toastError = vi.fn()
+let checkWorkoutAchievementsSpy: ReturnType<typeof vi.spyOn>
 
 vi.mock("sonner", () => ({
   toast: {
@@ -22,6 +24,7 @@ describe("exercise hooks integration", () => {
     await clearDatabase()
     vi.restoreAllMocks()
     toastError.mockReset()
+    checkWorkoutAchievementsSpy = vi.spyOn(achievementService, "checkWorkoutAchievements").mockResolvedValue()
   })
 
   it("creates custom exercises with generated metadata", async () => {
@@ -201,6 +204,7 @@ describe("exercise hooks integration", () => {
 
     expect(await db.customExercises.get("custom-2")).toBeUndefined()
     expect(await db.personalRecords.get("custom-2")).toBeUndefined()
+    expect(checkWorkoutAchievementsSpy).toHaveBeenCalled()
   })
 
   it("updates custom exercise fields", async () => {

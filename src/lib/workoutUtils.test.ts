@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest"
 import {
   buildWorkoutExerciseFromTemplate,
-  calculateExerciseVolume,
   calculateOneRepMax,
   calculateSetVolume,
-  calculateWorkoutVolume,
   getCompletedSets,
 } from "@/lib/workoutUtils"
-import { createWorkout, createWorkoutExercise, createWorkoutSet, resetWorkoutFactory } from "@/test/factories/workoutFactory"
+import { createWorkoutExercise, createWorkoutSet } from "@/test/factories/workoutFactory"
 
 describe("workoutUtils", () => {
   it("calculates one-rep max across boundary conditions", () => {
@@ -27,7 +25,7 @@ describe("workoutUtils", () => {
     expect(getCompletedSets(sets)).toHaveLength(2)
   })
 
-  it("calculates set and exercise volume using completed sets only", () => {
+  it("calculates set volume using completed sets only", () => {
     const exercise = createWorkoutExercise({
       sets: [
         createWorkoutSet({ weight: 100, reps: 10, isCompleted: true }),
@@ -37,23 +35,6 @@ describe("workoutUtils", () => {
     })
 
     expect(calculateSetVolume(exercise.sets)).toBe(1960)
-    expect(calculateExerciseVolume(exercise)).toBe(1960)
-  })
-
-  it("calculates workout volume by summing each exercise volume", () => {
-    resetWorkoutFactory()
-    const workout = createWorkout({
-      exercises: [
-        createWorkoutExercise({
-          sets: [createWorkoutSet({ weight: 100, reps: 5, isCompleted: true })],
-        }),
-        createWorkoutExercise({
-          sets: [createWorkoutSet({ weight: 200, reps: 3, isCompleted: true })],
-        }),
-      ],
-    })
-
-    expect(calculateWorkoutVolume(workout)).toBe(1100)
   })
 
   it("builds template exercises with at least one set", () => {
