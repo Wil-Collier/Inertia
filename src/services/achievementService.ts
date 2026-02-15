@@ -1,12 +1,14 @@
 import { db } from "@/services/db"
-import Dexie from "dexie"
-import { format, startOfWeek, eachDayOfInterval, subDays, parseISO, isSameDay } from "date-fns"
+import { startOfWeek, eachDayOfInterval, subDays, isSameDay } from "date-fns"
 import type { MuscleGroup, UnlockedAchievement, StreakData } from "@/lib/types"
 import { achievements } from "@/data/achievements"
 import { toast } from "sonner"
 import { statsService } from "@/services/statsService"
 import { orderedUniqueStringKeys } from "@/lib/indexedDbUtils"
 import { getActiveEntries } from "@/lib/nutritionEntryUtils"
+import { formatDate, parseDbDate } from "@/lib/dateUtils"
+import { resolveExercisesByIds } from "@/features/exercises/resolveExercises"
+import { withOptionalTransaction } from "@/services/withOptionalTransaction"
 
 export const DEFAULT_STREAKS: StreakData = {
   currentWorkoutStreak: 0,
@@ -27,10 +29,6 @@ export const achievementService = {
    * Can be heavy, so use sparingly.
    */
   async checkAll() {
-    // Pre-load exercise database BEFORE entering transaction
-    // to avoid holding transaction open during module loading
-    const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-
     await db.transaction(
       "rw",
       [
@@ -46,7 +44,7 @@ export const achievementService = {
       async () => {
       await this.ensureInitialized()
 
-      await this.checkWorkoutAchievements(exerciseDatabaseMap)
+      await this.checkWorkoutAchievements()
       await this.checkNutritionAchievements()
       await this.updateStreaks()
       }
@@ -71,9 +69,8 @@ export const achievementService = {
   /**
    * Checks all workout-related achievements (count, volume, PRs, templates, muscle variety).
    * Uses cached stats for O(1) volume lookups.
-   * @param defaultExerciseMap - Pre-built Map of default exercises (REQUIRED - must be passed to avoid dynamic import in transaction)
    */
-  async checkWorkoutAchievements(defaultExerciseMap: Map<string, { muscleGroup: MuscleGroup }>) {
+  async checkWorkoutAchievements() {
     await this.ensureInitialized()
     const workoutsCount = await db.workoutSessions.count()
     const personalRecordsCount = await db.personalRecords.count()
@@ -87,7 +84,7 @@ export const achievementService = {
     const today = new Date()
     const weekStart = startOfWeek(today)
     const weekDates = eachDayOfInterval({ start: weekStart, end: today })
-    const weekDateStrings = weekDates.map((d) => format(d, "yyyy-MM-dd"))
+    const weekDateStrings = weekDates.map(formatDate)
 
     // Query only this week's workouts instead of all workouts
     const thisWeeksWorkouts = await db.workoutSessions
@@ -105,29 +102,7 @@ export const achievementService = {
       })
     })
 
-    // Build lookup map for only the exercises we need
-    const exercisesById = new Map<string, { muscleGroup: MuscleGroup }>()
-    const customIdsToFetch: string[] = []
-
-    // First pass: check default exercises (O(1) per lookup)
-    for (const id of usedExerciseIds) {
-      const defaultEx = defaultExerciseMap.get(id)
-      if (defaultEx) {
-        exercisesById.set(id, defaultEx)
-      } else {
-        customIdsToFetch.push(id)
-      }
-    }
-
-    // Fetch only the custom exercises we need using bulkGet for O(1) primary key lookups
-    if (customIdsToFetch.length > 0) {
-      const customExercises = await db.customExercises.bulkGet(customIdsToFetch)
-      for (const ex of customExercises) {
-        if (ex) {
-          exercisesById.set(ex.id, ex)
-        }
-      }
-    }
+    const exercisesById = await resolveExercisesByIds(Array.from(usedExerciseIds))
 
     const muscleGroupsThisWeek = new Set<MuscleGroup>()
     thisWeeksWorkouts.forEach((workout) => {
@@ -201,9 +176,9 @@ export const achievementService = {
     await this.checkNutritionAchievements()
   },
 
-  async runWorkoutSideEffects(defaultExerciseMap: Map<string, { muscleGroup: MuscleGroup }>) {
+  async runWorkoutSideEffects() {
     await this.updateStreaks()
-    await this.checkWorkoutAchievements(defaultExerciseMap)
+    await this.checkWorkoutAchievements()
   },
 
   /**
@@ -230,13 +205,7 @@ export const achievementService = {
       await this.recalculateStreaks(workoutDates, nutritionDates)
     }
 
-    // Avoid starting a nested transaction if one is already active.
-    if (Dexie.currentTransaction) {
-      await run()
-      return
-    }
-
-    await db.transaction("rw", [db.achievements, db.workoutSessions, db.nutritionLogs], run)
+    await withOptionalTransaction([db.achievements, db.workoutSessions, db.nutritionLogs], run)
   },
 
   /**
@@ -254,17 +223,15 @@ export const achievementService = {
        * Calculate current streak by iterating backwards from today through sorted dates.
        * No artificial limit - works for streaks of any length.
        */
-      const calculateStreak = (dates: string[]): number => {
-        if (dates.length === 0) return 0
+      const calculateStreak = (sortedDates: string[]): number => {
+        if (sortedDates.length === 0) return 0
 
-        // Sort dates descending (newest first)
-        const sortedDates = dates.toSorted().toReversed()
         const today = new Date()
         let streak = 0
         let currentDate = today
 
         for (const dateStr of sortedDates) {
-          const date = parseISO(dateStr)
+          const date = parseDbDate(dateStr)
 
           // If this date matches current day we're checking, increment streak
           if (isSameDay(date, currentDate)) {
@@ -287,14 +254,14 @@ export const achievementService = {
         return streak
       }
 
-      const workoutStreak = calculateStreak(workoutDates)
-      const nutritionStreak = calculateStreak(nutritionDates)
+      const sortedWorkoutDates = workoutDates.toSorted().toReversed()
+      const sortedNutritionDates = nutritionDates.toSorted().toReversed()
+
+      const workoutStreak = calculateStreak(sortedWorkoutDates)
+      const nutritionStreak = calculateStreak(sortedNutritionDates)
 
       const longestWorkoutStreak = Math.max(workoutStreak, currentStreaks.longestWorkoutStreak)
       const longestNutritionStreak = Math.max(nutritionStreak, currentStreaks.longestNutritionStreak)
-
-      const sortedWorkoutDates = workoutDates.toSorted().toReversed()
-      const sortedNutritionDates = nutritionDates.toSorted().toReversed()
 
       const newStreaks = {
         currentWorkoutStreak: workoutStreak,
@@ -316,12 +283,7 @@ export const achievementService = {
       }
     }
 
-    if (Dexie.currentTransaction) {
-      await run()
-      return
-    }
-
-    await db.transaction("rw", db.achievements, run)
+    await withOptionalTransaction([db.achievements], run)
   },
 
   async unlockAchievement(id: string, options?: { showToast?: boolean }) {

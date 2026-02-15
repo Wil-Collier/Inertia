@@ -34,6 +34,18 @@ describe("activeSessionService integration", () => {
     expect(session.workout.name).toBe("No Template")
   })
 
+  it("throws when starting a workout while an active session already exists", async () => {
+    await activeSessionService.startWorkout("First Session")
+
+    await expect(activeSessionService.startWorkout("Second Session")).rejects.toThrow(
+      "An active workout session already exists"
+    )
+
+    const sessions = await db.activeSession.toArray()
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]?.workout.name).toBe("First Session")
+  })
+
   it("builds template exercises and enforces at least one set", async () => {
     await db.workoutTemplates.put({
       id: "template-1",

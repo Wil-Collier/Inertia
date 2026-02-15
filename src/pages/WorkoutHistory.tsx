@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react"
-import { format, parseISO } from "date-fns"
+import { format } from "date-fns"
 import { Dumbbell, Loader2 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,6 +20,7 @@ import { useExercisesByIds } from "@/features/exercises/queries"
 import { useWorkouts } from "@/features/workout/queries"
 import { useWeightUnit } from "@/hooks/useUnits"
 import type { Workout } from "@/lib/types"
+import { parseDbDate } from "@/lib/dateUtils"
 
 export function WorkoutHistory() {
   const deleteWorkoutMutation = useDeleteWorkout()
@@ -52,7 +53,7 @@ export function WorkoutHistory() {
   // Group workouts by month
   const groupedByMonth = useMemo(() => {
     return sortedWorkouts.reduce<Record<string, Workout[]>>((acc, workout) => {
-      const monthKey = format(parseISO(workout.date), "MMMM yyyy")
+      const monthKey = format(parseDbDate(workout.date), "MMMM yyyy")
       if (!acc[monthKey]) {
         acc[monthKey] = []
       }

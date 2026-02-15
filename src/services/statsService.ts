@@ -1,8 +1,8 @@
 import { db } from "@/services/db"
-import Dexie from "dexie"
 import type { Workout, UserStats } from "@/lib/types"
 import { defaultUserStats } from "@/lib/types"
 import { KG_TO_LBS } from "@/lib/constants"
+import { withOptionalTransaction } from "@/services/withOptionalTransaction"
 
 /**
  * Service for managing incrementally tracked workout statistics.
@@ -71,11 +71,7 @@ export const statsService = {
       return updated
     }
 
-    if (Dexie.currentTransaction) {
-      return await run()
-    }
-
-    return await db.transaction("rw", [db.userStats, db.workoutSessions], run)
+    return await withOptionalTransaction([db.userStats, db.workoutSessions], run)
   },
 
   /**
@@ -101,11 +97,7 @@ export const statsService = {
       return updated
     }
 
-    if (Dexie.currentTransaction) {
-      return await run()
-    }
-
-    return await db.transaction("rw", [db.userStats, db.workoutSessions], run)
+    return await withOptionalTransaction([db.userStats, db.workoutSessions], run)
   },
 
   /**
@@ -134,11 +126,7 @@ export const statsService = {
       return updated
     }
 
-    if (Dexie.currentTransaction) {
-      return await run()
-    }
-
-    return await db.transaction("rw", [db.userStats, db.workoutSessions], run)
+    return await withOptionalTransaction([db.userStats, db.workoutSessions], run)
   },
 
   /**
@@ -165,10 +153,6 @@ export const statsService = {
       return updated
     }
 
-    if (Dexie.currentTransaction) {
-      return await run()
-    }
-
-    return await db.transaction("rw", [db.userStats, db.workoutSessions], run)
+    return await withOptionalTransaction([db.userStats, db.workoutSessions], run)
   },
 }

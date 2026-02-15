@@ -6,6 +6,7 @@ import { db } from "@/services/db"
 import { activeSessionService } from "@/features/workout/services/activeSessionService"
 import { ActiveWorkout } from "@/pages/ActiveWorkout"
 import { createSettings } from "@/test/factories/settingsFactory"
+import { useRestTimerStore } from "@/features/workout/restTimerStore"
 import {
   createActiveWorkoutSession,
   createWorkout,
@@ -15,6 +16,7 @@ import {
 import { renderAppRoute } from "@/test/helpers/renderAppRoute"
 import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
 import { seedTestState } from "@/test/helpers/seedTestState"
+import type * as WorkoutMutationsModule from "@/features/workout/mutations"
 
 interface HeaderProps {
   title: string
@@ -33,6 +35,7 @@ const activeWorkoutTestState = vi.hoisted(() => ({
   toastError: vi.fn(),
   unlockAudio: vi.fn(),
   playDingSound: vi.fn(),
+  createTemplateShouldFail: false,
 }))
 
 vi.mock("sonner", () => ({
@@ -81,6 +84,39 @@ vi.mock("@/components/ExercisePickerSheet", () => ({
     ) : null,
 }))
 
+vi.mock("@/features/workout/mutations", async () => {
+  const actual = await vi.importActual<typeof WorkoutMutationsModule>(
+    "@/features/workout/mutations"
+  )
+
+  return {
+    ...actual,
+    useCreateTemplate: () => {
+      return {
+        mutateAsync: async (input: {
+          name: string
+          exercises: Array<{
+            exerciseId: string
+            targetSets: number
+            targetReps?: number
+            targetWeight?: number
+          }>
+        }) => {
+          if (activeWorkoutTestState.createTemplateShouldFail) {
+            throw new Error("template failed")
+          }
+          const template = {
+            ...input,
+            id: crypto.randomUUID(),
+          }
+          await db.workoutTemplates.add(template)
+          return template
+        },
+      }
+    },
+  }
+})
+
 async function renderActiveWorkoutRoute() {
   return await renderAppRoute({
     initialPath: "/workout/active",
@@ -98,6 +134,7 @@ describe("ActiveWorkout", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    activeWorkoutTestState.createTemplateShouldFail = false
     await resetTestRuntime()
   })
 
@@ -267,6 +304,88 @@ describe("ActiveWorkout", () => {
     await waitFor(() => {
       expect(addExerciseSpy).toHaveBeenCalledWith("barbell-bench-press")
       expect(activeWorkoutTestState.toastError).toHaveBeenCalledWith("Failed to add exercise")
+    })
+  })
+
+  it("keeps workout saved when template creation fails during finish", async () => {
+    const user = userEvent.setup()
+    activeWorkoutTestState.createTemplateShouldFail = true
+
+    await seedTestState({
+      settings: createSettings(),
+      activeSession: createActiveWorkoutSession({
+        workout: createWorkout({
+          id: "workout-finish-template-fail",
+          name: "Template Failure Session",
+          date: "2026-02-09",
+          exercises: [
+            createWorkoutExercise({
+              id: "wex-1",
+              exerciseId: "barbell-bench-press",
+              sets: [createWorkoutSet({ id: "set-1", reps: 5, weight: 225, isCompleted: true })],
+            }),
+          ],
+        }),
+      }),
+    })
+
+    const { router } = await renderActiveWorkoutRoute()
+    await screen.findByRole("button", { name: "Finish Workout" })
+
+    await user.click(screen.getByRole("button", { name: "Finish Workout" }))
+    await user.click(await screen.findByRole("checkbox"))
+    await user.type(screen.getByPlaceholderText("Template name"), "Broken Template")
+    await user.click(screen.getByRole("button", { name: "Finish" }))
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/workout")
+    })
+
+    const workouts = await db.workoutSessions.toArray()
+    expect(workouts).toHaveLength(1)
+    expect(workouts[0]?.name).toBe("Template Failure Session")
+    expect(activeWorkoutTestState.toastSuccess).toHaveBeenCalledWith("Workout saved!")
+    expect(activeWorkoutTestState.toastError).toHaveBeenCalledWith(
+      "Workout saved, but template creation failed"
+    )
+  })
+
+  it("resets rest timer when finishing workout", async () => {
+    const user = userEvent.setup()
+    useRestTimerStore.getState().start(120)
+
+    await seedTestState({
+      settings: createSettings(),
+      activeSession: createActiveWorkoutSession({
+        workout: createWorkout({
+          id: "workout-finish-reset-timer",
+          name: "Reset Timer Session",
+          date: "2026-02-09",
+          exercises: [
+            createWorkoutExercise({
+              id: "wex-reset-1",
+              exerciseId: "barbell-bench-press",
+              sets: [createWorkoutSet({ id: "set-reset-1", reps: 5, weight: 100, isCompleted: true })],
+            }),
+          ],
+        }),
+      }),
+    })
+
+    const { router } = await renderActiveWorkoutRoute()
+    await screen.findByRole("button", { name: "Finish Workout" })
+    await user.click(screen.getByRole("button", { name: "Finish Workout" }))
+    await user.click(screen.getByRole("button", { name: "Finish" }))
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/workout")
+    })
+
+    expect(useRestTimerStore.getState().timer).toMatchObject({
+      isRunning: false,
+      isPaused: false,
+      timeRemaining: 0,
+      duration: 0,
     })
   })
 })

@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { achievementService } from "@/services/achievementService"
 import { db } from "@/services/db"
 import { clearDatabase } from "@/test/helpers/dbTestUtils"
-import { exerciseDatabaseMap } from "@/data/exerciseDatabase"
-import { format, subDays } from "date-fns"
+import { subDays } from "date-fns"
+import { formatDate } from "@/lib/dateUtils"
 
 vi.mock("sonner", () => ({
   toast: {
@@ -14,11 +14,12 @@ vi.mock("sonner", () => ({
 }))
 
 function dateString(offsetDays: number): string {
-  return format(subDays(new Date(), Math.abs(offsetDays)), "yyyy-MM-dd")
+  return formatDate(subDays(new Date(), Math.abs(offsetDays)))
 }
 
 describe("achievementService integration", () => {
   beforeEach(async () => {
+    vi.useRealTimers()
     await clearDatabase()
   })
 
@@ -119,7 +120,7 @@ describe("achievementService integration", () => {
       })),
     })
 
-    await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+    await achievementService.checkWorkoutAchievements()
 
     const unlocked = (await db.achievements.get("achievements"))?.unlockedAchievements.map((item) => item.id) ?? []
     expect(unlocked).toContain("first-workout")
@@ -135,5 +136,15 @@ describe("achievementService integration", () => {
 
     const unlocked = (await db.achievements.get("achievements"))?.unlockedAchievements ?? []
     expect(unlocked.filter((item) => item.id === "first-workout")).toHaveLength(1)
+  })
+
+  it("calculates streaks correctly around UTC day boundaries using DB dates", async () => {
+    const today = formatDate(new Date())
+    const yesterday = formatDate(subDays(new Date(), 1))
+    await achievementService.recalculateStreaks([today, yesterday], [])
+
+    const streaks = (await db.achievements.get("achievements"))?.streaks
+    expect(streaks?.currentWorkoutStreak).toBe(2)
+    expect(streaks?.lastWorkoutDate).toBe(today)
   })
 })

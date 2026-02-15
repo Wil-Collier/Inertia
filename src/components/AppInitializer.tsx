@@ -128,10 +128,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
         await withSafariRetry("Achievement init", () => achievementService.ensureInitialized())
         await withSafariRetry("Streak recalculation", () => achievementService.updateStreaks())
         await withSafariRetry("Stats recalculation", () => statsService.recalculateAll())
-        await withSafariRetry("Workout achievement reconciliation", async () => {
-          const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-          await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
-        })
+        await withSafariRetry("Workout achievement reconciliation", () => achievementService.checkWorkoutAchievements())
         await withSafariRetry("Nutrition achievement reconciliation", () => achievementService.checkNutritionAchievements())
 
         // Keep streaks correct if the app stays open across midnight.

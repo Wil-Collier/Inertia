@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import type { MuscleGroup, Workout, WorkoutTemplate } from "@/lib/types"
+import type { Workout, WorkoutTemplate } from "@/lib/types"
 
 import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
@@ -10,16 +10,6 @@ import {
   WORKOUT_HISTORY_SYNC_WRITE_TABLES,
   WORKOUT_TEMPLATE_SYNC_WRITE_TABLES,
 } from "@/services/dbTransactionTables"
-
-async function runWorkoutSideEffectsSafely(
-  defaultExerciseMap: Map<string, { muscleGroup: MuscleGroup }>
-): Promise<void> {
-  try {
-    await achievementService.runWorkoutSideEffects(defaultExerciseMap)
-  } catch (error) {
-    console.error("Workout saved but achievement refresh failed:", error)
-  }
-}
 
 // ============ WORKOUT MUTATIONS ============
 
@@ -30,9 +20,6 @@ export function useCreateWorkout() {
     mutationFn: async (workout: Omit<Workout, "id">) => {
       const id = crypto.randomUUID()
       const exerciseIds = workout.exercises.map(e => e.exerciseId)
-
-      // Pre-load necessary data for achievements (avoid dynamic import in a transaction)
-      const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
 
       // Ensure weightUnit is set (should always be provided, but fallback for safety)
       let weightUnit = workout.weightUnit
@@ -48,7 +35,7 @@ export function useCreateWorkout() {
         await statsService.addWorkout(newWorkout)
       })
 
-      await runWorkoutSideEffectsSafely(exerciseDatabaseMap)
+      await achievementService.runWorkoutSideEffects()
 
       return newWorkout
     },
@@ -69,9 +56,6 @@ export function useUpdateWorkout() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Workout> }) => {
-      // Pre-load necessary data for achievements
-      const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-
       let workout: Workout | undefined
 
       await db.transaction("rw", WORKOUT_HISTORY_SYNC_WRITE_TABLES, async () => {
@@ -95,7 +79,7 @@ export function useUpdateWorkout() {
       })
 
       if (workout) {
-        await runWorkoutSideEffectsSafely(exerciseDatabaseMap)
+        await achievementService.runWorkoutSideEffects()
       }
 
       return workout
@@ -118,9 +102,6 @@ export function useDeleteWorkout() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // Pre-load data
-      const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-
       await db.transaction("rw", WORKOUT_HISTORY_SYNC_WRITE_TABLES, async () => {
         // Get workout before deletion for stats update
         const workout = await db.workoutSessions.get(id)
@@ -134,7 +115,7 @@ export function useDeleteWorkout() {
 
       })
 
-      await runWorkoutSideEffectsSafely(exerciseDatabaseMap)
+      await achievementService.runWorkoutSideEffects()
 
       return id
     },

@@ -1,10 +1,11 @@
 import { memo } from "react"
-import { format, parseISO } from "date-fns"
+import { format } from "date-fns"
 import { Dumbbell, Clock, ChevronDown, ChevronUp, Trash2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatDuration } from "@/lib/utils"
 import type { Workout, Exercise } from "@/lib/types"
+import { parseDbDate } from "@/lib/dateUtils"
 
 interface WorkoutHistoryCardProps {
   workout: Workout
@@ -51,7 +52,7 @@ export const WorkoutHistoryCard = memo(({
             <p className="font-medium">{workout.name}</p>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
               <span>
-                {format(parseISO(workout.date), "EEE, MMM d")}
+                {format(parseDbDate(workout.date), "EEE, MMM d")}
               </span>
               {workout.duration && (
                 <>

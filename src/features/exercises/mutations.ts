@@ -2,23 +2,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import type { Exercise, MuscleGroup } from "@/lib/types"
+import type { Exercise } from "@/lib/types"
 import { ACTIVE_SESSION_ID } from "@/lib/constants"
 import {
   CUSTOM_EXERCISES_SYNC_WRITE_TABLES,
   EXERCISE_DELETE_SYNC_WRITE_TABLES,
 } from "@/services/dbTransactionTables"
 import { achievementService } from "@/services/achievementService"
-
-async function refreshWorkoutAchievementsSafely(
-  defaultExerciseMap: Map<string, { muscleGroup: MuscleGroup }>
-): Promise<void> {
-  try {
-    await achievementService.checkWorkoutAchievements(defaultExerciseMap)
-  } catch (error) {
-    console.error("Exercise deleted but achievement refresh failed:", error)
-  }
-}
 
 export function useAddExercise() {
   const queryClient = useQueryClient()
@@ -91,8 +81,7 @@ export function useDeleteExercise() {
           await db.personalRecords.where("exerciseId").equals(id).delete()
         })
 
-      const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-      await refreshWorkoutAchievementsSafely(exerciseDatabaseMap)
+      await achievementService.checkWorkoutAchievements()
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })

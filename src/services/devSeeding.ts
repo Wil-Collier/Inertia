@@ -12,6 +12,7 @@ import type {
 import { exerciseDatabase } from "@/data/exerciseDatabase"
 import { statsService } from "@/services/statsService"
 import { achievementService } from "@/services/achievementService"
+import { formatDate } from "@/lib/dateUtils"
 
 // Helper to get a random exercise from a muscle group
 const getExerciseByMuscle = (muscle: string) => {
@@ -51,7 +52,7 @@ export async function seedTestData() {
         currentWeight -= (Math.random() * 0.5) - 0.2 // Slight downward trend
         weightEntries.push({
           id: crypto.randomUUID(),
-          date: format(subDays(new Date(), i), "yyyy-MM-dd"),
+          date: formatDate(subDays(new Date(), i)),
           weight: parseFloat(currentWeight.toFixed(1)),
           note: i === 30 ? "Starting point" : undefined
         })
@@ -95,7 +96,7 @@ export async function seedTestData() {
       const mealTypes: MealType[] = ["breakfast", "lunch", "dinner", "snack"]
 
       for (let i = 0; i < 7; i++) {
-        const date = format(subDays(new Date(), i), "yyyy-MM-dd")
+        const date = formatDate(subDays(new Date(), i))
         const now = Date.now() - i * 1_000
         const entries = mealTypes.map(type => ({
           id: crypto.randomUUID(),
@@ -141,7 +142,7 @@ export async function seedTestData() {
         workouts.push({
           id: crypto.randomUUID(),
           name: template.name,
-          date: format(date, "yyyy-MM-dd"),
+          date: formatDate(date),
           completedAt: date.toISOString(),
           duration: 45 + Math.floor(Math.random() * 30),
           weightUnit: "kg",
@@ -174,10 +175,10 @@ export async function seedTestData() {
         streaks: {
           currentWorkoutStreak: 3,
           longestWorkoutStreak: 12,
-          lastWorkoutDate: format(subDays(new Date(), 1), "yyyy-MM-dd"),
+          lastWorkoutDate: formatDate(subDays(new Date(), 1)),
           currentNutritionStreak: 7,
           longestNutritionStreak: 14,
-          lastNutritionDate: format(new Date(), "yyyy-MM-dd")
+          lastNutritionDate: formatDate(new Date())
         }
       })
     }

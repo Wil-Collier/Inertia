@@ -3,6 +3,7 @@ import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import type { Exercise, MuscleGroup } from "@/lib/types"
 import { muscleGroups } from "@/lib/muscleGroups"
+import { resolveExercisesByIds } from "@/features/exercises/resolveExercises"
 
 function isMuscleGroup(value: string): value is MuscleGroup {
   return (muscleGroups as readonly string[]).includes(value)
@@ -46,22 +47,9 @@ export function useExercise(id: string) {
   return useQuery({
     queryKey: queryKeys.exercises.detail(id),
     queryFn: async (): Promise<Exercise> => {
-      // Lazy-load exercise database (code-split)
-      const { exerciseDatabaseMap } = await getExerciseModule()
-
-      // Check static defaults first (O(1) map lookup)
-      const defaultExercise = exerciseDatabaseMap.get(id)
-      if (defaultExercise) {
-        // Return without instructions for consistency
-        const { instructions: _, ...exercise } = defaultExercise
-        return exercise
-      }
-
-      // Fall back to custom exercises in IndexedDB
-      const customExercise = await db.customExercises.get(id)
-      if (customExercise) {
-        return customExercise
-      }
+      const resolved = await resolveExercisesByIds([id])
+      const exercise = resolved.get(id)
+      if (exercise) return exercise
 
       throw new Error(`Exercise ${id} not found`)
     },
@@ -76,36 +64,7 @@ export function useExercise(id: string) {
 export function useExercisesByIds(ids: string[]) {
   return useQuery({
     queryKey: queryKeys.exercises.byIds(ids),
-    queryFn: async (): Promise<Map<string, Exercise>> => {
-      // Lazy-load exercise database (code-split)
-      const { exerciseDatabaseMap } = await getExerciseModule()
-
-      const result = new Map<string, Exercise>()
-      const customIdsToFetch: string[] = []
-
-      // First pass: check static defaults (O(1) per lookup)
-      for (const id of ids) {
-        const defaultExercise = exerciseDatabaseMap.get(id)
-        if (defaultExercise) {
-          const { instructions: _, ...exercise } = defaultExercise
-          result.set(id, exercise)
-        } else {
-          customIdsToFetch.push(id)
-        }
-      }
-
-      // Fetch any remaining custom exercises from IndexedDB using bulkGet for O(1) primary key lookups
-      if (customIdsToFetch.length > 0) {
-        const customExercises = await db.customExercises.bulkGet(customIdsToFetch)
-        for (const ex of customExercises) {
-          if (ex) {
-            result.set(ex.id, ex)
-          }
-        }
-      }
-
-      return result
-    },
+    queryFn: async (): Promise<Map<string, Exercise>> => await resolveExercisesByIds(ids),
     enabled: ids.length > 0,
   })
 }

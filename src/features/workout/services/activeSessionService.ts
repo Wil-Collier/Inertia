@@ -123,6 +123,11 @@ export const activeSessionService = {
 
   async startWorkout(name: string, templateId?: string, exercises: WorkoutExercise[] = []) {
     try {
+      const existingSession = await db.activeSession.get(ACTIVE_SESSION_ID)
+      if (existingSession) {
+        throw new Error("An active workout session already exists")
+      }
+
       let resolvedExercises = exercises
 
       if (templateId && resolvedExercises.length === 0) {
@@ -193,9 +198,7 @@ export const activeSessionService = {
       // Defer achievement checks to background so they don't block UI
       deferToBackground(() => {
         // Run streak update and achievement checks without blocking
-        // The dynamic import is safe here since we're not in a transaction
-        import("@/data/exerciseDatabase")
-          .then(({ exerciseDatabaseMap }) => achievementService.runWorkoutSideEffects(exerciseDatabaseMap))
+        achievementService.runWorkoutSideEffects()
           .catch((error) => console.error("Background achievement check failed:", error))
       })
 

@@ -6,7 +6,7 @@ import {
   ChevronUp,
   StickyNote,
 } from "lucide-react"
-import { format, parseISO } from "date-fns"
+import { format } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DebouncedTextInput } from "./DebouncedTextInput"
@@ -14,6 +14,7 @@ import { ExerciseInfoButton } from "@/components/ExerciseInfoSheet"
 import { cn } from "@/lib/utils"
 import type { WorkoutExercise, WorkoutSet, Exercise } from "@/lib/types"
 import { WorkoutSetRow } from "./WorkoutSetRow"
+import { parseDbDate } from "@/lib/dateUtils"
 
 interface WorkoutExerciseCardProps {
   workoutExercise: WorkoutExercise
@@ -64,6 +65,15 @@ export const WorkoutExerciseCard = memo(({
       <CardHeader
         className="cursor-pointer px-4 py-3"
         onClick={() => onToggleExpanded(workoutExercise.id)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault()
+            onToggleExpanded(workoutExercise.id)
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={`${isExpanded ? "Collapse" : "Expand"} ${exercise?.name || "exercise"}`}
       >
         <div className="grid grid-cols-[40px_1fr_auto_40px] gap-2 items-center">
           <div className="flex justify-center">
@@ -82,7 +92,7 @@ export const WorkoutExerciseCard = memo(({
             </div>
             {hasLastPerformance && workoutExercise.lastPerformanceDate && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                Last: {format(parseISO(workoutExercise.lastPerformanceDate), "MMM d")}
+                Last: {format(parseDbDate(workoutExercise.lastPerformanceDate), "MMM d")}
               </p>
             )}
           </div>

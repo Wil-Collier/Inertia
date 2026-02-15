@@ -17,8 +17,8 @@ import { useActiveSession, useActiveSessionActions } from "@/features/workout/ho
 import { useTemplates, useWorkoutDates, useWorkoutStats } from "@/features/workout/queries"
 import { useExercisesByIds } from "@/features/exercises/queries"
 import { cn } from "@/lib/utils"
-import { format, subDays, startOfMonth, endOfMonth, parseISO } from "date-fns"
-import { parseDbDate } from "@/lib/dateUtils"
+import { format, subDays, startOfMonth, endOfMonth } from "date-fns"
+import { formatDate, parseDbDate } from "@/lib/dateUtils"
 import type { MuscleGroup } from "@/lib/types"
 
 export function WorkoutPage() {
@@ -41,14 +41,14 @@ export function WorkoutPage() {
   const thirtyDaysAgo = subDays(now, 30)
 
   const { data: monthStats } = useWorkoutStats(
-    format(monthStart, "yyyy-MM-dd"),
-    format(monthEnd, "yyyy-MM-dd")
+    formatDate(monthStart),
+    formatDate(monthEnd)
   )
   const monthWorkouts = useMemo(() => monthStats?.workouts ?? [], [monthStats?.workouts])
 
   const { data: recentStats } = useWorkoutStats(
-    format(thirtyDaysAgo, "yyyy-MM-dd"),
-    format(now, "yyyy-MM-dd")
+    formatDate(thirtyDaysAgo),
+    formatDate(now)
   )
   const recentWorkouts = useMemo(() => recentStats?.workouts ?? [], [recentStats?.workouts])
   
@@ -319,7 +319,7 @@ export function WorkoutPage() {
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-sm truncate">{workout.name}</p>
                             <p className="text-xxs font-medium text-muted-foreground">
-                              {format(parseISO(workout.date), "MMM d, yyyy")}
+                              {format(parseDbDate(workout.date), "MMM d, yyyy")}
                               {workout.duration && ` • ${workout.duration}m`}
                             </p>
                           </div>

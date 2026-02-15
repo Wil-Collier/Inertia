@@ -104,6 +104,7 @@ export function ActiveWorkout() {
 
   const handleFinish = useCallback(async () => {
     setIsFinishing(true)
+    timerControls.reset()
     try {
       const completed = await finishWorkout()
 
@@ -113,21 +114,27 @@ export function ActiveWorkout() {
       }
 
       if (saveAsTemplate && templateName.trim()) {
-        await createTemplateMutation.mutateAsync({
-          name: templateName.trim(),
-          exercises: completed.exercises.map((e) => {
-            const reps = e.sets.find((s) => (s.reps ?? 0) > 0)?.reps
-            const weight = e.sets.find((s) => (s.weight ?? 0) > 0)?.weight
+        try {
+          await createTemplateMutation.mutateAsync({
+            name: templateName.trim(),
+            exercises: completed.exercises.map((e) => {
+              const reps = e.sets.find((s) => (s.reps ?? 0) > 0)?.reps
+              const weight = e.sets.find((s) => (s.weight ?? 0) > 0)?.weight
 
-            return {
-              exerciseId: e.exerciseId,
-              targetSets: e.sets.length,
-              targetReps: toZeroIfInvalid(reps),
-              targetWeight: toZeroIfInvalid(weight),
-            }
-          }),
-        })
-        toast.success(`Workout saved & template "${templateName.trim()}" created!`)
+              return {
+                exerciseId: e.exerciseId,
+                targetSets: e.sets.length,
+                targetReps: toZeroIfInvalid(reps),
+                targetWeight: toZeroIfInvalid(weight),
+              }
+            }),
+          })
+          toast.success(`Workout saved & template "${templateName.trim()}" created!`)
+        } catch (error) {
+          console.error(error)
+          toast.success("Workout saved!")
+          toast.error("Workout saved, but template creation failed")
+        }
       } else {
         toast.success("Workout saved!")
       }
@@ -139,16 +146,17 @@ export function ActiveWorkout() {
     } finally {
       setIsFinishing(false)
     }
-  }, [finishWorkout, saveAsTemplate, templateName, createTemplateMutation, navigate])
+  }, [finishWorkout, saveAsTemplate, templateName, createTemplateMutation, navigate, timerControls])
 
   const handleCancel = useCallback(async () => {
+    timerControls.reset()
     try {
       await cancelWorkout()
       void navigate({ to: "/workout" })
     } catch {
       toast.error("Failed to cancel workout")
     }
-  }, [cancelWorkout, navigate])
+  }, [cancelWorkout, navigate, timerControls])
 
   const handleToggleExpanded = useCallback((id: string) => {
     setExpandedExerciseId((prev) => (prev === id ? null : id))
