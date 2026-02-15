@@ -3,6 +3,7 @@ import type { Context } from "hono"
 import type { Env } from "../env"
 import { PullRequestSchema, PushRequestSchema } from "../../shared/syncSchemas"
 import { logAudit } from "../lib/db"
+import { isRecord } from "../lib/typeGuards"
 import { runSequentially } from "../../shared/asyncUtils"
 
 type Variables = {
@@ -32,6 +33,14 @@ type AcceptedChange = {
   mutationId: string
 }
 
+type SyncConflict = {
+  collection: string
+  id: string
+  serverVersion: number
+  clientBaseVersion: number
+  reason: string
+}
+
 type SyncContext = Context<{ Bindings: Env; Variables: Variables }>
 
 type ParsedJsonBody =
@@ -46,10 +55,6 @@ type ParsedJsonBody =
 
 const MAX_PUSH_REQUEST_BYTES = 1024 * 1024
 const MAX_PULL_REQUEST_BYTES = 64 * 1024
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
-}
 
 function getNumber(value: unknown): number | null {
   return typeof value === "number" ? value : null
@@ -207,6 +212,53 @@ function hasMutationIdentityMismatch(change: { collection: string; id: string },
   return change.collection !== event.collection || change.id !== event.id
 }
 
+async function handleExistingMutationEvent(
+  db: Env["DB"],
+  args: {
+    userId: string
+    userEmail: string
+    now: number
+    change: { collection: string; id: string; baseVersion: number }
+    event: SyncEventRow
+  }
+): Promise<{ accepted?: AcceptedChange; conflict?: SyncConflict }> {
+  const { userId, userEmail, now, change, event } = args
+
+  if (hasMutationIdentityMismatch(change, event)) {
+    return {
+      conflict: {
+        collection: change.collection,
+        id: change.id,
+        serverVersion: await getSyncStoreRecordVersion(db, userId, change.collection, change.id),
+        clientBaseVersion: change.baseVersion,
+        reason: "MUTATION_ID_REUSE",
+      },
+    }
+  }
+
+  await upsertSyncStoreSnapshotIfNewer(db, {
+    userId,
+    userEmail,
+    collection: event.collection,
+    id: event.id,
+    dataJson: event.data,
+    deleted: event.deleted === 1,
+    version: event.version,
+    updatedAtMs: event.created_at ?? now,
+    mutationId: event.mutation_id,
+    deviceId: event.device_id ?? null,
+  })
+
+  return {
+    accepted: {
+      collection: event.collection,
+      id: event.id,
+      version: event.version,
+      mutationId: event.mutation_id,
+    },
+  }
+}
+
 async function getSyncStoreRecordVersion(
   db: Env["DB"],
   userId: string,
@@ -277,13 +329,7 @@ syncRoutes.post("/push", async (c) => {
 
   let accepted = 0
   const acceptedChanges: AcceptedChange[] = []
-  const conflicts: Array<{
-    collection: string
-    id: string
-    serverVersion: number
-    clientBaseVersion: number
-    reason: string
-  }> = []
+  const conflicts: SyncConflict[] = []
 
   await runSequentially(parsed.data.changes, async (change) => {
     const deleted = change.data === null
@@ -310,37 +356,25 @@ syncRoutes.post("/push", async (c) => {
       .first<SyncEventRow>()
 
     if (existingEvent) {
-      if (hasMutationIdentityMismatch(change, existingEvent)) {
-        conflicts.push({
-          collection: change.collection,
-          id: change.id,
-          serverVersion: await getSyncStoreRecordVersion(c.env.DB, userId, change.collection, change.id),
-          clientBaseVersion: change.baseVersion,
-          reason: "MUTATION_ID_REUSE",
-        })
+      const handled = await handleExistingMutationEvent(c.env.DB, {
+        userId,
+        userEmail,
+        now,
+        change,
+        event: existingEvent,
+      })
+
+      if (handled.conflict) {
+        conflicts.push(handled.conflict)
         return
       }
 
-      await upsertSyncStoreSnapshotIfNewer(c.env.DB, {
-        userId,
-        userEmail,
-        collection: existingEvent.collection,
-        id: existingEvent.id,
-        dataJson: existingEvent.data,
-        deleted: existingEvent.deleted === 1,
-        version: existingEvent.version,
-        updatedAtMs: existingEvent.created_at ?? now,
-        mutationId: existingEvent.mutation_id,
-        deviceId: existingEvent.device_id ?? null,
-      })
+      if (!handled.accepted) {
+        return
+      }
 
       accepted += 1
-      acceptedChanges.push({
-        collection: existingEvent.collection,
-        id: existingEvent.id,
-        version: existingEvent.version,
-        mutationId: existingEvent.mutation_id,
-      })
+      acceptedChanges.push(handled.accepted)
       return
     }
 
@@ -399,37 +433,25 @@ syncRoutes.post("/push", async (c) => {
           throw error
         }
 
-        if (hasMutationIdentityMismatch(change, duplicateEvent)) {
-          conflicts.push({
-            collection: change.collection,
-            id: change.id,
-            serverVersion: await getSyncStoreRecordVersion(c.env.DB, userId, change.collection, change.id),
-            clientBaseVersion: change.baseVersion,
-            reason: "MUTATION_ID_REUSE",
-          })
+        const handled = await handleExistingMutationEvent(c.env.DB, {
+          userId,
+          userEmail,
+          now,
+          change,
+          event: duplicateEvent,
+        })
+
+        if (handled.conflict) {
+          conflicts.push(handled.conflict)
           return
         }
 
-        await upsertSyncStoreSnapshotIfNewer(c.env.DB, {
-          userId,
-          userEmail,
-          collection: duplicateEvent.collection,
-          id: duplicateEvent.id,
-          dataJson: duplicateEvent.data,
-          deleted: duplicateEvent.deleted === 1,
-          version: duplicateEvent.version,
-          updatedAtMs: duplicateEvent.created_at ?? now,
-          mutationId: duplicateEvent.mutation_id,
-          deviceId: duplicateEvent.device_id ?? null,
-        })
+        if (!handled.accepted) {
+          return
+        }
 
         accepted += 1
-        acceptedChanges.push({
-          collection: duplicateEvent.collection,
-          id: duplicateEvent.id,
-          version: duplicateEvent.version,
-          mutationId: duplicateEvent.mutation_id,
-        })
+        acceptedChanges.push(handled.accepted)
         return
       }
 

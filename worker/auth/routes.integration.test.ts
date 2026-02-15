@@ -60,6 +60,13 @@ class FakePrepared {
   async run() {
     const sql = this.sql
 
+    if (sql.includes("DELETE FROM refresh_sessions")) {
+      if (this.db.failCleanupOnDelete) {
+        throw new Error("cleanup failed")
+      }
+      return { success: true }
+    }
+
     if (sql.includes("INSERT INTO refresh_sessions")) {
       const sessionId = readStringArg(this.args, 0)
       const userId = readStringArg(this.args, 1)
@@ -135,6 +142,7 @@ class FakePrepared {
 
 class FakeD1 {
   refreshSessions = new Map<string, RefreshSession>()
+  failCleanupOnDelete = false
 
   prepare(sql: string) {
     return new FakePrepared(this, sql)
@@ -191,6 +199,32 @@ describe("authRoutes integration", () => {
     expect(response.headers.get("cache-control")).toBe("no-store")
     expect(response.headers.get("pragma")).toBe("no-cache")
     expect(db.refreshSessions.size).toBe(1)
+  })
+
+  it("continues login when refresh session cleanup fails", async () => {
+    db.failCleanupOnDelete = true
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    try {
+      const response = await authRoutes.request(
+        "/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: TEST_ORIGIN },
+          body: JSON.stringify({ idToken: "google-token" }),
+        },
+        {
+          DB: db,
+          JWT_SECRET: "secret",
+          GOOGLE_CLIENT_ID: "google-client",
+        }
+      )
+
+      expect(response.status).toBe(200)
+      expect(db.refreshSessions.size).toBe(1)
+      expect(consoleErrorSpy).toHaveBeenCalled()
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
   })
 
   it("rejects state-changing auth requests without trusted origin", async () => {

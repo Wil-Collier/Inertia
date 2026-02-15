@@ -5,6 +5,7 @@
 
 import type { FoodItem, NutritionProvider } from "./types"
 import { normalizeOpenFoodFactsProduct } from "../../shared/openFoodFactsNormalizer"
+import { fetchWithTimeout } from "../lib/fetchUtils"
 import { z } from "zod"
 
 const API_BASE = "https://world.openfoodfacts.org"
@@ -47,26 +48,6 @@ const OpenFoodFactsProductResponseSchema = z.object({
     product: OpenFoodFactsProductSchema.optional(),
 })
 
-async function fetchWithTimeout(
-    url: string,
-    timeoutMs: number = REQUEST_TIMEOUT_MS
-): Promise<Response> {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-
-    try {
-        const response = await fetch(url, { signal: controller.signal })
-        clearTimeout(timeoutId)
-        return response
-    } catch (error) {
-        clearTimeout(timeoutId)
-        if (error instanceof Error && error.name === "AbortError") {
-            throw new Error("Request timed out", { cause: error })
-        }
-        throw error
-    }
-}
-
 export function createOpenFoodFactsProvider(): NutritionProvider {
     return {
         async search(query, page, limit, options) {
@@ -98,7 +79,9 @@ export function createOpenFoodFactsProvider(): NutritionProvider {
             }
 
             const response = await fetchWithTimeout(
-                `${API_BASE}/cgi/search.pl?${params.toString()}`
+                `${API_BASE}/cgi/search.pl?${params.toString()}`,
+                undefined,
+                REQUEST_TIMEOUT_MS
             )
 
             if (!response.ok) {
@@ -124,7 +107,9 @@ export function createOpenFoodFactsProvider(): NutritionProvider {
             if (!code.trim()) return null
 
             const response = await fetchWithTimeout(
-                `${API_BASE}/api/v2/product/${code}.json?fields=code,product_name,brands,nutriments,serving_size,serving_quantity&lc=en&cc=us`
+                `${API_BASE}/api/v2/product/${code}.json?fields=code,product_name,brands,nutriments,serving_size,serving_quantity&lc=en&cc=us`,
+                undefined,
+                REQUEST_TIMEOUT_MS
             )
 
             if (!response.ok) {

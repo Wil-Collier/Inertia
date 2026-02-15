@@ -38,7 +38,7 @@ describe("nutrition routes integration", () => {
   it("returns 400 when search query is missing", async () => {
     const response = await nutrition.request("/search", {}, createEnv())
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: "Invalid search parameters" })
+    expect(await response.json()).toEqual({ error: "INVALID_REQUEST", message: "Invalid search parameters" })
     expect(searchMock).not.toHaveBeenCalled()
   })
 
@@ -86,13 +86,13 @@ describe("nutrition routes integration", () => {
     const body = await response.json()
 
     expect(response.status).toBe(500)
-    expect(body).toEqual({ error: "Nutrition search failed" })
+    expect(body).toEqual({ error: "SERVER_ERROR", message: "Nutrition search failed" })
   })
 
   it("returns 400 when barcode code is missing", async () => {
     const response = await nutrition.request("/barcode", {}, createEnv())
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: "Invalid barcode format" })
+    expect(await response.json()).toEqual({ error: "INVALID_REQUEST", message: "Invalid barcode format" })
     expect(lookupBarcodeMock).not.toHaveBeenCalled()
   })
 
@@ -101,7 +101,7 @@ describe("nutrition routes integration", () => {
 
     const response = await nutrition.request("/barcode?code=12345678", {}, createEnv())
     expect(response.status).toBe(404)
-    expect(await response.json()).toEqual({ error: "Product not found" })
+    expect(await response.json()).toEqual({ error: "NOT_FOUND", message: "Product not found" })
   })
 
   it("returns 500 when barcode lookup throws", async () => {
@@ -109,6 +109,6 @@ describe("nutrition routes integration", () => {
 
     const response = await nutrition.request("/barcode?code=12345678", {}, createEnv())
     expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({ error: "Barcode lookup failed" })
+    expect(await response.json()).toEqual({ error: "SERVER_ERROR", message: "Barcode lookup failed" })
   })
 })

@@ -268,7 +268,7 @@ describe("Security Controls", () => {
 
             expect(response.status).toBe(400)
             const body = await response.json()
-            expect(body).toMatchObject({ error: "Invalid search parameters" })
+            expect(body).toMatchObject({ error: "INVALID_REQUEST", message: "Invalid search parameters" })
         })
 
         it("returns 401 for expired JWT token", async () => {

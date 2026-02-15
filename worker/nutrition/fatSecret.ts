@@ -5,6 +5,7 @@
 
 import type { Env } from "../env"
 import type { FoodItem, NutritionProvider } from "./types"
+import { fetchWithTimeout } from "../lib/fetchUtils"
 import { z } from "zod"
 
 const TOKEN_URL = "https://oauth.fatsecret.com/connect/token"
@@ -43,30 +44,6 @@ interface FatSecretFood {
     food_type?: string
     servings?: {
         serving: FatSecretServing | FatSecretServing[]
-    }
-}
-
-async function fetchWithTimeout(
-    url: string,
-    options?: RequestInit,
-    timeoutMs: number = REQUEST_TIMEOUT_MS
-): Promise<Response> {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-
-    try {
-        const response = await fetch(url, {
-            ...options,
-            signal: controller.signal,
-        })
-        clearTimeout(timeoutId)
-        return response
-    } catch (error) {
-        clearTimeout(timeoutId)
-        if (error instanceof Error && error.name === "AbortError") {
-            throw new Error("Request timed out", { cause: error })
-        }
-        throw error
     }
 }
 
@@ -156,7 +133,7 @@ async function getAccessToken(env: Env): Promise<string> {
                     Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
                 },
                 body: "grant_type=client_credentials",
-            })
+            }, REQUEST_TIMEOUT_MS)
 
             if (!response.ok) {
                 const text = await response.text()
@@ -265,7 +242,8 @@ export function createFatSecretProvider(env: Env): NutritionProvider {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
-                }
+                },
+                REQUEST_TIMEOUT_MS
             )
 
             if (!response.ok) {
@@ -310,7 +288,8 @@ export function createFatSecretProvider(env: Env): NutritionProvider {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
-                }
+                },
+                REQUEST_TIMEOUT_MS
             )
 
             if (!barcodeResponse.ok) {
@@ -344,7 +323,8 @@ export function createFatSecretProvider(env: Env): NutritionProvider {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
-                }
+                },
+                REQUEST_TIMEOUT_MS
             )
 
             if (!foodResponse.ok) {

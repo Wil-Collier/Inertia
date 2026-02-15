@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { sign } from "hono/jwt"
 import app from "./index"
+import { isRecord } from "./lib/typeGuards"
 
 function createEnv() {
   return {
@@ -12,10 +13,6 @@ function createEnv() {
     JWT_SECRET: "test-secret",
     GOOGLE_CLIENT_ID: "google-client-id",
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
 }
 
 async function readJson(response: Response): Promise<Record<string, unknown>> {
@@ -67,7 +64,8 @@ describe("worker app integration", () => {
     const body = await readJson(response)
 
     expect(response.status).toBe(400)
-    expect(body.error).toBe("Invalid search parameters")
+    expect(body.error).toBe("INVALID_REQUEST")
+    expect(body.message).toBe("Invalid search parameters")
   })
 
   it("accepts valid auth and validates pull payload", async () => {

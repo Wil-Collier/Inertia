@@ -51,7 +51,7 @@ const BarcodeQuerySchema = z.object({
 nutrition.get("/search", async (c) => {
   const parsed = SearchQuerySchema.safeParse(c.req.query())
   if (!parsed.success) {
-    return c.json({ error: "Invalid search parameters" }, 400)
+    return c.json({ error: "INVALID_REQUEST", message: "Invalid search parameters" }, 400)
   }
 
   const { q, page, limit, region, language } = parsed.data
@@ -71,7 +71,7 @@ nutrition.get("/search", async (c) => {
   } catch (error) {
     console.error("Nutrition search error:", error)
 
-    return c.json({ error: "Nutrition search failed" }, 500)
+    return c.json({ error: "SERVER_ERROR", message: "Nutrition search failed" }, 500)
   }
 })
 
@@ -84,7 +84,7 @@ nutrition.get("/search", async (c) => {
 nutrition.get("/barcode", async (c) => {
   const parsed = BarcodeQuerySchema.safeParse(c.req.query())
   if (!parsed.success) {
-    return c.json({ error: "Invalid barcode format" }, 400)
+    return c.json({ error: "INVALID_REQUEST", message: "Invalid barcode format" }, 400)
   }
 
   const code = parsed.data.code
@@ -94,7 +94,7 @@ nutrition.get("/barcode", async (c) => {
     const item = await provider.lookupBarcode(code)
 
     if (!item) {
-      return c.json({ error: "Product not found" }, 404)
+      return c.json({ error: "NOT_FOUND", message: "Product not found" }, 404)
     }
 
     const response: BarcodeResponse = {
@@ -106,7 +106,7 @@ nutrition.get("/barcode", async (c) => {
   } catch (error) {
     console.error("Barcode lookup error:", error)
 
-    return c.json({ error: "Barcode lookup failed" }, 500)
+    return c.json({ error: "SERVER_ERROR", message: "Barcode lookup failed" }, 500)
   }
 })
 

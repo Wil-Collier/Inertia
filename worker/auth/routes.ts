@@ -45,6 +45,8 @@ authRoutes.post("/login", async (c) => {
       return c.json({ error: "INVALID_TOKEN", message: "Invalid login payload" }, 400)
     }
 
+    await cleanupExpiredRefreshSessionsBestEffort(c.env.DB)
+
     const { idToken } = parsed.data
     const verified = await verifyGoogleIdToken(idToken, c.env.GOOGLE_CLIENT_ID)
 
@@ -107,6 +109,7 @@ authRoutes.post("/login", async (c) => {
 
 authRoutes.post("/refresh", async (c) => {
   const now = Date.now()
+  await cleanupExpiredRefreshSessionsBestEffort(c.env.DB)
   const refreshToken = getCookie(c, REFRESH_COOKIE_NAME)
   const sessionId = getSessionIdFromToken(refreshToken)
   if (!refreshToken || !sessionId) {
@@ -186,6 +189,8 @@ authRoutes.post("/refresh", async (c) => {
 })
 
 authRoutes.post("/logout", async (c) => {
+  await cleanupExpiredRefreshSessionsBestEffort(c.env.DB)
+
   const refreshToken = getCookie(c, REFRESH_COOKIE_NAME)
   const sessionId = getSessionIdFromToken(refreshToken)
   const now = Date.now()
@@ -312,5 +317,21 @@ function isLocalhostOrigin(origin: string): boolean {
     return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1"
   } catch {
     return false
+  }
+}
+
+async function cleanupExpiredRefreshSessions(db: Env["DB"]): Promise<void> {
+  const now = Date.now()
+  await db
+    .prepare("DELETE FROM refresh_sessions WHERE expires_at <= ? OR revoked_at IS NOT NULL")
+    .bind(now)
+    .run()
+}
+
+async function cleanupExpiredRefreshSessionsBestEffort(db: Env["DB"]): Promise<void> {
+  try {
+    await cleanupExpiredRefreshSessions(db)
+  } catch (error) {
+    console.error("Failed to cleanup expired refresh sessions", error)
   }
 }

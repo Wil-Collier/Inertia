@@ -1,3 +1,5 @@
+import { isRecord } from "../lib/typeGuards"
+
 export interface VerifiedGoogleToken {
   sub: string
   email: string
@@ -206,8 +208,4 @@ async function importGoogleJwk(jwk: GoogleJwk): Promise<CryptoKey> {
   } catch {
     throw new Error("INVALID_TOKEN")
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
 }
