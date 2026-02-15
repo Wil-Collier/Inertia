@@ -94,7 +94,7 @@ describe("nutrition hooks integration", () => {
     })
     await db.nutritionLogs.put({
       date: "2026-02-08",
-      entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "dinner" }],
+      entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "dinner", updatedAt: 1 }],
     })
 
     const queryClient = createTestQueryClient()
@@ -105,7 +105,9 @@ describe("nutrition hooks integration", () => {
       await result.current.mutateAsync({ date: "2026-02-08", entryId: "entry-1" })
     })
 
-    expect(await db.nutritionLogs.get("2026-02-08")).toBeUndefined()
+    const updatedLog = await db.nutritionLogs.get("2026-02-08")
+    expect(updatedLog?.entries).toHaveLength(1)
+    expect(updatedLog?.entries[0]?.deletedAt).toBeTypeOf("number")
     expect((await db.foods.get("food-1"))?.usageCount).toBe(0)
   })
 
@@ -169,7 +171,7 @@ describe("nutrition hooks integration", () => {
 
     await db.nutritionLogs.put({
       date: "2026-02-08",
-      entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "dinner" }],
+      entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "dinner", updatedAt: 1 }],
     })
 
     const queryClient = createTestQueryClient()
@@ -188,6 +190,8 @@ describe("nutrition hooks integration", () => {
     expect(log?.entries[0]?.foodId).toBe("food-2")
     expect((await db.foods.get("food-1"))?.usageCount).toBe(0)
     expect((await db.foods.get("food-2"))?.usageCount).toBe(1)
+    expect(updateStreaksSpy).toHaveBeenCalled()
+    expect(checkNutritionAchievementsSpy).toHaveBeenCalled()
   })
 
   it("rejects meal entry updates that reference a missing food", async () => {
@@ -206,7 +210,7 @@ describe("nutrition hooks integration", () => {
     })
     await db.nutritionLogs.put({
       date: "2026-02-08",
-      entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "dinner" }],
+      entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "dinner", updatedAt: 1 }],
     })
 
     const queryClient = createTestQueryClient()
@@ -384,9 +388,9 @@ describe("nutrition hooks integration", () => {
     await db.nutritionLogs.put({
       date: "2026-02-09",
       entries: [
-        { id: "a", foodId: "food-1", quantity: 1, mealType: "lunch", templateInstanceId: "group-1" },
-        { id: "b", foodId: "food-1", quantity: 1, mealType: "lunch", templateInstanceId: "group-1" },
-        { id: "c", foodId: "food-1", quantity: 1, mealType: "dinner", templateInstanceId: "group-2" },
+        { id: "a", foodId: "food-1", quantity: 1, mealType: "lunch", templateInstanceId: "group-1", updatedAt: 1 },
+        { id: "b", foodId: "food-1", quantity: 1, mealType: "lunch", templateInstanceId: "group-1", updatedAt: 1 },
+        { id: "c", foodId: "food-1", quantity: 1, mealType: "dinner", templateInstanceId: "group-2", updatedAt: 1 },
       ],
     })
 
@@ -399,7 +403,7 @@ describe("nutrition hooks integration", () => {
     })
 
     const log = await db.nutritionLogs.get("2026-02-09")
-    expect(log?.entries.map((entry) => entry.id)).toEqual(["c"])
+    expect(log?.entries.filter((entry) => !entry.deletedAt).map((entry) => entry.id)).toEqual(["c"])
     expect((await db.foods.get("food-1"))?.usageCount).toBe(1)
   })
 
@@ -418,7 +422,7 @@ describe("nutrition hooks integration", () => {
     })
     await db.nutritionLogs.put({
       date: "2026-02-10",
-      entries: [{ id: "legacy-entry", foodId: "food-legacy", quantity: 1, mealType: "dinner" }],
+      entries: [{ id: "legacy-entry", foodId: "food-legacy", quantity: 1, mealType: "dinner", updatedAt: 1 }],
     })
 
     const queryClient = createTestQueryClient()
@@ -523,7 +527,7 @@ describe("nutrition hooks integration", () => {
     })
     await db.nutritionLogs.put({
       date: "2026-02-11",
-      entries: [{ id: "entry-rollback", foodId: "food-rollback", quantity: 1, mealType: "dinner" }],
+      entries: [{ id: "entry-rollback", foodId: "food-rollback", quantity: 1, mealType: "dinner", updatedAt: 1 }],
     })
 
     const queryClient = createTestQueryClient()
@@ -531,7 +535,7 @@ describe("nutrition hooks integration", () => {
     const previous = {
       log: {
         date: "2026-02-11",
-        entries: [{ id: "entry-rollback", foodId: "food-rollback", quantity: 1, mealType: "dinner" as const }],
+        entries: [{ id: "entry-rollback", foodId: "food-rollback", quantity: 1, mealType: "dinner" as const, updatedAt: 1 }],
       },
       totals: {
         calories: 100,
@@ -547,6 +551,7 @@ describe("nutrition hooks integration", () => {
           foodId: "food-rollback",
           quantity: 1,
           mealType: "dinner" as const,
+          updatedAt: 1,
           food: {
             id: "food-rollback",
             name: "Rollback Food",

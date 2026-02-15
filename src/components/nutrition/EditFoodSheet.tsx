@@ -10,13 +10,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import type { FoodItem, MealEntry } from "@/lib/types"
+import type { FoodItem, NutritionMealEntry } from "@/lib/types"
 
 interface EditFoodSheetProps {
   isOpen: boolean
   onClose: () => void
   onSave: (quantity: number) => Promise<void>
-  entry: MealEntry | null
+  entry: NutritionMealEntry | null
   food: FoodItem | null
 }
 

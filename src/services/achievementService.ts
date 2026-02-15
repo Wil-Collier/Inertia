@@ -6,8 +6,9 @@ import { achievements } from "@/data/achievements"
 import { toast } from "sonner"
 import { statsService } from "@/services/statsService"
 import { orderedUniqueStringKeys } from "@/lib/indexedDbUtils"
+import { getActiveEntries } from "@/lib/nutritionEntryUtils"
 
-const defaultStreaks: StreakData = {
+export const DEFAULT_STREAKS: StreakData = {
   currentWorkoutStreak: 0,
   longestWorkoutStreak: 0,
   lastWorkoutDate: null,
@@ -62,7 +63,7 @@ export const achievementService = {
       await db.achievements.put({
         id: "achievements",
         unlockedAchievements: [],
-        streaks: defaultStreaks
+        streaks: DEFAULT_STREAKS
       })
     }
   },
@@ -139,7 +140,7 @@ export const achievementService = {
     })
 
     const data = await db.achievements.get("achievements")
-    const streaks = data?.streaks || defaultStreaks
+    const streaks = data?.streaks || DEFAULT_STREAKS
 
     // Batch all achievement checks into a single transaction
     await this.tryUnlockBatch([
@@ -184,15 +185,25 @@ export const achievementService = {
   async checkNutritionAchievements() {
     await this.ensureInitialized()
     const dailyLogs = await db.nutritionLogs.toArray()
-    const daysLogged = dailyLogs.filter((day) => day.entries.length > 0).length
+    const daysLogged = dailyLogs.filter((day) => getActiveEntries(day.entries).length > 0).length
     const data = await db.achievements.get("achievements")
-    const streaks = data?.streaks || defaultStreaks
+    const streaks = data?.streaks || DEFAULT_STREAKS
 
     // Days logged achievements
     await this.tryUnlock("macro-tracker", daysLogged >= 7)
 
     // Nutrition streak
     await this.tryUnlock("nutrition-streak", streaks.currentNutritionStreak >= 30)
+  },
+
+  async runNutritionSideEffects() {
+    await this.updateStreaks()
+    await this.checkNutritionAchievements()
+  },
+
+  async runWorkoutSideEffects(defaultExerciseMap: Map<string, { muscleGroup: MuscleGroup }>) {
+    await this.updateStreaks()
+    await this.checkWorkoutAchievements(defaultExerciseMap)
   },
 
   /**
@@ -212,7 +223,9 @@ export const achievementService = {
       // IndexedDB/Dexie doesn't support field projection, so we must load records,
       // but this is still efficient since nutrition logs are one-per-day.
       const logs = await db.nutritionLogs.orderBy("date").toArray()
-      const nutritionDates = logs.filter((day) => day.entries.length > 0).map((day) => day.date)
+      const nutritionDates = logs
+        .filter((day) => getActiveEntries(day.entries).length > 0)
+        .map((day) => day.date)
 
       await this.recalculateStreaks(workoutDates, nutritionDates)
     }
@@ -234,7 +247,7 @@ export const achievementService = {
   async recalculateStreaks(workoutDates: string[], nutritionDates: string[]) {
     const run = async () => {
       const data = await db.achievements.get("achievements")
-      const currentStreaks = data?.streaks || defaultStreaks
+      const currentStreaks = data?.streaks || DEFAULT_STREAKS
       const unlockedAchievements = data?.unlockedAchievements || []
 
       /**
@@ -311,6 +324,41 @@ export const achievementService = {
     await db.transaction("rw", db.achievements, run)
   },
 
+  async unlockAchievement(id: string, options?: { showToast?: boolean }) {
+    const shouldShowToast = options?.showToast ?? true
+
+    return await db.transaction("rw", db.achievements, async () => {
+      const currentData = await db.achievements.get("achievements")
+      const unlocked = currentData?.unlockedAchievements || []
+
+      const existing = unlocked.find((a) => a.id === id)
+      if (existing) return null
+
+      const achievement = achievements.find((a) => a.id === id)
+      if (!achievement) return null
+
+      const newAchievement: UnlockedAchievement = {
+        id,
+        unlockedAt: new Date().toISOString(),
+      }
+
+      await db.achievements.put({
+        id: "achievements",
+        unlockedAchievements: [...unlocked, newAchievement],
+        streaks: currentData?.streaks || DEFAULT_STREAKS,
+      })
+
+      if (shouldShowToast) {
+        toast.success(`Achievement Unlocked: ${achievement.name}`, {
+          description: achievement.description,
+          duration: 5000,
+        })
+      }
+
+      return { achievement, isNew: true as const }
+    })
+  },
+
   /**
    * Incrementally updates workout streak for a new workout.
    * @param workoutDate - Date of the new workout (yyyy-MM-dd)
@@ -339,36 +387,7 @@ export const achievementService = {
   async tryUnlock(id: string, condition: boolean) {
     if (!condition) return
 
-    // Use transaction to avoid race conditions with other unlocks or streak updates
-    await db.transaction("rw", db.achievements, async () => {
-      const currentData = await db.achievements.get("achievements")
-      const unlocked = currentData?.unlockedAchievements || []
-
-      const existing = unlocked.find((a) => a.id === id)
-      if (existing) return
-
-      const achievement = achievements.find((a) => a.id === id)
-      if (!achievement) return
-
-      const newAchievement: UnlockedAchievement = {
-        id,
-        unlockedAt: new Date().toISOString(),
-      }
-
-      const newUnlocked = [...unlocked, newAchievement]
-
-      await db.achievements.put({
-        id: "achievements",
-        unlockedAchievements: newUnlocked,
-        streaks: currentData?.streaks || defaultStreaks,
-      })
-
-      // Show toast notification
-      toast.success(`Achievement Unlocked: ${achievement.name}`, {
-        description: achievement.description,
-        duration: 5000,
-      })
-    })
+    await this.unlockAchievement(id, { showToast: true })
   },
 
   /**
@@ -405,7 +424,7 @@ export const achievementService = {
       await db.achievements.put({
         id: "achievements",
         unlockedAchievements: [...unlocked, ...newlyUnlocked],
-        streaks: currentData?.streaks || defaultStreaks,
+        streaks: currentData?.streaks || DEFAULT_STREAKS,
       })
 
       // Show toast notifications for each new achievement

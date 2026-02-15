@@ -1,7 +1,7 @@
 import type { Transaction } from "dexie"
 import { db, type SyncPendingChangeRecord, type SyncRecordVersionRecord } from "@/services/db"
 import { useSyncStore } from "@/features/sync/store"
-import type { PendingChange, PendingChangeKey } from "@/features/sync/types"
+import type { PendingChange } from "@/features/sync/types"
 import { SYNC_COLLECTIONS, type SyncCollection, type SyncCursor } from "@/features/sync/schemas"
 import { isRecord } from "@/features/sync/typeGuards"
 
@@ -130,16 +130,6 @@ export async function enqueuePendingChangeInTransaction(change: PendingChange, t
   })
 }
 
-export async function removePendingChanges(keys: PendingChangeKey[]): Promise<void> {
-  if (keys.length === 0) return
-  await db.transaction("rw", db.syncPendingChanges, async () => {
-    await Promise.all(
-      keys.map((key) => db.syncPendingChanges.delete([key.collection, key.id]))
-    )
-  })
-  queuePendingCountRefresh()
-}
-
 export async function acknowledgeProcessedPendingChanges(
   entries: Array<{ collection: SyncCollection; id: string; mutationId: string }>
 ): Promise<void> {
@@ -156,11 +146,6 @@ export async function acknowledgeProcessedPendingChanges(
     )
   })
 
-  queuePendingCountRefresh()
-}
-
-export async function clearPendingChanges(): Promise<void> {
-  await db.syncPendingChanges.clear()
   queuePendingCountRefresh()
 }
 
@@ -245,15 +230,6 @@ export async function rebasePendingChangesFromAccepted(
       })
     )
   })
-}
-
-export async function removeRecordVersion(collection: SyncCollection, id: string, transaction?: Transaction): Promise<void> {
-  const table = getVersionTable(transaction)
-  await table.delete([collection, id])
-}
-
-export async function clearRecordVersions(): Promise<void> {
-  await db.syncRecordVersions.clear()
 }
 
 export async function clearSyncMetadata(): Promise<void> {

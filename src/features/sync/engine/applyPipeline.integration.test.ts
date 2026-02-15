@@ -45,8 +45,8 @@ describe("applyPulledChanges integration", () => {
         data: {
           date: "2026-02-07",
           entries: [
-            { id: "m1", foodId: "food-1", quantity: 1, mealType: "breakfast" },
-            { id: "m2", foodId: "food-1", quantity: 2, mealType: "dinner" },
+            { id: "m1", foodId: "food-1", quantity: 1, mealType: "breakfast", updatedAt: 1 },
+            { id: "m2", foodId: "food-1", quantity: 2, mealType: "dinner", updatedAt: 1 },
           ],
         },
         version: 4,
@@ -125,7 +125,7 @@ describe("applyPulledChanges integration", () => {
         id: "2026-02-10",
         data: {
           date: "2026-02-10",
-          entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "lunch" }],
+          entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "lunch", updatedAt: 1 }],
         },
         version: 5,
         deleted: false,

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { Plus, Save, Pencil } from "lucide-react"
 import { Header } from "@/components/layout/Header"
@@ -22,13 +22,18 @@ import {
   useDeleteFood,
 } from "@/features/nutrition/mutations"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
-import type { FoodItem, MealEntry } from "@/lib/types"
+import type { FoodItem, MealTemplateEntry } from "@/lib/types"
 import { db } from "@/services/db"
+import { getProductByBarcode } from "@/services/nutritionApi"
 import { toast } from "sonner"
 import { Route } from "@/routes/nutrition/template-editor"
 
+const BarcodeScanner = lazy(() =>
+  import("@/components/BarcodeScanner").then((m) => ({ default: m.BarcodeScanner }))
+)
+
 export function TemplateEditorPage() {
-  type TemplateEditorEntry = Omit<MealEntry, "id"> & { localId: string }
+  type TemplateEditorEntry = MealTemplateEntry & { localId: string }
 
   const navigate = useNavigate()
   const { templateId } = useSearch({ from: Route.fullPath })
@@ -47,6 +52,8 @@ export function TemplateEditorPage() {
   const [showAddSheet, setShowAddSheet] = useState(false)
   const [activeTab, setActiveTab] = useState("search")
   const [searchQuery, setSearchQuery] = useState("")
+  const [showScanner, setShowScanner] = useState(false)
+  const [isLookingUp, setIsLookingUp] = useState(false)
   const [scannedBarcode, setScannedBarcode] = useState<string | null>(null)
   const [barcodeResults, setBarcodeResults] = useState<FoodItem[]>([])
 
@@ -158,35 +165,34 @@ export function TemplateEditorPage() {
     })
   }
 
-  const handleScanBarcode = async () => {
-    // Mock scanner for now or reuse scanner component logic if available
-    // For now simple alert or reuse the logic from NutritionPage
-    // Since BarcodeScanner is lazy loaded there, we might need to duplicate the lazy load logic here
-    // For MVP/Proto, let's assume manual entry or mock
-    toast.info("Barcode scanner not connected in this view yet")
+  const handleScanBarcode = () => {
+    setShowScanner(true)
   }
 
-  // Calculate totals for preview
-  // Note: We need the full food objects for this. We can get them from the cache or existing lists
-  // But strictly speaking, `entries` only has `foodId`.
-  // We need to resolve `foodId` to `FoodItem` to show the list properly.
-  // We can use `useFoods` hook if it exists, or derive from existing queries.
-  // Let's assume we can map them if they are in favorites/custom/search results.
-  // Actually, `useDailyNutrition` does this resolution on the backend (DB).
-  // Here we might need `useFoodsByIds` or similar.
-  // For now, let's just use `favorites` + `customFoods` + `searchResults` to try to find them,
-  // or fetch all foods? `useFoods()` (all) might be heavy but reliable for local DB.
-  
-  // Let's assume we have a hook or just fetch them.
-  // In `NutritionPage` we rely on `useDailyNutrition` to return `entriesWithFood`.
-  // Here we are editing. We need the food details.
-  // `useMealTemplates` returns `entries` with `foodId`.
-  // Wait, `MealEntry` has `foodId`.
-  // We need to fetch the food details for these IDs.
-  
-  // Let's implement a quick fetch for these foods.
-  // We can use `useQueries` or just `db.foods.bulkGet(ids)`.
-  // Since we are in a component, let's use a specialized hook or effect.
+  const handleBarcodeScan = useCallback(async (barcode: string) => {
+    setShowScanner(false)
+    setIsLookingUp(true)
+
+    try {
+      const food = await getProductByBarcode(barcode)
+
+      if (food) {
+        setBarcodeResults([food])
+        setSearchQuery("")
+        setActiveTab("search")
+        toast.success(`Found: ${food.name}`)
+      } else {
+        setScannedBarcode(barcode)
+        setActiveTab("myfoods")
+        toast.info("Product not found. Create a custom entry.")
+      }
+    } catch (error) {
+      console.error("Barcode lookup error:", error)
+      toast.error("Failed to look up product")
+    } finally {
+      setIsLookingUp(false)
+    }
+  }, [])
   
   const [resolvedFoods, setResolvedFoods] = useState<Map<string, FoodItem>>(new Map())
   
@@ -305,11 +311,11 @@ export function TemplateEditorPage() {
               if (q) setBarcodeResults([])
             }}
             isSearching={isSearching}
-            isLookingUp={false}
+            isLookingUp={isLookingUp}
             searchResults={displayedResults}
             remoteStatus={remoteStatus}
             remoteError={remoteError}
-            onScanBarcode={() => void handleScanBarcode()}
+            onScanBarcode={handleScanBarcode}
             onAddFood={(food, qty) => void handleAddFoodToTemplate(food, qty)}
             onToggleFavorite={(id) => {
               void (async () => {
@@ -336,6 +342,18 @@ export function TemplateEditorPage() {
           />
         </SheetContent>
       </Sheet>
+
+      {showScanner && (
+        <Suspense fallback={null}>
+          <BarcodeScanner
+            isOpen={showScanner}
+            onClose={() => setShowScanner(false)}
+            onScan={(barcode) => {
+              void handleBarcodeScan(barcode)
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

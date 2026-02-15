@@ -13,7 +13,6 @@ interface AuthState {
   expiresAtMs: number | null
   isAuthenticated: boolean
   setAuth: (payload: { accessToken: string; userId: string; email: string; expiresAtMs: number }) => void
-  setAccessToken: (payload: { accessToken: string; userId: string; email: string; expiresAtMs: number }) => void
   clearAuth: () => void
 }
 
@@ -24,14 +23,6 @@ export const useAuthStore = create<AuthState>()((set) => ({
   expiresAtMs: null,
   isAuthenticated: false,
   setAuth: ({ accessToken, userId, email, expiresAtMs }) =>
-    set({
-      accessToken,
-      userId,
-      email,
-      expiresAtMs,
-      isAuthenticated: true,
-    }),
-  setAccessToken: ({ accessToken, userId, email, expiresAtMs }) =>
     set({
       accessToken,
       userId,

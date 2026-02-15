@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button"
 import { MealEntryItem } from "./MealEntryItem"
 import { MealTemplateGroup } from "./MealTemplateGroup"
 import { EditFoodSheet } from "./EditFoodSheet"
-import type { MealType, FoodItem, MealEntry } from "@/lib/types"
+import type { FoodItem, MealType, NutritionMealEntry } from "@/lib/types"
 
 interface MealLoggerProps {
   mealTypes: { type: MealType; label: string; icon: LucideIcon }[]
-  getEntriesByMealType: (type: MealType) => Array<MealEntry & {
+  getEntriesByMealType: (type: MealType) => Array<NutritionMealEntry & {
     food?: FoodItem
   }>
   openAddSheet: (mealType: MealType) => void
@@ -26,10 +26,10 @@ export function MealLogger({
   onRemoveEntry,
   onRemoveGroup,
 }: MealLoggerProps) {
-  const [editingEntry, setEditingEntry] = useState<MealEntry | null>(null)
+  const [editingEntry, setEditingEntry] = useState<NutritionMealEntry | null>(null)
   const [editingFood, setEditingFood] = useState<FoodItem | null>(null)
 
-  const handleEditEntry = (entry: MealEntry, food: FoodItem) => {
+  const handleEditEntry = (entry: NutritionMealEntry, food: FoodItem) => {
     setEditingEntry(entry)
     setEditingFood(food)
   }

@@ -12,18 +12,6 @@ export const TABLE_TO_COLLECTION = {
   customExercises: "exercises",
 } as const
 
-export const COLLECTION_TO_TABLE = {
-  workouts: "workoutSessions",
-  activeSession: "activeSession",
-  templates: "workoutTemplates",
-  foods: "foods",
-  nutrition: "nutritionLogs",
-  mealTemplates: "mealTemplates",
-  weight: "bodyWeight",
-  settings: "settings",
-  exercises: "customExercises",
-} as const
-
 export type SyncableTableName = keyof typeof TABLE_TO_COLLECTION
 
 export interface PendingChange {
@@ -33,11 +21,6 @@ export interface PendingChange {
   baseVersion: number
   mutationId: string
   enqueuedAt: number
-}
-
-export interface PendingChangeKey {
-  collection: SyncCollection
-  id: string
 }
 
 export type SyncStatus = "idle" | "syncing" | "success" | "error" | "offline"

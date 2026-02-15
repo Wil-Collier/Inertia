@@ -1,4 +1,11 @@
-import type { DailyNutrition, FoodItem, MealEntry, MealTemplate, MealType } from "@/lib/types"
+import type {
+  DailyNutrition,
+  FoodItem,
+  MealTemplate,
+  MealTemplateEntry,
+  MealType,
+  NutritionMealEntry,
+} from "@/lib/types"
 
 let nutritionCounter = 0
 
@@ -42,15 +49,26 @@ export function createCustomFood(overrides: Partial<FoodItem> = {}): FoodItem {
   })
 }
 
-export function createMealEntry(overrides: Partial<MealEntry> = {}): MealEntry {
+export function createMealEntry(overrides: Partial<NutritionMealEntry> = {}): NutritionMealEntry {
   return {
     id: overrides.id ?? nextNutritionId("entry"),
     foodId: overrides.foodId ?? nextNutritionId("food-ref"),
     quantity: overrides.quantity ?? 1,
     mealType: overrides.mealType ?? "breakfast",
+    updatedAt: overrides.updatedAt ?? Date.now(),
+    deletedAt: overrides.deletedAt,
     templateId: overrides.templateId,
     templateInstanceId: overrides.templateInstanceId,
     templateName: overrides.templateName,
+  }
+}
+
+export function createMealTemplateEntry(overrides: Partial<MealTemplateEntry> = {}): MealTemplateEntry {
+  return {
+    foodId: overrides.foodId ?? nextNutritionId("food-ref"),
+    quantity: overrides.quantity ?? 1,
+    mealType: overrides.mealType ?? "breakfast",
+    templateId: overrides.templateId,
   }
 }
 
@@ -70,13 +88,7 @@ export function createMealTemplate(
   return {
     id: overrides.id ?? nextNutritionId("meal-template"),
     name: overrides.name ?? "Default Meal",
-    entries: overrides.entries ?? [
-      {
-        foodId: nextNutritionId("food-ref"),
-        quantity: 1,
-        mealType,
-      },
-    ],
+    entries: overrides.entries ?? [createMealTemplateEntry({ mealType })],
     updatedAt: overrides.updatedAt,
   }
 }

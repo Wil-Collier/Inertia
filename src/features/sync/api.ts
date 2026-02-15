@@ -94,7 +94,7 @@ export async function refreshAccessToken(): Promise<RefreshResponse> {
         (data) => RefreshResponseSchema.parse(data)
       )
 
-      useAuthStore.getState().setAccessToken({
+      useAuthStore.getState().setAuth({
         accessToken: refreshed.accessToken,
         userId: refreshed.userId,
         email: refreshed.email,

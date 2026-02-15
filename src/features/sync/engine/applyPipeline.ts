@@ -16,20 +16,10 @@ import { withSyncHooksSuppressed } from "@/features/sync/dexieHooks"
 import { rebuildLocalOnlyFields } from "@/features/sync/localRebuild"
 import { recalculateDerivedData } from "@/features/sync/derivedData"
 import { invalidateQueriesForCollections } from "@/features/sync/queryInvalidation"
+import type { LocalRecord } from "@/features/sync/localRecordAccess"
 import { clearLocalDataOwnerUserId, setRecordVersion } from "@/features/sync/changeTracker"
 import { runSequentially } from "../../../../shared/asyncUtils"
 import { z } from "zod"
-
-type LocalRecord =
-  | Workout
-  | ActiveWorkoutSession
-  | WorkoutTemplate
-  | FoodItem
-  | DailyNutrition
-  | MealTemplate
-  | WeightEntry
-  | UserSettings
-  | Exercise
 
 const SETTINGS_SINGLETON_ID = "settings"
 const WeightUnitSchema = z.enum(["kg", "lbs"])
@@ -99,9 +89,17 @@ const MealEntrySchema = z.object({
   foodId: z.string(),
   quantity: z.number(),
   mealType: z.enum(["breakfast", "lunch", "dinner", "snack"]),
+  updatedAt: z.number(),
+  deletedAt: z.number().optional(),
   templateId: z.string().optional(),
   templateInstanceId: z.string().optional(),
   templateName: z.string().optional(),
+})
+const MealTemplateEntrySchema = z.object({
+  foodId: z.string(),
+  quantity: z.number(),
+  mealType: z.enum(["breakfast", "lunch", "dinner", "snack"]),
+  templateId: z.string().optional(),
 })
 const DailyNutritionSchema = z.object({
   date: z.string(),
@@ -111,7 +109,7 @@ const DailyNutritionSchema = z.object({
 const MealTemplateSchema = z.object({
   id: z.string(),
   name: z.string(),
-  entries: z.array(MealEntrySchema.omit({ id: true })),
+  entries: z.array(MealTemplateEntrySchema),
   updatedAt: z.number().optional(),
 })
 const WeightEntrySchema = z.object({
@@ -254,31 +252,6 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
   invalidateQueriesForCollections(affectedCollections)
 
   return affectedCollections
-}
-
-export async function getLocalRecord(collection: SyncCollection, id: string): Promise<LocalRecord | null> {
-  switch (collection) {
-    case "workouts":
-      return (await db.workoutSessions.get(id)) ?? null
-    case "activeSession":
-      return (await db.activeSession.get(id)) ?? null
-    case "templates":
-      return (await db.workoutTemplates.get(id)) ?? null
-    case "foods":
-      return (await db.foods.get(id)) ?? null
-    case "nutrition":
-      return (await db.nutritionLogs.get(id)) ?? null
-    case "mealTemplates":
-      return (await db.mealTemplates.get(id)) ?? null
-    case "weight":
-      return (await db.bodyWeight.get(id)) ?? null
-    case "settings":
-      return (await db.settings.get("settings")) ?? null
-    case "exercises":
-      return (await db.customExercises.get(id)) ?? null
-    default:
-      return null
-  }
 }
 
 export async function clearLocalSyncData(): Promise<void> {

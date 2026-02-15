@@ -66,8 +66,8 @@ describe("feature query integration", () => {
     })
 
     await db.nutritionLogs.bulkPut([
-      { date: "2026-02-01", entries: [{ id: "e1", foodId: "food-1", quantity: 1, mealType: "lunch" }] },
-      { date: "2026-02-02", entries: [{ id: "e2", foodId: "food-1", quantity: 2, mealType: "dinner" }] },
+      { date: "2026-02-01", entries: [{ id: "e1", foodId: "food-1", quantity: 1, mealType: "lunch", updatedAt: 1 }] },
+      { date: "2026-02-02", entries: [{ id: "e2", foodId: "food-1", quantity: 2, mealType: "dinner", updatedAt: 1 }] },
     ])
 
     const queryClient = createTestQueryClient()

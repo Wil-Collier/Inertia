@@ -53,7 +53,7 @@ vi.mock("@/features/sync/store", () => ({
   },
 }))
 
-vi.mock("@/features/sync/engine/applyPipeline", () => ({
+vi.mock("@/features/sync/localRecordAccess", () => ({
   getLocalRecord: (...args: unknown[]) => getLocalRecordMock(...args),
 }))
 
@@ -599,6 +599,7 @@ describe("pushPipeline", () => {
             foodId: "food-1",
             quantity: 1,
             mealType: "breakfast",
+            updatedAt: 100,
           },
         ],
       },
@@ -619,6 +620,7 @@ describe("pushPipeline", () => {
                 foodId: "food-1",
                 quantity: 2,
                 mealType: "breakfast",
+                updatedAt: 200,
               },
             ],
           },
@@ -637,6 +639,335 @@ describe("pushPipeline", () => {
     expect(summary.pushed).toBe(0)
     expect(summary.remoteWins).toBe(1)
     expect(pushChangesMock).not.toHaveBeenCalled()
+  })
+
+  it("does not resurrect local-only nutrition entries when remote includes tombstone", async () => {
+    nutritionToArrayMock.mockResolvedValue([
+      {
+        date: "2026-02-12",
+        updatedAt: 100,
+        entries: [
+          {
+            id: "entry-1",
+            foodId: "food-1",
+            quantity: 1,
+            mealType: "breakfast",
+            updatedAt: 100,
+          },
+          {
+            id: "entry-local-stale",
+            foodId: "food-2",
+            quantity: 1,
+            mealType: "lunch",
+            updatedAt: 120,
+          },
+        ],
+      },
+    ])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+
+    pullAllChangesMock.mockResolvedValueOnce({
+      changes: [
+        {
+          collection: "nutrition",
+          id: "2026-02-12",
+          data: {
+            date: "2026-02-12",
+            updatedAt: 200,
+            entries: [
+              {
+                id: "entry-1",
+                foodId: "food-1",
+                quantity: 2,
+                mealType: "breakfast",
+                updatedAt: 200,
+              },
+              {
+                id: "entry-local-stale",
+                foodId: "food-2",
+                quantity: 1,
+                mealType: "lunch",
+                updatedAt: 200,
+                deletedAt: 200,
+              },
+            ],
+          },
+          version: 7,
+          deleted: false,
+        },
+      ],
+      cursor: { version: 7 },
+      serverTimestampMs: Date.now(),
+      affectedCollections: new Set(["nutrition"]),
+    })
+
+    const { mergeCloudAndLocal } = await loadPushPipeline()
+    const summary = await mergeCloudAndLocal("token")
+
+    expect(summary).toMatchObject({
+      pushed: 0,
+      remoteWins: 1,
+    })
+    expect(pushChangesMock).not.toHaveBeenCalled()
+  })
+
+  it("resolves concurrent nutrition edit-edit by newer entry updatedAt", async () => {
+    nutritionToArrayMock.mockResolvedValue([
+      {
+        date: "2026-02-12",
+        updatedAt: 300,
+        entries: [
+          {
+            id: "entry-1",
+            foodId: "food-1",
+            quantity: 3,
+            mealType: "breakfast",
+            updatedAt: 300,
+          },
+        ],
+      },
+    ])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+
+    pullAllChangesMock.mockResolvedValueOnce({
+      changes: [
+        {
+          collection: "nutrition",
+          id: "2026-02-12",
+          data: {
+            date: "2026-02-12",
+            updatedAt: 250,
+            entries: [
+              {
+                id: "entry-1",
+                foodId: "food-1",
+                quantity: 2,
+                mealType: "breakfast",
+                updatedAt: 250,
+              },
+            ],
+          },
+          version: 7,
+          deleted: false,
+        },
+      ],
+      cursor: { version: 7 },
+      serverTimestampMs: Date.now(),
+      affectedCollections: new Set(["nutrition"]),
+    })
+
+    pushChangesMock.mockImplementation(async (_token, payload: { changes: PushChange[] }) => ({
+      acceptedChanges: makeAcceptedFromChanges(payload.changes),
+      conflicts: [],
+    }))
+
+    const { mergeCloudAndLocal } = await loadPushPipeline()
+    const summary = await mergeCloudAndLocal("token")
+
+    expect(summary).toMatchObject({
+      pushed: 1,
+      localWins: 1,
+    })
+    const pushedChanges = readPushedChanges(pushChangesMock.mock.calls[0]?.[1])
+    expect(pushedChanges[0]?.data).toMatchObject({
+      entries: [
+        {
+          id: "entry-1",
+          quantity: 3,
+          updatedAt: 300,
+        },
+      ],
+    })
+  })
+
+  it("resolves concurrent nutrition delete-edit by newer tombstone", async () => {
+    nutritionToArrayMock.mockResolvedValue([
+      {
+        date: "2026-02-12",
+        updatedAt: 200,
+        entries: [
+          {
+            id: "entry-1",
+            foodId: "food-1",
+            quantity: 3,
+            mealType: "breakfast",
+            updatedAt: 200,
+          },
+        ],
+      },
+    ])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+
+    pullAllChangesMock.mockResolvedValueOnce({
+      changes: [
+        {
+          collection: "nutrition",
+          id: "2026-02-12",
+          data: {
+            date: "2026-02-12",
+            updatedAt: 300,
+            entries: [
+              {
+                id: "entry-1",
+                foodId: "food-1",
+                quantity: 3,
+                mealType: "breakfast",
+                updatedAt: 300,
+                deletedAt: 300,
+              },
+            ],
+          },
+          version: 7,
+          deleted: false,
+        },
+      ],
+      cursor: { version: 7 },
+      serverTimestampMs: Date.now(),
+      affectedCollections: new Set(["nutrition"]),
+    })
+
+    const { mergeCloudAndLocal } = await loadPushPipeline()
+    const summary = await mergeCloudAndLocal("token")
+
+    expect(summary).toMatchObject({
+      pushed: 0,
+      remoteWins: 1,
+    })
+    expect(pushChangesMock).not.toHaveBeenCalled()
+  })
+
+  it("uses delete-wins tie-break when nutrition entry updatedAt ties", async () => {
+    nutritionToArrayMock.mockResolvedValue([
+      {
+        date: "2026-02-12",
+        updatedAt: 300,
+        entries: [
+          {
+            id: "entry-1",
+            foodId: "food-1",
+            quantity: 3,
+            mealType: "breakfast",
+            updatedAt: 300,
+          },
+        ],
+      },
+    ])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+
+    pullAllChangesMock.mockResolvedValueOnce({
+      changes: [
+        {
+          collection: "nutrition",
+          id: "2026-02-12",
+          data: {
+            date: "2026-02-12",
+            updatedAt: 300,
+            entries: [
+              {
+                id: "entry-1",
+                foodId: "food-1",
+                quantity: 3,
+                mealType: "breakfast",
+                updatedAt: 300,
+                deletedAt: 300,
+              },
+            ],
+          },
+          version: 7,
+          deleted: false,
+        },
+      ],
+      cursor: { version: 7 },
+      serverTimestampMs: Date.now(),
+      affectedCollections: new Set(["nutrition"]),
+    })
+
+    const { mergeCloudAndLocal } = await loadPushPipeline()
+    const summary = await mergeCloudAndLocal("token")
+
+    expect(summary).toMatchObject({
+      pushed: 0,
+      remoteWins: 1,
+    })
+    expect(pushChangesMock).not.toHaveBeenCalled()
+  })
+
+  it("sorts merged nutrition entries deterministically by updatedAt then id", async () => {
+    nutritionToArrayMock.mockResolvedValue([
+      {
+        date: "2026-02-12",
+        updatedAt: 500,
+        entries: [
+          {
+            id: "entry-b",
+            foodId: "food-2",
+            quantity: 1,
+            mealType: "lunch",
+            updatedAt: 100,
+          },
+          {
+            id: "entry-a",
+            foodId: "food-1",
+            quantity: 1,
+            mealType: "breakfast",
+            updatedAt: 100,
+          },
+          {
+            id: "entry-c",
+            foodId: "food-3",
+            quantity: 1,
+            mealType: "dinner",
+            updatedAt: 300,
+          },
+        ],
+      },
+    ])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+
+    pullAllChangesMock.mockResolvedValueOnce({
+      changes: [
+        {
+          collection: "nutrition",
+          id: "2026-02-12",
+          data: {
+            date: "2026-02-12",
+            updatedAt: 400,
+            entries: [
+              {
+                id: "entry-a",
+                foodId: "food-1",
+                quantity: 2,
+                mealType: "breakfast",
+                updatedAt: 200,
+              },
+            ],
+          },
+          version: 7,
+          deleted: false,
+        },
+      ],
+      cursor: { version: 7 },
+      serverTimestampMs: Date.now(),
+      affectedCollections: new Set(["nutrition"]),
+    })
+
+    pushChangesMock.mockImplementation(async (_token, payload: { changes: PushChange[] }) => ({
+      acceptedChanges: makeAcceptedFromChanges(payload.changes),
+      conflicts: [],
+    }))
+
+    const { mergeCloudAndLocal } = await loadPushPipeline()
+    const summary = await mergeCloudAndLocal("token")
+    expect(summary.pushed).toBe(1)
+
+    const pushedChanges = readPushedChanges(pushChangesMock.mock.calls[0]?.[1])
+    const data = pushedChanges[0]?.data
+    const entries = isRecord(data) && Array.isArray(data.entries)
+      ? data.entries.filter(
+        (entry): entry is { id: string } => isRecord(entry) && typeof entry.id === "string"
+      )
+      : []
+    expect(entries.map((entry) => entry.id)).toEqual(["entry-b", "entry-a", "entry-c"])
   })
 
   it("overwrites cloud with local and sends tombstones for remote-only records", async () => {

@@ -17,7 +17,7 @@ const workoutTemplate = createWorkoutTemplate({ id: "template-1" })
 const food = createFoodItem({ id: "food-1" })
 const mealLog = createDailyNutritionLog({
   date: "2026-02-09",
-  entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "breakfast" }],
+  entries: [{ id: "entry-1", foodId: "food-1", quantity: 1, mealType: "breakfast", updatedAt: 1 }],
 })
 const mealTemplate = createMealTemplate({
   id: "meal-template-1",

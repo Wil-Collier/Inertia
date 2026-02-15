@@ -1,15 +1,6 @@
 import type { PushConflict } from "@/features/sync/schemas"
 import type { InitialSyncStrategy } from "@/features/sync/types"
 
-type PushConflictResolution =
-  | "accept_remote_record"
-  | "reject_local_change"
-
-export const PUSH_CONFLICT_POLICY: Record<string, PushConflictResolution> = {
-  VERSION_MISMATCH: "accept_remote_record",
-  RECORD_TOO_LARGE: "reject_local_change",
-}
-
 export function shouldAcknowledgePushConflict(_conflict: PushConflict): boolean {
   // Always acknowledge conflicts so pending changes don't get stuck.
   // The conflict policy determines the *resolution strategy*, not whether to clear the pending change.

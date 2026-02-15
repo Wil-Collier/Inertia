@@ -57,8 +57,8 @@ describe("achievementService integration", () => {
     ])
 
     await db.nutritionLogs.bulkPut([
-      { date: dateString(0), entries: [{ id: "m1", foodId: "f1", quantity: 1, mealType: "breakfast" }] },
-      { date: dateString(-1), entries: [{ id: "m2", foodId: "f1", quantity: 1, mealType: "lunch" }] },
+      { date: dateString(0), entries: [{ id: "m1", foodId: "f1", quantity: 1, mealType: "breakfast", updatedAt: 1 }] },
+      { date: dateString(-1), entries: [{ id: "m2", foodId: "f1", quantity: 1, mealType: "lunch", updatedAt: 1 }] },
       { date: dateString(-3), entries: [] },
     ])
 
@@ -76,7 +76,7 @@ describe("achievementService integration", () => {
 
     const logs = Array.from({ length: 7 }).map((_, index) => ({
       date: dateString(-index),
-      entries: [{ id: `entry-${index}`, foodId: "food-1", quantity: 1, mealType: "dinner" as const }],
+      entries: [{ id: `entry-${index}`, foodId: "food-1", quantity: 1, mealType: "dinner" as const, updatedAt: index + 1 }],
     }))
 
     await db.nutritionLogs.bulkPut(logs)

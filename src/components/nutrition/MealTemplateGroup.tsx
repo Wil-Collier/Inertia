@@ -3,13 +3,13 @@ import { ChevronDown, Trash2, Bookmark } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { MealEntryItem } from "./MealEntryItem"
-import type { FoodItem, MealEntry } from "@/lib/types"
+import type { FoodItem, NutritionMealEntry } from "@/lib/types"
 
 interface MealTemplateGroupProps {
   instanceId: string
   templateName: string
-  entries: Array<MealEntry & { food?: FoodItem }>
-  onEditEntry: (entry: MealEntry, food: FoodItem) => void
+  entries: Array<NutritionMealEntry & { food?: FoodItem }>
+  onEditEntry: (entry: NutritionMealEntry, food: FoodItem) => void
   onRemoveEntry: (id: string) => void
   onRemoveGroup: (instanceId: string) => void
   onUpdateQuantity: (id: string, quantity: number) => void

@@ -96,11 +96,13 @@ export async function seedTestData() {
 
       for (let i = 0; i < 7; i++) {
         const date = format(subDays(new Date(), i), "yyyy-MM-dd")
+        const now = Date.now() - i * 1_000
         const entries = mealTypes.map(type => ({
           id: crypto.randomUUID(),
           foodId: customFoods[Math.floor(Math.random() * customFoods.length)].id,
           quantity: 1 + Math.random() * 2,
-          mealType: type
+          mealType: type,
+          updatedAt: now,
         }))
         nutritionLogs.push({ date, entries })
       }

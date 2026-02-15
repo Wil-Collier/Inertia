@@ -1,19 +1,9 @@
-import { clearSyncMetadata } from "@/features/sync/changeTracker"
-import { clearDeviceId } from "@/features/sync/deviceId"
-import { useAuthStore, useSyncStore, clearAuthStorage } from "@/features/sync/store"
+import { clearSyncAndAuthState } from "@/features/sync/authState"
 
 export async function resetSyncState(): Promise<void> {
-  useAuthStore.getState().clearAuth()
-  clearAuthStorage()
-  clearDeviceId()
-
-  const syncStore = useSyncStore.getState()
-  syncStore.setInitialSyncState(null)
-  syncStore.setStatus("idle")
-  syncStore.setLastSyncedAtMs(null)
-  syncStore.setLastError(null)
-  syncStore.setConflicts([])
-  syncStore.setLastAutoMergeSummary(null)
-
-  await clearSyncMetadata()
+  await clearSyncAndAuthState({
+    clearDevice: true,
+    clearConflicts: true,
+    clearSyncMetadata: true,
+  })
 }

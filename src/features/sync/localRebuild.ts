@@ -1,6 +1,8 @@
 import { db } from "@/services/db"
 import type { SyncCollection } from "@/features/sync/schemas"
 import { withSyncHooksSuppressed } from "@/features/sync/dexieHooks"
+import { jsonDeepEqual } from "@/features/sync/jsonUtils"
+import { getActiveEntries } from "@/lib/nutritionEntryUtils"
 
 export async function rebuildLocalOnlyFields(changedCollections: Set<SyncCollection>): Promise<void> {
   const shouldRebuildWorkouts = changedCollections.has("workouts")
@@ -15,7 +17,7 @@ export async function rebuildLocalOnlyFields(changedCollections: Set<SyncCollect
         await Promise.all(
           workouts.map(async (workout) => {
             const exerciseIds = workout.exercises.map((exercise) => exercise.exerciseId)
-            if (JSON.stringify(workout.exerciseIds ?? []) === JSON.stringify(exerciseIds)) return
+            if (jsonDeepEqual(workout.exerciseIds ?? [], exerciseIds)) return
             await db.workoutSessions.update(workout.id, { exerciseIds })
           })
         )
@@ -25,7 +27,7 @@ export async function rebuildLocalOnlyFields(changedCollections: Set<SyncCollect
         const logs = await db.nutritionLogs.toArray()
         const usageCounts = new Map<string, number>()
         for (const log of logs) {
-          for (const entry of log.entries) {
+          for (const entry of getActiveEntries(log.entries)) {
             usageCounts.set(entry.foodId, (usageCounts.get(entry.foodId) ?? 0) + 1)
           }
         }

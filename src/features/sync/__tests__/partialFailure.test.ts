@@ -53,7 +53,7 @@ vi.mock("@/features/sync/store", () => ({
     },
 }))
 
-vi.mock("@/features/sync/engine/applyPipeline", () => ({
+vi.mock("@/features/sync/localRecordAccess", () => ({
     getLocalRecord: (...args: unknown[]) => getLocalRecordMock(...args),
 }))
 

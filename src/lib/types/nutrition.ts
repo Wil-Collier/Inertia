@@ -24,19 +24,28 @@ export interface FoodItem extends SyncableWithId {
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack"
 
-export interface MealEntry {
+export interface NutritionMealEntry {
   id: string
   foodId: string
   quantity: number
   mealType: MealType
+  updatedAt: number
+  deletedAt?: number
   templateId?: string
   templateInstanceId?: string
   templateName?: string
 }
 
+export interface MealTemplateEntry {
+  foodId: string
+  quantity: number
+  mealType: MealType
+  templateId?: string
+}
+
 export interface DailyNutrition extends Syncable {
   date: string
-  entries: MealEntry[]
+  entries: NutritionMealEntry[]
 }
 
 export interface NutritionGoals {
@@ -50,7 +59,7 @@ export interface NutritionGoals {
 
 export interface MealTemplate extends SyncableWithId {
   name: string
-  entries: Omit<MealEntry, "id">[]
+  entries: MealTemplateEntry[]
 }
 
 /**

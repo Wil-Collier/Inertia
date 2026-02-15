@@ -6,6 +6,7 @@ import {
   enqueuePendingChangeInTransaction,
   getRecordVersion,
 } from "@/features/sync/changeTracker"
+import { jsonDeepEqual } from "@/features/sync/jsonUtils"
 import { isRecord } from "@/features/sync/typeGuards"
 
 let hooksRegistered = false
@@ -21,7 +22,7 @@ export function registerSyncDexieHooks(): void {
     if (!table) return
 
     table.hook("creating", (primKey, obj, transaction) => {
-      if (areHooksSuppressed()) return
+      if (isHooksSuppressed()) return
       if (!shouldTrackRecord(tableName, obj)) return
 
       const now = Date.now()
@@ -41,7 +42,7 @@ export function registerSyncDexieHooks(): void {
     })
 
     table.hook("updating", (mods, primKey, obj, transaction) => {
-      if (areHooksSuppressed()) return
+      if (isHooksSuppressed()) return
       if (!shouldTrackRecord(tableName, obj)) return
       if (!isRecord(mods)) return
       const modsRecord = mods
@@ -62,7 +63,7 @@ export function registerSyncDexieHooks(): void {
     })
 
     table.hook("deleting", (primKey, obj, transaction) => {
-      if (areHooksSuppressed()) return
+      if (isHooksSuppressed()) return
       if (!shouldTrackRecord(tableName, obj)) return
 
       const id = resolveChangeId(tableName, primKey, obj)
@@ -142,7 +143,7 @@ export async function withSyncHooksSuppressed<T>(fn: () => Promise<T>): Promise<
   }
 }
 
-export function areHooksSuppressed(): boolean {
+function isHooksSuppressed(): boolean {
   return suppressionDepth > 0
 }
 
@@ -203,13 +204,5 @@ function isDerivedWorkoutRebuildOnly(mods: Record<string, unknown>, current?: un
   if (!onlyRebuildKeys) return false
 
   if (!isRecord(current)) return false
-  return deepEqualJson(mods.exercises, current.exercises)
-}
-
-function deepEqualJson(a: unknown, b: unknown): boolean {
-  try {
-    return JSON.stringify(a) === JSON.stringify(b)
-  } catch {
-    return false
-  }
+  return jsonDeepEqual(mods.exercises, current.exercises)
 }

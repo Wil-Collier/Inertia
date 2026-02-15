@@ -46,8 +46,8 @@ describe("nutrition query hooks integration", () => {
     await db.nutritionLogs.put({
       date: "2026-02-11",
       entries: [
-        { id: "e-1", foodId: "food-1", quantity: 2, mealType: "lunch" },
-        { id: "e-2", foodId: "missing-food", quantity: 1, mealType: "dinner" },
+        { id: "e-1", foodId: "food-1", quantity: 2, mealType: "lunch", updatedAt: 1 },
+        { id: "e-2", foodId: "missing-food", quantity: 1, mealType: "dinner", updatedAt: 1 },
       ],
     })
 
@@ -144,7 +144,7 @@ describe("nutrition query hooks integration", () => {
   it("returns unique ordered nutrition dates", async () => {
     await db.nutritionLogs.bulkPut([
       { date: "2026-02-08", entries: [] },
-      { date: "2026-02-08", entries: [{ id: "e1", foodId: "x", quantity: 1, mealType: "lunch" }] },
+      { date: "2026-02-08", entries: [{ id: "e1", foodId: "x", quantity: 1, mealType: "lunch", updatedAt: 1 }] },
       { date: "2026-02-09", entries: [] },
       { date: "2026-02-10", entries: [] },
     ])
@@ -157,7 +157,7 @@ describe("nutrition query hooks integration", () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    expect(result.current.data).toEqual(["2026-02-08", "2026-02-09", "2026-02-10"])
+    expect(result.current.data).toEqual(["2026-02-08"])
   })
 
   it("returns empty history stats when no logs are in range", async () => {
@@ -197,11 +197,11 @@ describe("nutrition query hooks integration", () => {
     await db.nutritionLogs.bulkPut([
       {
         date: "2026-02-01",
-        entries: [{ id: "n1", foodId: "food-1", quantity: 1, mealType: "lunch" }],
+        entries: [{ id: "n1", foodId: "food-1", quantity: 1, mealType: "lunch", updatedAt: 1 }],
       },
       {
         date: "2026-02-02",
-        entries: [{ id: "n2", foodId: "food-1", quantity: 2, mealType: "dinner" }],
+        entries: [{ id: "n2", foodId: "food-1", quantity: 2, mealType: "dinner", updatedAt: 1 }],
       },
     ])
 

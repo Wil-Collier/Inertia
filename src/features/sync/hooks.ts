@@ -3,12 +3,9 @@ import { toast } from "sonner"
 import { loginWithGoogle, logoutSession } from "@/features/sync/api"
 import { clearSyncMetadata, setLocalDataOwnerUserId } from "@/features/sync/changeTracker"
 import { resolveInitialSync as resolveInitialSyncEngine, syncNow, SYNC_ENABLED } from "@/features/sync/syncEngine"
-import { useAuthStore, useSyncStore, clearAuthStorage } from "@/features/sync/store"
+import { useAuthStore, useSyncStore } from "@/features/sync/store"
+import { clearSyncAndAuthState } from "@/features/sync/authState"
 import type { InitialSyncStrategy } from "@/features/sync/types"
-
-export function useAuth() {
-  return useAuthStore()
-}
 
 export function useSync() {
   const auth = useAuthStore()
@@ -35,13 +32,7 @@ export function useSync() {
       // Best effort logout; continue with local state reset.
     }
 
-    auth.clearAuth()
-    clearAuthStorage()
-    sync.setInitialSyncState(null)
-    sync.setStatus("idle")
-    sync.setLastSyncedAtMs(null)
-    sync.setLastError(null)
-    sync.setLastAutoMergeSummary(null)
+    await clearSyncAndAuthState()
   }
 
   const resolveInitialSync = async (strategy: InitialSyncStrategy) => {

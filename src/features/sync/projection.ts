@@ -3,78 +3,62 @@ import { isRecord } from "@/features/sync/typeGuards"
 
 type CloudRecord = Record<string, unknown>
 
+const TO_CLOUD_RECORD = {
+  workouts: (record: CloudRecord) => {
+    const { exerciseIds: _exerciseIds, ...rest } = record
+    return rest
+  },
+  activeSession: (record: CloudRecord) => {
+    const { id: _id, ...rest } = record
+    return rest
+  },
+  templates: (record: CloudRecord) => record,
+  foods: (record: CloudRecord) => {
+    const { usageCount: _usageCount, ...rest } = record
+    return rest
+  },
+  nutrition: (record: CloudRecord) => record,
+  mealTemplates: (record: CloudRecord) => record,
+  weight: (record: CloudRecord) => record,
+  settings: (record: CloudRecord) => {
+    const { id: _id, ...rest } = record
+    return rest
+  },
+  exercises: (record: CloudRecord) => record,
+} satisfies Record<SyncCollection, (record: CloudRecord) => CloudRecord>
+
+const FROM_CLOUD_RECORD = {
+  workouts: (data: CloudRecord) => {
+    const exercises = Array.isArray(data.exercises) ? data.exercises : []
+    const exerciseIds = exercises
+      .map((exercise) =>
+        isRecord(exercise) && typeof exercise.exerciseId === "string" ? exercise.exerciseId : null
+      )
+      .filter((value): value is string => typeof value === "string")
+
+    return {
+      ...data,
+      exerciseIds,
+    }
+  },
+  activeSession: (data: CloudRecord) => data,
+  templates: (data: CloudRecord) => data,
+  foods: (data: CloudRecord) => data,
+  nutrition: (data: CloudRecord) => data,
+  mealTemplates: (data: CloudRecord) => data,
+  weight: (data: CloudRecord) => data,
+  settings: (data: CloudRecord) => data,
+  exercises: (data: CloudRecord) => data,
+} satisfies Record<SyncCollection, (data: CloudRecord) => CloudRecord>
+
 export function toCloudRecord(collection: SyncCollection, record: unknown): CloudRecord | null {
   if (!isRecord(record)) return null
-
-  switch (collection) {
-    case "workouts": {
-      const { exerciseIds: _exerciseIds, ...rest } = record
-      return rest
-    }
-    case "activeSession": {
-      const { id: _id, ...rest } = record
-      return rest
-    }
-    case "templates":
-      return record
-    case "foods": {
-      const { usageCount: _usageCount, ...rest } = record
-      return rest
-    }
-    case "nutrition":
-      return record
-    case "mealTemplates":
-      return record
-    case "weight":
-      return record
-    case "settings":
-      if (isRecord(record)) {
-        const { id: _id, ...rest } = record
-        return rest
-      }
-      return record
-    case "exercises":
-      return record
-    default:
-      return null
-  }
+  return TO_CLOUD_RECORD[collection](record)
 }
 
 export function fromCloudRecord(
   collection: SyncCollection,
   data: CloudRecord
 ): CloudRecord {
-  switch (collection) {
-    case "workouts": {
-      const workout = data
-      const exercises = Array.isArray(workout.exercises) ? workout.exercises : []
-      const exerciseIds = exercises
-        .map((exercise) =>
-          isRecord(exercise) && typeof exercise.exerciseId === "string" ? exercise.exerciseId : null
-        )
-        .filter((value): value is string => typeof value === "string")
-      return {
-        ...workout,
-        exerciseIds,
-      }
-    }
-    case "activeSession":
-      return data
-    case "templates":
-      return data
-    case "foods":
-      return data
-    case "nutrition":
-      return data
-    case "mealTemplates":
-      return data
-    case "weight":
-      return data
-    case "settings":
-      return data
-    case "exercises":
-      return data
-    default:
-      return data
-  }
+  return FROM_CLOUD_RECORD[collection](data)
 }

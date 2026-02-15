@@ -2,11 +2,12 @@ import { useQuery } from "@tanstack/react-query"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import { searchFoods, NutritionApiError } from "@/services/nutritionApi"
-import type { FoodItem, MealEntry } from "@/lib/types"
+import { getActiveEntries } from "@/lib/nutritionEntryUtils"
+import type { FoodItem, NutritionMealEntry } from "@/lib/types"
 import { calculateNutritionTotals, calculateNutritionAverages, INITIAL_TOTALS } from "@/lib/nutritionUtils"
 import { orderedUniqueStringKeys } from "@/lib/indexedDbUtils"
 
-export interface MealEntryWithFood extends MealEntry {
+export interface MealEntryWithFood extends NutritionMealEntry {
   food: FoodItem | undefined
 }
 
@@ -37,12 +38,13 @@ export function useDailyNutrition(date: string) {
       const log = await db.nutritionLogs.get(date)
       if (!log) return { log: null, totals: INITIAL_TOTALS, entriesWithFood: [] }
 
-      const foodIds = [...new Set(log.entries.map((e) => e.foodId))]
+      const activeEntries = getActiveEntries(log.entries)
+      const foodIds = [...new Set(activeEntries.map((e) => e.foodId))]
       const foods = await db.foods.where("id").anyOf(foodIds).toArray()
       const foodsById = new Map(foods.map((f) => [f.id, f]))
 
-      const totals = calculateNutritionTotals(log.entries, foodsById)
-      const entriesWithFood: MealEntryWithFood[] = log.entries.map(entry => ({
+      const totals = calculateNutritionTotals(activeEntries, foodsById)
+      const entriesWithFood: MealEntryWithFood[] = activeEntries.map(entry => ({
         ...entry,
         food: foodsById.get(entry.foodId)
       }))
@@ -107,9 +109,11 @@ export function useNutritionDates() {
   return useQuery({
     queryKey: queryKeys.nutrition.dates(),
     queryFn: async () => {
-      // Avoid uniqueKeys() on Safari (can throw "Unable to open cursor").
-      const keys = await db.nutritionLogs.orderBy("date").keys()
-      return orderedUniqueStringKeys(keys)
+      const logs = await db.nutritionLogs.orderBy("date").toArray()
+      const activeDates = logs
+        .filter((log) => getActiveEntries(log.entries).length > 0)
+        .map((log) => log.date)
+      return orderedUniqueStringKeys(activeDates)
     },
   })
 }
@@ -132,7 +136,7 @@ export function useNutritionHistory(startDate: string, endDate: string) {
       const foodsById = new Map(foods.map((f) => [f.id, f]))
 
       const dailyTotals = logs.map((log) => {
-        const totals = calculateNutritionTotals(log.entries, foodsById)
+        const totals = calculateNutritionTotals(getActiveEntries(log.entries), foodsById)
         return { date: log.date, ...totals }
       })
 

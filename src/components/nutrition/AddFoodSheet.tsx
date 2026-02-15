@@ -10,7 +10,7 @@ import { TabsContent, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { FoodSearch } from "./FoodSearch"
-import type { FoodItem, MealEntry } from "@/lib/types"
+import type { FoodItem, MealTemplateEntry } from "@/lib/types"
 
 interface AddFoodSheetProps {
   isOpen: boolean
@@ -34,7 +34,7 @@ interface AddFoodSheetProps {
   mealTemplates: Array<{
     id: string
     name: string
-    entries: Omit<MealEntry, "id">[]
+    entries: MealTemplateEntry[]
   }>
   scannedBarcode: string | null
   onClearBarcode: () => void
