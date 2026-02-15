@@ -14,6 +14,8 @@ import { syncRoutes } from "./sync/routes"
 import { authMiddleware } from "./middleware/auth"
 import { securityHeadersMiddleware } from "./middleware/securityHeaders"
 import { createRateLimitMiddleware } from "./middleware/rateLimit"
+import { compactSyncEvents } from "./sync/compaction"
+import type { ExecutionContext, ScheduledEvent } from "@cloudflare/workers-types"
 
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>()
@@ -56,3 +58,18 @@ app.all("/api/*", (c) => {
 })
 
 export default app
+
+export async function scheduled(
+  _event: ScheduledEvent,
+  env: Env,
+  ctx: ExecutionContext
+): Promise<void> {
+  const retentionDays = Number(env.SYNC_EVENTS_RETENTION_DAYS ?? "30")
+  const safeRetentionDays = Number.isFinite(retentionDays) && retentionDays > 0 ? retentionDays : 30
+
+  ctx.waitUntil(
+    compactSyncEvents(env.DB, { retentionDays: safeRetentionDays }).catch((error) => {
+      console.error("Failed to compact sync_events:", error)
+    })
+  )
+}

@@ -17,6 +17,7 @@ export type {
   PushConflict,
   PushRequest,
   PushResponse,
+  PushAcceptedChange,
   PullChange,
   PullRequest,
   PullResponse,

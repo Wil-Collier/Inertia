@@ -2,6 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { applyPulledChanges, clearLocalSyncData } from "@/features/sync/engine/applyPipeline"
 import { registerSyncDexieHooks } from "@/features/sync/dexieHooks"
 import { db } from "@/services/db"
+import { COLLECTION_REGISTRY } from "@/features/sync/collectionRegistry"
 import { clearDatabase, flushAsyncTasks } from "@/test/helpers/dbTestUtils"
 import {
   getLocalDataOwnerUserId,
@@ -277,6 +278,99 @@ describe("applyPulledChanges integration", () => {
       expect.stringContaining("workouts:w-invalid")
     )
     consoleSpy.mockRestore()
+  })
+
+  it("parses each pulled record exactly once before upsert", async () => {
+    const parseSpy = vi.spyOn(COLLECTION_REGISTRY.foods, "parse")
+
+    await applyPulledChanges([
+      {
+        collection: "foods",
+        id: "food-single-parse",
+        data: {
+          id: "food-single-parse",
+          name: "Single Parse",
+          calories: 100,
+          protein: 10,
+          carbs: 10,
+          fat: 2,
+          fiber: 1,
+          sugar: 1,
+          servingSize: "100g",
+          isCustom: true,
+        },
+        version: 20,
+        deleted: false,
+      },
+    ])
+
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockRestore()
+  })
+
+  it("skips non-quota write failures without aborting the whole pulled batch", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    const originalPut = COLLECTION_REGISTRY.foods.put
+    const putSpy = vi.spyOn(COLLECTION_REGISTRY.foods, "put").mockImplementation(async (id, record) => {
+      if (id === "food-write-fail") {
+        throw new Error("simulated put failure")
+      }
+      await originalPut(id, record)
+    })
+
+    await applyPulledChanges([
+      {
+        collection: "foods",
+        id: "food-write-fail",
+        data: {
+          id: "food-write-fail",
+          name: "Broken",
+          calories: 100,
+          protein: 10,
+          carbs: 10,
+          fat: 2,
+          fiber: 1,
+          sugar: 1,
+          servingSize: "100g",
+          isCustom: true,
+        },
+        version: 31,
+        deleted: false,
+      },
+      {
+        collection: "foods",
+        id: "food-write-ok",
+        data: {
+          id: "food-write-ok",
+          name: "Working",
+          calories: 120,
+          protein: 8,
+          carbs: 14,
+          fat: 3,
+          fiber: 2,
+          sugar: 2,
+          servingSize: "100g",
+          isCustom: true,
+        },
+        version: 32,
+        deleted: false,
+      },
+    ])
+
+    expect(await db.foods.get("food-write-fail")).toBeUndefined()
+    expect(await db.foods.get("food-write-ok")).toBeDefined()
+    expect(await getRecordVersion("foods", "food-write-fail")).toBe(31)
+    expect(await getRecordVersion("foods", "food-write-ok")).toBe(32)
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("foods:food-write-fail"))
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Failed writing pulled record foods:food-write-fail"),
+      expect.any(Error)
+    )
+
+    putSpy.mockRestore()
+    warnSpy.mockRestore()
+    errorSpy.mockRestore()
   })
 
   it("deletes local records and preserves tombstone version for later rebases", async () => {

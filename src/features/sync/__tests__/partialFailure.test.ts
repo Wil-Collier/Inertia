@@ -24,6 +24,7 @@ const mealTemplatesToArrayMock = vi.fn()
 const bodyWeightToArrayMock = vi.fn()
 const settingsGetMock = vi.fn()
 const customExercisesToArrayMock = vi.fn()
+const dbTransactionMock = vi.fn()
 
 vi.mock("@/features/sync/changeTracker", () => ({
     listPendingChanges: () => listPendingChangesMock(),
@@ -63,6 +64,7 @@ vi.mock("@/features/sync/engine/pullPipeline", () => ({
 
 vi.mock("@/services/db", () => ({
     db: {
+        transaction: (...args: unknown[]) => dbTransactionMock(...args),
         workoutSessions: { toArray: () => workoutSessionsToArrayMock() },
         activeSession: { get: (...args: unknown[]) => activeSessionGetMock(...args) },
         workoutTemplates: { toArray: () => workoutTemplatesToArrayMock() },
@@ -112,6 +114,13 @@ describe("pushPipeline partial failure handling", () => {
         bodyWeightToArrayMock.mockResolvedValue([])
         settingsGetMock.mockResolvedValue(undefined)
         customExercisesToArrayMock.mockResolvedValue([])
+        dbTransactionMock.mockImplementation(async (...args: unknown[]) => {
+            const callback = args[2]
+            if (typeof callback !== "function") {
+                throw new TypeError("Expected transaction callback")
+            }
+            return await callback({})
+        })
     })
 
     it("acknowledges accepted mutations for each successful batch in pushFullSnapshot", async () => {
@@ -156,8 +165,8 @@ describe("pushPipeline partial failure handling", () => {
             affectedCollections: new Set(["foods"]),
         })
 
-        // Simulate a conflict - another device updated while we were pushing
-        pushChangesMock.mockResolvedValueOnce({
+        // Simulate persistent conflicts across retries
+        pushChangesMock.mockResolvedValue({
             acceptedChanges: [],
             conflicts: [
                 {
@@ -173,8 +182,10 @@ describe("pushPipeline partial failure handling", () => {
         const { overwriteCloudWithLocal } = await loadPushPipeline()
 
         await expect(overwriteCloudWithLocal("token")).rejects.toThrow(
-            "Failed to overwrite cloud with local data. Conflicts on: foods:food-local"
+            "Failed to overwrite cloud with local data after 3 attempts. Conflicts on: foods:food-local"
         )
+        expect(pushChangesMock).toHaveBeenCalledTimes(3)
+        expect(pullAllChangesMock).toHaveBeenCalledTimes(3)
     })
 
     it("succeeds in overwriteCloudWithLocal when there are no conflicts", async () => {

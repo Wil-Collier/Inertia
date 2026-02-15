@@ -78,9 +78,6 @@ export async function recalculateDerivedData(affectedCollections: Set<SyncCollec
 
   // Achievements: Granular checks
   if (hasWorkouts || hasNutrition || hasTemplates || hasExercises) {
-    // We need to load the exercise map if we're checking workout achievements
-    const { exerciseDatabaseMap } = await import("@/data/exerciseDatabase")
-
     await db.transaction(
       "rw",
       [
@@ -97,7 +94,7 @@ export async function recalculateDerivedData(affectedCollections: Set<SyncCollec
         await achievementService.ensureInitialized()
 
         if (hasWorkouts || hasExercises) {
-          await achievementService.checkWorkoutAchievements(exerciseDatabaseMap)
+          await achievementService.checkWorkoutAchievements()
         }
 
         if (hasNutrition) {

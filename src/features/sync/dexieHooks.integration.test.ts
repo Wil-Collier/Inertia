@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { db } from "@/services/db"
 import { registerSyncDexieHooks } from "@/features/sync/dexieHooks"
 import { clearDatabase, flushAsyncTasks } from "@/test/helpers/dbTestUtils"
@@ -44,6 +44,8 @@ describe("sync Dexie hooks integration", () => {
   })
 
   it("enqueues creates after commit when writes omit sync tracking tables", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+
     await db.foods.put({
       id: "food-outside",
       name: "Bread",
@@ -65,6 +67,10 @@ describe("sync Dexie hooks integration", () => {
       deleted: false,
       baseVersion: 0,
     })
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Non-atomic sync tracking fallback")
+    )
+    warnSpy.mockRestore()
   })
 
   it("uses record versions as baseVersion for updates", async () => {

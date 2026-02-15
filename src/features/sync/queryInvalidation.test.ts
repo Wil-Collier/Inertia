@@ -28,4 +28,14 @@ describe("queryInvalidation", () => {
     expect(calls).toContainEqual(["settings"])
     expect(calls).not.toContainEqual(["achievements"])
   })
+
+  it("invalidates meal template queries with the dedicated key", () => {
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue()
+
+    invalidateQueriesForCollections(new Set(["mealTemplates"]))
+
+    const calls = invalidateSpy.mock.calls.map((call) => call[0]?.queryKey)
+    expect(calls).toContainEqual(["foods", "meal-templates"])
+    expect(calls).not.toContainEqual(["foods"])
+  })
 })

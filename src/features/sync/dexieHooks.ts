@@ -110,6 +110,12 @@ function queuePendingChange(args: QueuePendingArgs): void {
     return
   }
 
+  if (import.meta.env.DEV) {
+    console.warn(
+      `[Sync] Non-atomic sync tracking fallback for ${args.collection}/${args.id}. Include syncPendingChanges and syncRecordVersions in the write transaction.`
+    )
+  }
+
   args.transaction.on("complete", () => {
     void (async () => {
       const baseVersion = await getRecordVersion(args.collection, args.id)

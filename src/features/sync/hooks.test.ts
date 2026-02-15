@@ -6,7 +6,6 @@ import { useAuthStore, useSyncStore } from "@/features/sync/store"
 const loginWithGoogleMock = vi.fn()
 const logoutSessionMock = vi.fn()
 const clearSyncMetadataMock = vi.fn()
-const setLocalDataOwnerUserIdMock = vi.fn()
 const resolveInitialSyncMock = vi.fn()
 const syncNowMock = vi.fn()
 const toastInfoMock = vi.fn()
@@ -24,7 +23,6 @@ vi.mock("@/features/sync/api", () => ({
 
 vi.mock("@/features/sync/changeTracker", () => ({
   clearSyncMetadata: (...args: unknown[]) => clearSyncMetadataMock(...args),
-  setLocalDataOwnerUserId: (...args: unknown[]) => setLocalDataOwnerUserIdMock(...args),
 }))
 
 vi.mock("@/features/sync/syncEngine", () => ({
@@ -56,7 +54,6 @@ describe("sync hooks", () => {
     })
     logoutSessionMock.mockResolvedValue({ ok: true })
     clearSyncMetadataMock.mockResolvedValue(undefined)
-    setLocalDataOwnerUserIdMock.mockResolvedValue(undefined)
     resolveInitialSyncMock.mockResolvedValue(undefined)
     syncNowMock.mockResolvedValue(undefined)
   })
@@ -92,8 +89,27 @@ describe("sync hooks", () => {
       await result.current.signInWithGoogle("id-token")
     })
 
-    expect(setLocalDataOwnerUserIdMock).toHaveBeenCalledWith("old-user")
     expect(clearSyncMetadataMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("clears metadata before starting sync when switching users", async () => {
+    useAuthStore.getState().setAuth({
+      accessToken: "token-old",
+      userId: "old-user",
+      email: "old@example.com",
+      expiresAtMs: Date.now() + 60_000,
+    })
+
+    const { result } = renderHook(() => useSync())
+
+    await act(async () => {
+      await result.current.signInWithGoogle("id-token")
+    })
+
+    const clearCallOrder = clearSyncMetadataMock.mock.invocationCallOrder[0] ?? Number.NEGATIVE_INFINITY
+    const syncCallOrder = syncNowMock.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
+    expect(clearSyncMetadataMock).toHaveBeenCalledTimes(1)
+    expect(clearCallOrder).toBeLessThan(syncCallOrder)
   })
 
   it("signs out safely even if remote logout fails and resets local sync state", async () => {
@@ -103,6 +119,9 @@ describe("sync hooks", () => {
       userId: "old-user",
       email: "old@example.com",
       expiresAtMs: Date.now() + 60_000,
+    })
+    useSyncStore.setState({
+      conflicts: [{ collection: "foods", id: "f1", serverVersion: 2, clientBaseVersion: 1, reason: "VERSION_MISMATCH" }],
     })
 
     const { result } = renderHook(() => useSync())
@@ -115,7 +134,8 @@ describe("sync hooks", () => {
     expect(useSyncStore.getState().status).toBe("idle")
     expect(useSyncStore.getState().lastError).toBeNull()
     expect(useSyncStore.getState().initialSyncState).toBeNull()
-    expect(clearSyncMetadataMock).not.toHaveBeenCalled()
+    expect(useSyncStore.getState().conflicts).toEqual([])
+    expect(clearSyncMetadataMock).toHaveBeenCalledTimes(1)
   })
 
   it("delegates initial sync resolution to the sync engine", async () => {

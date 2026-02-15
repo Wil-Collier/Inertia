@@ -19,6 +19,7 @@ export async function pullAllChanges(
   const startCursor = options.cursor === undefined ? await getPullCursor() : options.cursor
   let cursorVersion = startCursor?.version ?? 0
   let finalCursor: SyncCursor | null = startCursor ?? null
+  let cursorAdvanced = false
   let serverTimestampMs = Date.now()
   const allChanges: PullChange[] = []
 
@@ -41,6 +42,7 @@ export async function pullAllChanges(
     if (response.nextCursor) {
       cursorVersion = response.nextCursor.version
       finalCursor = response.nextCursor
+      cursorAdvanced = true
     }
 
     if (!response.hasMore) {
@@ -50,10 +52,16 @@ export async function pullAllChanges(
 
   const affectedCollections = new Set<SyncCollection>()
   allChanges.forEach((change) => affectedCollections.add(change.collection))
+  let fallbackCursor: SyncCursor | null = null
+  if (allChanges.length > 0) {
+    const lastChange = allChanges[allChanges.length - 1]
+    fallbackCursor = { version: lastChange.version }
+  }
+  const resolvedCursor = allChanges.length === 0 ? startCursor ?? null : cursorAdvanced ? finalCursor : fallbackCursor
 
   return {
     changes: allChanges,
-    cursor: allChanges.length === 0 ? startCursor ?? null : finalCursor,
+    cursor: resolvedCursor,
     serverTimestampMs,
     affectedCollections,
   }

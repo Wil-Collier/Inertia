@@ -20,6 +20,11 @@
             "database_id": "32a770dc-3f9f-4880-b81e-8d04fe6c4595"
         }
     ],
+    "triggers": {
+        "crons": [
+            "0 4 * * *"
+        ]
+    },
     "observability": {
         "enabled": false,
         "head_sampling_rate": 1,

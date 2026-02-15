@@ -8,7 +8,7 @@ const COLLECTION_INVALIDATIONS: Record<SyncCollection, readonly unknown[]> = {
   templates: queryKeys.templates.all,
   foods: queryKeys.foods.all,
   nutrition: queryKeys.nutrition.all,
-  mealTemplates: queryKeys.foods.all,
+  mealTemplates: queryKeys.foods.mealTemplates(),
   weight: queryKeys.bodyWeight.all,
   settings: queryKeys.settings.all,
   exercises: queryKeys.exercises.all,

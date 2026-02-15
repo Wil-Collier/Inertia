@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { pushPendingChanges, SYNC_ENABLED } from "@/features/sync/syncEngine"
+import { syncNow, SYNC_ENABLED } from "@/features/sync/syncEngine"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
 import { refreshPendingCount } from "@/features/sync/changeTracker"
 
@@ -25,7 +25,7 @@ export function useDebouncedPush(): void {
 
     timeoutRef.current = window.setTimeout(() => {
       if (!navigator.onLine) return
-      void pushPendingChanges()
+      void syncNow()
     }, DEBOUNCE_MS)
 
     return () => {

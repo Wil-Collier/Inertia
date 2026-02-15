@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { toast } from "sonner"
 import { loginWithGoogle, logoutSession } from "@/features/sync/api"
-import { clearSyncMetadata, setLocalDataOwnerUserId } from "@/features/sync/changeTracker"
+import { clearSyncMetadata } from "@/features/sync/changeTracker"
 import { resolveInitialSync as resolveInitialSyncEngine, syncNow, SYNC_ENABLED } from "@/features/sync/syncEngine"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
 import { clearSyncAndAuthState } from "@/features/sync/authState"
@@ -17,7 +17,6 @@ export function useSync() {
     const response = await loginWithGoogle(idToken)
 
     if (auth.userId && auth.userId !== response.userId) {
-      await setLocalDataOwnerUserId(auth.userId)
       await clearSyncMetadata()
     }
 
@@ -32,7 +31,10 @@ export function useSync() {
       // Best effort logout; continue with local state reset.
     }
 
-    await clearSyncAndAuthState()
+    await clearSyncAndAuthState({
+      clearConflicts: true,
+      clearSyncMetadata: true,
+    })
   }
 
   const resolveInitialSync = async (strategy: InitialSyncStrategy) => {

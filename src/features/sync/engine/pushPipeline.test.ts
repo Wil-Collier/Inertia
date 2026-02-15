@@ -12,6 +12,7 @@ const pushChangesMock = vi.fn()
 const toCloudRecordMock = vi.fn()
 const getDeviceIdMock = vi.fn<() => string>()
 const setConflictsMock = vi.fn()
+const toastErrorMock = vi.fn()
 const getLocalRecordMock = vi.fn()
 const pullAllChangesMock = vi.fn()
 
@@ -24,6 +25,7 @@ const mealTemplatesToArrayMock = vi.fn()
 const bodyWeightToArrayMock = vi.fn()
 const settingsGetMock = vi.fn()
 const customExercisesToArrayMock = vi.fn()
+const dbTransactionMock = vi.fn()
 
 vi.mock("@/features/sync/changeTracker", () => ({
   listPendingChanges: () => listPendingChangesMock(),
@@ -53,6 +55,12 @@ vi.mock("@/features/sync/store", () => ({
   },
 }))
 
+vi.mock("sonner", () => ({
+  toast: {
+    error: (...args: unknown[]) => toastErrorMock(...args),
+  },
+}))
+
 vi.mock("@/features/sync/localRecordAccess", () => ({
   getLocalRecord: (...args: unknown[]) => getLocalRecordMock(...args),
 }))
@@ -63,6 +71,7 @@ vi.mock("@/features/sync/engine/pullPipeline", () => ({
 
 vi.mock("@/services/db", () => ({
   db: {
+    transaction: (...args: unknown[]) => dbTransactionMock(...args),
     workoutSessions: { toArray: () => workoutSessionsToArrayMock() },
     activeSession: { get: (...args: unknown[]) => activeSessionGetMock(...args) },
     workoutTemplates: { toArray: () => workoutTemplatesToArrayMock() },
@@ -138,6 +147,13 @@ describe("pushPipeline", () => {
     bodyWeightToArrayMock.mockResolvedValue([])
     settingsGetMock.mockResolvedValue(undefined)
     customExercisesToArrayMock.mockResolvedValue([])
+    dbTransactionMock.mockImplementation(async (...args: unknown[]) => {
+      const callback = args[2]
+      if (typeof callback !== "function") {
+        throw new TypeError("Expected transaction callback")
+      }
+      return await callback({})
+    })
   })
 
   it("returns early when there are no pending changes", async () => {
@@ -1022,5 +1038,74 @@ describe("pushPipeline", () => {
           change.deviceId === "device-1"
       )
     ).toBe(true)
+  })
+
+  it("retries overwriteCloudWithLocal on transient version conflicts", async () => {
+    foodsToArrayMock.mockResolvedValue([{ id: "food-local" }])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+
+    pullAllChangesMock
+      .mockResolvedValueOnce({
+        changes: [
+          {
+            collection: "foods",
+            id: "food-local",
+            data: { id: "food-local" },
+            version: 3,
+            deleted: false,
+          },
+        ],
+        cursor: { version: 3 },
+        serverTimestampMs: Date.now(),
+        affectedCollections: new Set(["foods"]),
+      })
+      .mockResolvedValueOnce({
+        changes: [
+          {
+            collection: "foods",
+            id: "food-local",
+            data: { id: "food-local" },
+            version: 4,
+            deleted: false,
+          },
+        ],
+        cursor: { version: 4 },
+        serverTimestampMs: Date.now(),
+        affectedCollections: new Set(["foods"]),
+      })
+
+    pushChangesMock
+      .mockResolvedValueOnce({
+        acceptedChanges: [],
+        conflicts: [
+          {
+            collection: "foods",
+            id: "food-local",
+            serverVersion: 4,
+            clientBaseVersion: 3,
+            reason: "VERSION_MISMATCH",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        acceptedChanges: [
+          {
+            collection: "foods",
+            id: "food-local",
+            version: 5,
+            mutationId: "m-retry",
+          },
+        ],
+        conflicts: [],
+      })
+
+    const { overwriteCloudWithLocal } = await loadPushPipeline()
+    await overwriteCloudWithLocal("token")
+
+    expect(pullAllChangesMock).toHaveBeenCalledTimes(2)
+    expect(pushChangesMock).toHaveBeenCalledTimes(2)
+    expect(setRecordVersionsBulkMock).toHaveBeenCalledWith([
+      { collection: "foods", id: "food-local", version: 5 },
+    ])
   })
 })

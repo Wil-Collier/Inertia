@@ -48,4 +48,17 @@ describe("pullPipeline", () => {
     expect(result.changes).toEqual([])
     expect(result.cursor).toEqual({ version: 5 })
   })
+
+  it("falls back to the last pulled change version when nextCursor is null on a non-empty page", async () => {
+    pullChangesMock.mockResolvedValueOnce({
+      changes: [{ collection: "foods", id: "f1", data: { id: "f1" }, version: 42, deleted: false }],
+      nextCursor: null,
+      hasMore: false,
+      serverTimestampMs: 5678,
+    })
+
+    const result = await pullAllChanges("token", { cursor: { version: 0 } })
+
+    expect(result.cursor).toEqual({ version: 42 })
+  })
 })

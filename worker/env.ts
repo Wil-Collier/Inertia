@@ -8,6 +8,7 @@ export interface Env {
     JWT_SECRET: string
     GOOGLE_CLIENT_ID: string
     APP_ORIGINS?: string
+    SYNC_EVENTS_RETENTION_DAYS?: string
 
     // Nutrition provider configuration
     NUTRITION_PROVIDER?: "openfoodfacts" | "fatsecret"

@@ -3,12 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useDebouncedPush } from "@/features/sync/useDebouncedPush"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
 
-const pushPendingChangesMock = vi.fn(async () => undefined)
+const syncNowMock = vi.fn(async () => undefined)
 const refreshPendingCountMock = vi.fn(async () => undefined)
 let syncEnabled = true
 
 vi.mock("@/features/sync/syncEngine", () => ({
-  pushPendingChanges: () => pushPendingChangesMock(),
+  syncNow: () => syncNowMock(),
   get SYNC_ENABLED() {
     return syncEnabled
   },
@@ -63,16 +63,16 @@ describe("useDebouncedPush", () => {
       useSyncStore.setState({ pendingCount: 1 })
       vi.advanceTimersByTime(3000)
     })
-    expect(pushPendingChangesMock).not.toHaveBeenCalled()
+    expect(syncNowMock).not.toHaveBeenCalled()
 
-    const callsBeforeFinalDebounce = pushPendingChangesMock.mock.calls.length
+    const callsBeforeFinalDebounce = syncNowMock.mock.calls.length
 
     act(() => {
       useSyncStore.setState({ pendingCount: 2 })
       vi.advanceTimersByTime(5000)
     })
 
-    expect(pushPendingChangesMock.mock.calls.length).toBeGreaterThan(callsBeforeFinalDebounce)
+    expect(syncNowMock.mock.calls.length).toBeGreaterThan(callsBeforeFinalDebounce)
   })
 
   it("does not push when unauthenticated", () => {
@@ -83,7 +83,7 @@ describe("useDebouncedPush", () => {
       vi.advanceTimersByTime(5000)
     })
 
-    expect(pushPendingChangesMock).not.toHaveBeenCalled()
+    expect(syncNowMock).not.toHaveBeenCalled()
   })
 
   it("does not push when offline", () => {
@@ -102,7 +102,7 @@ describe("useDebouncedPush", () => {
       vi.advanceTimersByTime(5000)
     })
 
-    expect(pushPendingChangesMock).not.toHaveBeenCalled()
+    expect(syncNowMock).not.toHaveBeenCalled()
   })
 
   it("does not push when sync is disabled", () => {
@@ -122,6 +122,6 @@ describe("useDebouncedPush", () => {
       vi.advanceTimersByTime(5000)
     })
 
-    expect(pushPendingChangesMock).not.toHaveBeenCalled()
+    expect(syncNowMock).not.toHaveBeenCalled()
   })
 })

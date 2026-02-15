@@ -20,9 +20,8 @@ export async function syncNow(): Promise<void> {
   await runAuthenticatedSyncCycle()
 }
 
-export async function pushPendingChanges(): Promise<void> {
-  await runAuthenticatedSyncCycle()
-}
+// Legacy alias: this still runs a full sync cycle (push + pull + apply).
+export const pushPendingChanges = syncNow
 
 async function runAuthenticatedSyncCycle(): Promise<void> {
   if (!SYNC_ENABLED) return
