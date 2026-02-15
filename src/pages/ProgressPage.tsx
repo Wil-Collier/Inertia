@@ -22,7 +22,7 @@ import { useAddWeightEntry, useDeleteWeightEntry } from "@/features/bodyweight/m
 import { useWorkoutStats, usePersonalRecords, useExerciseHistory, useProgressStats } from "@/features/workout/queries"
 import { calculateOneRepMax, calculateSetVolume } from "@/lib/workoutUtils"
 import { getNinetyDaysAgo, getToday, parseDbDate } from "@/lib/dateUtils"
-import { useWeightUnit } from "@/hooks/useWeightUnit"
+import { useWeightUnit } from "@/hooks/useUnits"
 import { toLbs } from "@/lib/conversions"
 import { KG_TO_LBS, LBS_TO_KG } from "@/lib/constants"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"

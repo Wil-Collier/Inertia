@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useBodyWeightHistory } from "@/features/bodyweight/queries"
 import { useAddWeightEntry } from "@/features/bodyweight/mutations"
 import { getToday } from "@/lib/dateUtils"
-import { useWeightUnit } from "@/hooks/useWeightUnit"
+import { useWeightUnit } from "@/hooks/useUnits"
 import { Link } from "@tanstack/react-router"
 import { 
   Dialog, 

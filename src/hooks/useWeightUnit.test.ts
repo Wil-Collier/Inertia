@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { convertWeight, formatWeight, getDisplayWeight, parseWeight, useWeightUnit } from "@/hooks/useWeightUnit"
+import { convertWeight, formatWeight, getDisplayWeight, parseWeight, useWeightUnit } from "@/hooks/useUnits"
 
 let settingsWeight: "kg" | "lbs" = "kg"
 let hasSettings = true

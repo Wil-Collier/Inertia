@@ -11,7 +11,7 @@ import {
 } from "recharts"
 import type { ValueType } from "recharts/types/component/DefaultTooltipContent"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { useWeightUnit } from "@/hooks/useWeightUnit"
+import type { useWeightUnit } from "@/hooks/useUnits"
 import { CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 
 const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }

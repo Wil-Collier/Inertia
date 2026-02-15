@@ -10,16 +10,6 @@ export const muscleGroupLabels: Record<MuscleGroup, string> = {
   cardio: "Cardio",
 }
 
-export const muscleGroupColors: Record<MuscleGroup, string> = {
-  chest: "bg-muscle-chest",
-  back: "bg-muscle-back",
-  shoulders: "bg-muscle-shoulders",
-  arms: "bg-muscle-arms",
-  legs: "bg-muscle-legs",
-  core: "bg-muscle-core",
-  cardio: "bg-muscle-cardio",
-}
-
 export const muscleGroups: MuscleGroup[] = [
   "chest",
   "back",

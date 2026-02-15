@@ -65,17 +65,3 @@ function VelocityLine({ w, h, id, className }: { w: number; h: number; id: strin
     </svg>
   )
 }
-
-/**
- * Full Logo with Text
- */
-export function Logo({ className }: LogoProps) {
-  return (
-    <div className={cn("flex items-center", className)}>
-      <BrandIcon />
-      <span className="text-xl font-black uppercase tracking-tighter italic text-foreground leading-none ml-[1px] pr-1">
-        NERTIA
-      </span>
-    </div>
-  )
-}

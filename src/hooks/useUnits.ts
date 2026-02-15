@@ -10,8 +10,8 @@ import {
   parseDistance,
   getDisplayDistance,
 } from "@/lib/conversions"
+import type { DistanceUnit, WeightUnit } from "@/lib/types"
 
-// Re-export pure functions so existing imports keep working
 export {
   convertWeight,
   formatWeight,
@@ -23,41 +23,54 @@ export {
   getDisplayDistance,
 }
 
-// ============================================
-// Hook for all unit preferences
-// ============================================
+type UnitPreferences = { weight: WeightUnit; distance: DistanceUnit }
+
+const DEFAULT_UNIT_PREFERENCES: UnitPreferences = {
+  weight: "kg",
+  distance: "km",
+}
+
+function useUnitPreferences(): UnitPreferences {
+  const { data: settings } = useSettings()
+  return settings?.unitPreferences ?? DEFAULT_UNIT_PREFERENCES
+}
+
+function getWeightUnitHelpers(unit: WeightUnit) {
+  return {
+    unit,
+    unitLabel: unit,
+    format: (value: number, options?: { shouldShowUnit?: boolean; decimals?: number }) =>
+      formatWeight(value, unit, options),
+    parse: (input: string | number) => parseWeight(input, unit),
+    toDisplay: (stored: number) => getDisplayWeight(stored, unit),
+    toStorage: (display: number) => (unit === "kg" ? display * KG_TO_LBS : display),
+  }
+}
+
+function getDistanceUnitHelpers(unit: DistanceUnit) {
+  return {
+    unit,
+    unitLabel: unit,
+    format: (value: number, options?: { shouldShowUnit?: boolean; decimals?: number }) =>
+      formatDistance(value, unit, options),
+    parse: (input: string | number) => parseDistance(input, unit),
+    toDisplay: (stored: number) => getDisplayDistance(stored, unit),
+    toStorage: (display: number) => (unit === "km" ? display * KM_TO_MI : display),
+  }
+}
+
+export function useWeightUnit() {
+  const unitPreferences = useUnitPreferences()
+  return getWeightUnitHelpers(unitPreferences.weight)
+}
 
 export function useUnits() {
-  const { data: settings } = useSettings()
-  const unitPreferences = settings?.unitPreferences ?? { weight: "kg", distance: "km" }
+  const unitPreferences = useUnitPreferences()
 
   return {
-    // Current unit preferences
     weightUnit: unitPreferences.weight,
     distanceUnit: unitPreferences.distance,
-
-    // Weight utilities
-    weight: {
-      unit: unitPreferences.weight,
-      unitLabel: unitPreferences.weight,
-      format: (value: number, options?: { shouldShowUnit?: boolean; decimals?: number }) =>
-        formatWeight(value, unitPreferences.weight, options),
-      parse: (input: string | number) => parseWeight(input, unitPreferences.weight),
-      toDisplay: (stored: number) => getDisplayWeight(stored, unitPreferences.weight),
-      toStorage: (display: number) =>
-        unitPreferences.weight === "kg" ? display * KG_TO_LBS : display,
-    },
-
-    // Distance utilities
-    distance: {
-      unit: unitPreferences.distance,
-      unitLabel: unitPreferences.distance,
-      format: (value: number, options?: { shouldShowUnit?: boolean; decimals?: number }) =>
-        formatDistance(value, unitPreferences.distance, options),
-      parse: (input: string | number) => parseDistance(input, unitPreferences.distance),
-      toDisplay: (stored: number) => getDisplayDistance(stored, unitPreferences.distance),
-      toStorage: (display: number) =>
-        unitPreferences.distance === "km" ? display * KM_TO_MI : display,
-    },
+    weight: getWeightUnitHelpers(unitPreferences.weight),
+    distance: getDistanceUnitHelpers(unitPreferences.distance),
   }
 }
