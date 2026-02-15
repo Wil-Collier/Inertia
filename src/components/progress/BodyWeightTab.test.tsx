@@ -21,6 +21,16 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/dateUtils", () => ({
   getToday: () => getTodayMock(),
+  formatDate: (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+  },
+  parseDbDate: (dateStr: string) => {
+    const [yStr, mStr, dStr] = dateStr.split("-")
+    return new Date(Number(yStr), Number(mStr) - 1, Number(dStr))
+  },
 }))
 
 vi.mock("recharts", () => {

@@ -119,30 +119,3 @@ export function AchievementCard({ achievement, unlocked, progress }: Achievement
     </Card>
   )
 }
-
-// Compact badge version for achievement cards
-export function AchievementBadgeCompact({ achievement, unlocked }: {
-  achievement: AchievementDefinition
-  unlocked?: UnlockedAchievement
-}) {
-  const Icon = iconMap[achievement.icon] || Trophy
-  const isUnlocked = !!unlocked
-
-  return (
-    <div
-      className={cn(
-        "flex h-14 w-14 items-center justify-center rounded-full border-2 transition-all",
-        isUnlocked
-          ? cn(categoryBgColors[achievement.category], "border-current", categoryColors[achievement.category])
-          : "border-muted bg-muted/50"
-      )}
-      title={`${achievement.name}${isUnlocked ? " (Unlocked)" : ""}: ${achievement.description}`}
-    >
-      {isUnlocked ? (
-        <Icon className={cn("h-7 w-7", categoryColors[achievement.category])} />
-      ) : (
-        <Lock className="h-5 w-5 text-muted-foreground" />
-      )}
-    </div>
-  )
-}

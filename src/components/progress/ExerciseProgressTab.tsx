@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react"
-import { format, parseISO } from "date-fns"
+import { format } from "date-fns"
 import {
   LineChart,
   Line,
@@ -13,6 +13,7 @@ import type { ValueType } from "recharts/types/component/DefaultTooltipContent"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { useWeightUnit } from "@/hooks/useUnits"
 import { CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
+import { parseDbDate } from "@/lib/dateUtils"
 
 const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }
 const LINE_DOT_CONFIG = { fill: "var(--primary)" }
@@ -47,7 +48,7 @@ export function ExerciseProgressTab({
 
   // Chart data
   const chartData = history.map((h) => ({
-    date: format(parseISO(h.date), "MMM d"),
+    date: format(parseDbDate(h.date), "MMM d"),
     weight: h.maxWeight,
     volume: h.totalVolume,
   }))
@@ -146,7 +147,7 @@ export function ExerciseProgressTab({
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">
-                          {format(parseISO(session.date), "EEE, MMM d")}
+                          {format(parseDbDate(session.date), "EEE, MMM d")}
                         </span>
                         <span className="text-sm text-muted-foreground">
                           {session.sets.length} sets

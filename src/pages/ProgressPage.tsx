@@ -21,7 +21,7 @@ import { useBodyWeightHistory } from "@/features/bodyweight/queries"
 import { useAddWeightEntry, useDeleteWeightEntry } from "@/features/bodyweight/mutations"
 import { useWorkoutStats, usePersonalRecords, useExerciseHistory, useProgressStats } from "@/features/workout/queries"
 import { calculateOneRepMax, calculateSetVolume } from "@/lib/workoutUtils"
-import { getNinetyDaysAgo, getToday, parseDbDate } from "@/lib/dateUtils"
+import { formatDate, getNinetyDaysAgo, getToday, parseDbDate } from "@/lib/dateUtils"
 import { useWeightUnit } from "@/hooks/useUnits"
 import { toLbs } from "@/lib/conversions"
 import { KG_TO_LBS, LBS_TO_KG } from "@/lib/constants"
@@ -81,7 +81,7 @@ export function ProgressPage() {
     for (const workout of recentWorkouts) {
       const workoutDate = parseDbDate(workout.date)
       const weekStart = startOfWeek(workoutDate)
-      const weekKey = format(weekStart, "yyyy-MM-dd")
+      const weekKey = formatDate(weekStart)
 
       const existing = workoutsByWeek.get(weekKey) ?? []
       existing.push(workout)
@@ -93,7 +93,7 @@ export function ProgressPage() {
     for (let i = 7; i >= 0; i--) {
       const referenceDate = subWeeks(today, i)
       const weekStart = startOfWeek(referenceDate)
-      const weekKey = format(weekStart, "yyyy-MM-dd")
+      const weekKey = formatDate(weekStart)
 
       const weekWorkouts = workoutsByWeek.get(weekKey) ?? []
 

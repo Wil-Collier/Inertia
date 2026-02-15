@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react"
-import { format, subDays, parseISO } from "date-fns"
+import { format, subDays } from "date-fns"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import {
   LineChart,
@@ -21,6 +21,7 @@ import { useNutritionDates, useNutritionHistory } from "@/features/nutrition/que
 import { useSettings } from "@/features/settings/queries"
 import { CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
 import { INITIAL_TOTALS } from "@/lib/nutritionUtils"
+import { formatDate, parseDbDate } from "@/lib/dateUtils"
 
 type DateRange = "7d" | "30d" | "90d"
 
@@ -52,8 +53,8 @@ export function NutritionHistoryPage() {
     const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90
     const start = subDays(end, days - 1)
     return {
-      startDate: format(start, "yyyy-MM-dd"),
-      endDate: format(end, "yyyy-MM-dd"),
+      startDate: formatDate(start),
+      endDate: formatDate(end),
     }
   }, [dateRange])
 
@@ -70,8 +71,8 @@ export function NutritionHistoryPage() {
   const chartData = useMemo(() => {
     return dailyTotals.map((day) => ({
       ...day,
-      dateLabel: format(parseISO(day.date), "MMM d"),
-      shortDate: format(parseISO(day.date), "M/d"),
+      dateLabel: format(parseDbDate(day.date), "MMM d"),
+      shortDate: format(parseDbDate(day.date), "M/d"),
     }))
   }, [dailyTotals])
 
@@ -349,7 +350,7 @@ export function NutritionHistoryPage() {
         {/* Logged Dates Info */}
         {loggedDates.length > 0 && (
           <p className="text-center text-xs text-muted-foreground">
-            Tracking since {format(parseISO(loggedDates[0]), "MMM d, yyyy")}
+            Tracking since {format(parseDbDate(loggedDates[0]), "MMM d, yyyy")}
           </p>
         )}
       </div>

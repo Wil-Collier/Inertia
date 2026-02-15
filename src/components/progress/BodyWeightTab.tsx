@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState } from "react"
-import { format, subDays, parseISO } from "date-fns"
+import { format, subDays } from "date-fns"
 import { Scale, TrendingUp, TrendingDown, Minus, Trash2 } from "lucide-react"
 import {
   LineChart,
@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { getToday } from "@/lib/dateUtils"
+import { formatDate, getToday, parseDbDate } from "@/lib/dateUtils"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
@@ -62,12 +62,12 @@ export function BodyWeightTab({
   // Get last 30 days of data for chart
   const chartData = useMemo(() => {
     const today = getToday()
-    const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd")
+    const thirtyDaysAgo = formatDate(subDays(new Date(), 30))
     return weightEntries
       .filter((e) => e.date >= thirtyDaysAgo && e.date <= today)
       .toSorted((a, b) => a.date.localeCompare(b.date))
       .map((e) => ({
-        date: format(parseISO(e.date), "MMM d"),
+        date: format(parseDbDate(e.date), "MMM d"),
         weight: e.weight,
       }))
   }, [weightEntries])
@@ -203,7 +203,7 @@ export function BodyWeightTab({
                           {entry.weight} {preferredUnit}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {format(parseISO(entry.date), "EEE, MMM d, yyyy")}
+                          {format(parseDbDate(entry.date), "EEE, MMM d, yyyy")}
                         </p>
                       </div>
                     </div>

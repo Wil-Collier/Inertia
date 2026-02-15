@@ -190,6 +190,7 @@ export function useUpdateMealEntry() {
     },
     onSuccess: (_, { date }) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.dates() })
       void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
     },
     onError: () => {

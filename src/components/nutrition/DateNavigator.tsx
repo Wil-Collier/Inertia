@@ -1,9 +1,9 @@
-import { format, addDays, subDays, parseISO } from "date-fns"
+import { format, addDays, subDays } from "date-fns"
 import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { getToday } from "@/lib/dateUtils"
+import { formatDate, getToday, parseDbDate } from "@/lib/dateUtils"
 
 interface DateNavigatorProps {
   selectedDate: string
@@ -21,14 +21,14 @@ export function DateNavigator({
   const isToday = selectedDate === getToday()
   const displayDate = isToday
     ? "Today"
-    : format(parseISO(selectedDate), "EEE, MMM d")
+    : format(parseDbDate(selectedDate), "EEE, MMM d")
 
   const handlePrevDay = () => {
-    onDateChange(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+    onDateChange(formatDate(subDays(parseDbDate(selectedDate), 1)))
   }
 
   const handleNextDay = () => {
-    onDateChange(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))
+    onDateChange(formatDate(addDays(parseDbDate(selectedDate), 1)))
   }
 
   return (
@@ -47,10 +47,10 @@ export function DateNavigator({
           <PopoverContent className="w-auto p-0" align="center">
             <Calendar
               mode="single"
-              selected={parseISO(selectedDate)}
+              selected={parseDbDate(selectedDate)}
               onSelect={(date) => {
                 if (date) {
-                  onDateChange(format(date, "yyyy-MM-dd"))
+                  onDateChange(formatDate(date))
                   onCalendarOpenChange(false)
                 }
               }}

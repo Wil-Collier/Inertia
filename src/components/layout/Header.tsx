@@ -56,6 +56,7 @@ export function Header({
             size="icon"
             onClick={handleBack}
             className="h-8 w-8 -ml-2 shrink-0"
+            aria-label="Go back"
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>

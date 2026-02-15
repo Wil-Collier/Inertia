@@ -99,6 +99,7 @@ export const MealEntryItem = memo(({
               className="h-6 w-6 rounded-full"
               onClick={handleDecrement}
               disabled={quantity <= 0.1}
+              aria-label={`Decrease quantity for ${food.name}`}
             >
               <Minus className="h-3 w-3" />
             </Button>
@@ -108,6 +109,7 @@ export const MealEntryItem = memo(({
               variant="ghost"
               className="h-6 w-6 rounded-full"
               onClick={handleIncrement}
+              aria-label={`Increase quantity for ${food.name}`}
             >
               <Plus className="h-3 w-3" />
             </Button>
@@ -121,6 +123,7 @@ export const MealEntryItem = memo(({
           variant="ghost"
           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={handleRemove}
+          aria-label={`Remove ${food.name}`}
         >
           <Trash2 className="h-3 w-3" />
         </Button>

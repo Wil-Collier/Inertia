@@ -175,6 +175,7 @@ describe("nutrition hooks integration", () => {
     })
 
     const queryClient = createTestQueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue()
     const wrapper = createQueryWrapper(queryClient)
     const { result } = renderHook(() => useUpdateMealEntry(), { wrapper })
 
@@ -192,6 +193,7 @@ describe("nutrition hooks integration", () => {
     expect((await db.foods.get("food-2"))?.usageCount).toBe(1)
     expect(updateStreaksSpy).toHaveBeenCalled()
     expect(checkNutritionAchievementsSpy).toHaveBeenCalled()
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.nutrition.dates() })
   })
 
   it("rejects meal entry updates that reference a missing food", async () => {

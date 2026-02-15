@@ -156,7 +156,12 @@ export function Dashboard() {
                 </p>
               </div>
               <div className="relative h-20 w-20">
-                <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90 drop-shadow-sm">
+                <svg
+                  viewBox="0 0 36 36"
+                  className="h-full w-full -rotate-90 drop-shadow-sm"
+                  role="img"
+                  aria-label={`Calorie progress ${Math.round(calorieProgress)} percent`}
+                >
                   <circle
                     cx="18"
                     cy="18"

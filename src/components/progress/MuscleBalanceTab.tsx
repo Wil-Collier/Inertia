@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { format, subDays } from "date-fns"
+import { subDays } from "date-fns"
 import { Activity } from "lucide-react"
 import {
   RadarChart,
@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
+import { formatDate } from "@/lib/dateUtils"
 
 // Muscle group balance data for radar chart
 const MUSCLE_GROUPS: MuscleGroup[] = ["chest", "back", "shoulders", "arms", "legs", "core"]
@@ -42,7 +43,7 @@ export function MuscleBalanceTab({
   const muscleData = useMemo(() => {
     const exercisesById = new Map(exercises.map(ex => [ex.id, ex]))
     const cutoff = subDays(new Date(), timeRange)
-    const cutoffStr = format(cutoff, "yyyy-MM-dd")
+    const cutoffStr = formatDate(cutoff)
 
     const recentWorkouts = workouts.filter((w) => w.date >= cutoffStr)
 

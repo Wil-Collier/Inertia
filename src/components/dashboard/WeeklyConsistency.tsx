@@ -3,6 +3,7 @@ import { format, subDays, isSameDay } from "date-fns"
 import { Check, Dumbbell, Utensils, type LucideIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { formatDate } from "@/lib/dateUtils"
 
 interface WeeklyConsistencyProps {
   workoutDates: string[]
@@ -13,7 +14,7 @@ export function WeeklyConsistency({ workoutDates, nutritionDates }: WeeklyConsis
   const last7Days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const date = subDays(new Date(), 6 - i)
-      const dateStr = format(date, "yyyy-MM-dd")
+      const dateStr = formatDate(date)
       return {
         date,
         dateStr,
@@ -40,12 +41,14 @@ export function WeeklyConsistency({ workoutDates, nutritionDates }: WeeklyConsis
                 <ActivityIndicator 
                   active={day.hasWorkout} 
                   icon={Dumbbell} 
-                  color="bg-primary" 
+                  color="bg-primary"
+                  ariaLabel={`Workout ${day.hasWorkout ? "completed" : "not completed"} on ${day.dateStr}`}
                 />
                 <ActivityIndicator 
                   active={day.hasNutrition} 
                   icon={Utensils} 
-                  color="bg-calories" 
+                  color="bg-calories"
+                  ariaLabel={`Nutrition ${day.hasNutrition ? "logged" : "not logged"} on ${day.dateStr}`}
                 />
               </div>
               {isSameDay(day.date, new Date()) && (
@@ -62,11 +65,13 @@ export function WeeklyConsistency({ workoutDates, nutritionDates }: WeeklyConsis
 function ActivityIndicator({ 
   active, 
   icon: Icon, 
-  color 
+  color,
+  ariaLabel,
 }: { 
   active: boolean; 
   icon: LucideIcon; 
   color: string 
+  ariaLabel: string
 }) {
   return (
     <div 
@@ -74,6 +79,8 @@ function ActivityIndicator({
         "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
         active ? color : "bg-muted"
       )}
+      role="img"
+      aria-label={ariaLabel}
     >
       {active ? (
         <Check className="h-4 w-4 text-white" />
