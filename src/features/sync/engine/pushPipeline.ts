@@ -7,8 +7,17 @@ import {
   rebasePendingChangesFromAccepted,
   setRecordVersionsBulk,
 } from "@/features/sync/changeTracker"
+import { readAccessToken, type AccessTokenSource } from "@/features/sync/engine/accessTokenSource"
+import { SYNC_COLLECTION_TABLES_WITH_VERSIONS } from "@/features/sync/engine/syncTables"
 import type { PendingChange } from "@/features/sync/types"
-import { MAX_PUSH_BATCH, type PushAcceptedChange, type PushChange, type PushConflict, type SyncCollection } from "@/features/sync/schemas"
+import {
+  MAX_PUSH_BATCH,
+  type PushAcceptedChange,
+  type PushChange,
+  type PushConflict,
+  type PushResponse,
+  type SyncCollection,
+} from "@/features/sync/schemas"
 import { toCloudRecord } from "@/features/sync/projection"
 import { getDeviceId } from "@/features/sync/deviceId"
 import { useSyncStore } from "@/features/sync/store"
@@ -21,6 +30,7 @@ import { runSequentially } from "../../../../shared/asyncUtils"
 import { toast } from "sonner"
 
 type PreparedPending = { pending: PendingChange; change: PushChange | null }
+type PushablePreparedPending = PreparedPending & { change: PushChange }
 type AcceptedEntry = { collection: SyncCollection; id: string; version: number; mutationId: string }
 const MAX_OVERWRITE_ATTEMPTS = 3
 
@@ -32,77 +42,91 @@ export interface MergeCloudAndLocalResult {
   skippedEqual: number
 }
 
-export async function pushPendingChangesInternal(accessToken: string, updateStatus: boolean): Promise<void> {
+export async function pushPendingChangesInternal(accessTokenSource: AccessTokenSource, updateStatus: boolean): Promise<void> {
   const pending = await listPendingChanges()
   if (pending.length === 0) return
 
   const prepared = await buildPushChangesFromPending(pending)
-  const toSend = prepared.filter((entry) => entry.change !== null)
-  const chunks = chunkArray(toSend, MAX_PUSH_BATCH)
+  const toSend = prepared.filter(isPushablePreparedPending)
 
-  await runSequentially(chunks, async (chunk) => {
-    const changes = chunk.map((entry) => entry.change!)
-    if (changes.length === 0) return
+  await pushChunkedEntries({
+    entries: toSend,
+    accessTokenSource,
+    toPushChange: (entry) => entry.change,
+    onChunk: async (chunk, response) => {
+      if (response.conflicts.length > 0 && updateStatus) {
+        useSyncStore.getState().setConflicts(response.conflicts)
 
-    const response = await pushChanges(accessToken, { changes })
-    if (response.conflicts.length > 0 && updateStatus) {
-      useSyncStore.getState().setConflicts(response.conflicts)
-      toast.error(
-        response.conflicts.length === 1
-          ? "1 change was overwritten by a newer version from another device"
-          : `${response.conflicts.length} changes were overwritten by newer versions from another device`
-      )
-    }
+        const overwriteConflicts = response.conflicts.filter((conflict) => conflict.reason === "VERSION_MISMATCH").length
+        const nonOverwriteConflicts = response.conflicts.length - overwriteConflicts
 
-    const acceptedEntries = toAcceptedEntries(response.acceptedChanges)
-    await persistAcceptedEntries(acceptedEntries)
-    const processedKeys = buildProcessedPendingKeys(response.acceptedChanges, response.conflicts)
+        if (overwriteConflicts > 0) {
+          toast.error(
+            overwriteConflicts === 1
+              ? "1 change was overwritten by a newer version from another device"
+              : `${overwriteConflicts} changes were overwritten by newer versions from another device`
+          )
+        }
 
-    await acknowledgeProcessedPendingChanges(
-      chunk
+        if (nonOverwriteConflicts > 0) {
+          toast.error(
+            nonOverwriteConflicts === 1
+              ? "1 change could not be synced and remains pending"
+              : `${nonOverwriteConflicts} changes could not be synced and remain pending`
+          )
+        }
+      }
+
+      const acceptedEntries = toAcceptedEntries(response.acceptedChanges)
+      await persistAcceptedEntries(acceptedEntries)
+      const processedKeys = buildProcessedPendingKeys(response.acceptedChanges, response.conflicts)
+
+      const processedPendingEntries = chunk
         .filter((entry) => processedKeys.has(`${entry.pending.collection}:${entry.pending.id}`))
         .map((entry) => ({
           collection: entry.pending.collection,
           id: entry.pending.id,
           mutationId: entry.pending.mutationId,
         }))
-    )
+
+      if (processedPendingEntries.length > 0) {
+        await acknowledgeProcessedPendingChanges(processedPendingEntries)
+      }
+    },
   })
 }
 
 export async function pushFullSnapshot(
-  accessToken: string,
+  accessTokenSource: AccessTokenSource,
   options: { conflictMode?: "ignore" | "error" } = {}
 ): Promise<void> {
   const changes = await buildFullSnapshot()
   if (changes.length === 0) return
   const conflictMode = options.conflictMode ?? "ignore"
 
-  const chunks = chunkArray(changes, MAX_PUSH_BATCH)
   const acceptedEntries: AcceptedEntry[] = []
 
-  await runSequentially(chunks, async (chunk) => {
-    const response = await pushChanges(accessToken, { changes: chunk })
-    if (response.conflicts.length > 0 && conflictMode === "error") {
-      const conflictIds = response.conflicts
-        .map((conflict) => `${conflict.collection}:${conflict.id} (${conflict.reason})`)
-        .join(", ")
-      throw new Error(`Full snapshot push conflicted on ${conflictIds}`)
-    }
+  await pushChunkedEntries({
+    entries: changes,
+    accessTokenSource,
+    toPushChange: (change) => change,
+    onChunk: async (_chunk, response) => {
+      if (response.conflicts.length > 0 && conflictMode === "error") {
+        const conflictIds = response.conflicts
+          .map((conflict) => `${conflict.collection}:${conflict.id} (${conflict.reason})`)
+          .join(", ")
+        throw new Error(`Full snapshot push conflicted on ${conflictIds}`)
+      }
 
-    const acceptedChunkEntries = response.acceptedChanges.map((item) => ({
-      collection: item.collection,
-      id: item.id,
-      version: item.version,
-      mutationId: item.mutationId,
-    }))
+      const acceptedChunkEntries = toAcceptedEntries(response.acceptedChanges)
 
-    if (conflictMode === "error") {
-      acceptedEntries.push(...acceptedChunkEntries)
-      return
-    }
+      if (conflictMode === "error") {
+        acceptedEntries.push(...acceptedChunkEntries)
+        return
+      }
 
-    await acknowledgeAcceptedEntries(acceptedChunkEntries)
+      await acknowledgeAcceptedEntries(acceptedChunkEntries)
+    },
   })
 
   if (conflictMode === "error") {
@@ -110,8 +134,8 @@ export async function pushFullSnapshot(
   }
 }
 
-export async function mergeCloudAndLocal(accessToken: string): Promise<MergeCloudAndLocalResult> {
-  const remote = await pullAllChanges(accessToken, { cursor: { version: 0 } })
+export async function mergeCloudAndLocal(accessTokenSource: AccessTokenSource): Promise<MergeCloudAndLocalResult> {
+  const remote = await pullAllChanges(accessTokenSource, { cursor: { version: 0 } })
   const remoteState = buildRemoteState(remote.changes)
   const localChanges = await buildFullSnapshot()
 
@@ -120,6 +144,7 @@ export async function mergeCloudAndLocal(accessToken: string): Promise<MergeClou
   let mergedRecords = 0
   let skippedEqual = 0
   const changesToPush: PushChange[] = []
+
   localChanges.forEach((localChange) => {
     const key = `${localChange.collection}:${localChange.id}`
     const remoteChange = remoteState.get(key)
@@ -156,6 +181,7 @@ export async function mergeCloudAndLocal(accessToken: string): Promise<MergeClou
       data: decision.data,
       baseVersion: remoteChange.version,
     })
+
     if (decision.merged) {
       mergedRecords += 1
     } else if (decision.localWins) {
@@ -175,28 +201,25 @@ export async function mergeCloudAndLocal(accessToken: string): Promise<MergeClou
     }
   }
 
-  const chunks = chunkArray(changesToPush, MAX_PUSH_BATCH)
   const acceptedEntries: AcceptedEntry[] = []
-  await runSequentially(chunks, async (chunk) => {
-    const response = await pushChanges(accessToken, { changes: chunk })
-    if (response.conflicts.length > 0) {
-      const conflictIds = response.conflicts
-        .map((conflict) => `${conflict.collection}:${conflict.id} (${conflict.reason})`)
-        .join(", ")
-      throw new Error(`Merge push conflicted on ${conflictIds}`)
-    }
+  await pushChunkedEntries({
+    entries: changesToPush,
+    accessTokenSource,
+    toPushChange: (change) => change,
+    onChunk: async (_chunk, response) => {
+      if (response.conflicts.length > 0) {
+        const conflictIds = response.conflicts
+          .map((conflict) => `${conflict.collection}:${conflict.id} (${conflict.reason})`)
+          .join(", ")
+        throw new Error(`Merge push conflicted on ${conflictIds}`)
+      }
 
-    acceptedEntries.push(
-      ...response.acceptedChanges.map((item) => ({
-        collection: item.collection,
-        id: item.id,
-        version: item.version,
-        mutationId: item.mutationId,
-      }))
-    )
+      acceptedEntries.push(...toAcceptedEntries(response.acceptedChanges))
+    },
   })
 
   await acknowledgeAcceptedEntries(acceptedEntries)
+
   return {
     pushed: changesToPush.length,
     localWins,
@@ -206,9 +229,9 @@ export async function mergeCloudAndLocal(accessToken: string): Promise<MergeClou
   }
 }
 
-export async function overwriteCloudWithLocal(accessToken: string): Promise<void> {
+export async function overwriteCloudWithLocal(accessTokenSource: AccessTokenSource): Promise<void> {
   const deviceId = getDeviceId()
-  await overwriteCloudWithLocalAttempt(accessToken, deviceId, 1)
+  await overwriteCloudWithLocalAttempt(accessTokenSource, deviceId, 1)
 }
 
 async function acknowledgeAcceptedEntries(entries: AcceptedEntry[]): Promise<void> {
@@ -281,18 +304,7 @@ async function buildPushChangesFromPending(pending: PendingChange[]): Promise<Pr
 async function buildFullSnapshot(): Promise<PushChange[]> {
   return await db.transaction(
     "r",
-    [
-      db.workoutSessions,
-      db.activeSession,
-      db.workoutTemplates,
-      db.foods,
-      db.nutritionLogs,
-      db.mealTemplates,
-      db.bodyWeight,
-      db.settings,
-      db.customExercises,
-      db.syncRecordVersions,
-    ],
+    SYNC_COLLECTION_TABLES_WITH_VERSIONS,
     async (transaction) => {
       const [
         workouts,
@@ -416,27 +428,34 @@ function buildProcessedPendingKeys(acceptedChanges: PushAcceptedChange[], confli
   return processedKeys
 }
 
-async function overwriteCloudWithLocalAttempt(accessToken: string, deviceId: string, attempt: number): Promise<void> {
-  const remote = await pullAllChanges(accessToken, { cursor: { version: 0 } })
+async function overwriteCloudWithLocalAttempt(
+  accessTokenSource: AccessTokenSource,
+  deviceId: string,
+  attempt: number
+): Promise<void> {
+  const remote = await pullAllChanges(accessTokenSource, { cursor: { version: 0 } })
   const remoteState = buildRemoteState(remote.changes)
   const localChanges = await buildFullSnapshot()
   const combined = buildOverwriteBatch(localChanges, remoteState, deviceId)
 
-  const chunks = chunkArray(combined, MAX_PUSH_BATCH)
   const allConflicts: Array<Pick<PushConflict, "collection" | "id">> = []
   const acceptedEntries: AcceptedEntry[] = []
 
-  await runSequentially(chunks, async (chunk) => {
-    const response = await pushChanges(accessToken, { changes: chunk })
-    if (response.conflicts.length > 0) {
-      allConflicts.push(
-        ...response.conflicts.map((conflict) => ({
-          collection: conflict.collection,
-          id: conflict.id,
-        }))
-      )
-    }
-    acceptedEntries.push(...toAcceptedEntries(response.acceptedChanges))
+  await pushChunkedEntries({
+    entries: combined,
+    accessTokenSource,
+    toPushChange: (change) => change,
+    onChunk: async (_chunk, response) => {
+      if (response.conflicts.length > 0) {
+        allConflicts.push(
+          ...response.conflicts.map((conflict) => ({
+            collection: conflict.collection,
+            id: conflict.id,
+          }))
+        )
+      }
+      acceptedEntries.push(...toAcceptedEntries(response.acceptedChanges))
+    },
   })
 
   if (allConflicts.length === 0) {
@@ -449,7 +468,26 @@ async function overwriteCloudWithLocalAttempt(accessToken: string, deviceId: str
     throw new Error(`Failed to overwrite cloud with local data after ${MAX_OVERWRITE_ATTEMPTS} attempts. Conflicts on: ${conflictIds}`)
   }
 
-  await overwriteCloudWithLocalAttempt(accessToken, deviceId, attempt + 1)
+  await overwriteCloudWithLocalAttempt(accessTokenSource, deviceId, attempt + 1)
+}
+
+function isPushablePreparedPending(entry: PreparedPending): entry is PushablePreparedPending {
+  return entry.change !== null
+}
+
+async function pushChunkedEntries<T>(args: {
+  entries: T[]
+  accessTokenSource: AccessTokenSource
+  toPushChange: (entry: T) => PushChange
+  onChunk: (chunkEntries: T[], response: PushResponse) => Promise<void> | void
+}): Promise<void> {
+  const chunks = chunkArray(args.entries, MAX_PUSH_BATCH)
+  await runSequentially(chunks, async (chunkEntries) => {
+    if (chunkEntries.length === 0) return
+    const changes = chunkEntries.map(args.toPushChange)
+    const response = await pushChanges(readAccessToken(args.accessTokenSource), { changes })
+    await args.onChunk(chunkEntries, response)
+  })
 }
 
 function chunkArray<T>(items: T[], size: number): T[][] {

@@ -1,5 +1,6 @@
 import { pullChanges } from "@/features/sync/api"
 import { getPullCursor } from "@/features/sync/changeTracker"
+import { readAccessToken, type AccessTokenSource } from "@/features/sync/engine/accessTokenSource"
 import { MAX_PULL_LIMIT } from "@/features/sync/schemas"
 import type { PullChange, SyncCollection, SyncCursor } from "@/features/sync/schemas"
 
@@ -12,37 +13,94 @@ export interface PullPipelineResult {
   affectedCollections: Set<SyncCollection>
 }
 
+export interface PullPage {
+  changes: PullChange[]
+  cursor: SyncCursor | null
+  serverTimestampMs: number
+  affectedCollections: Set<SyncCollection>
+  hasMore: boolean
+}
+
+export interface PullProcessResult {
+  cursor: SyncCursor | null
+  serverTimestampMs: number
+  affectedCollections: Set<SyncCollection>
+  hasMore: boolean
+  pagesProcessed: number
+}
+
 export async function pullAllChanges(
-  accessToken: string,
-  options: { cursor?: SyncCursor | null } = {}
-): Promise<PullPipelineResult> {
-  const startCursor = options.cursor === undefined ? await getPullCursor() : options.cursor
-  let cursorVersion = startCursor?.version ?? 0
-  let finalCursor: SyncCursor | null = startCursor ?? null
-  let cursorAdvanced = false
-  let serverTimestampMs = Date.now()
+  accessTokenSource: AccessTokenSource,
+  options: { cursor?: SyncCursor | null; maxPages?: number } = {}
+): Promise<PullPipelineResult & { hasMore: boolean }> {
   const allChanges: PullChange[] = []
+  const processed = await pullAndProcessChanges(accessTokenSource, {
+    cursor: options.cursor,
+    maxPages: options.maxPages,
+    onPage: (page) => {
+      allChanges.push(...page.changes)
+    },
+  })
 
-  let pageCount = 0
-  while (true) {
-    pageCount += 1
-    if (pageCount > MAX_PAGES_PER_SYNC) {
-      throw new Error("Exceeded max pages during pull")
-    }
+  return {
+    changes: allChanges,
+    cursor: processed.cursor,
+    serverTimestampMs: processed.serverTimestampMs,
+    affectedCollections: processed.affectedCollections,
+    hasMore: processed.hasMore,
+  }
+}
 
+export async function pullAndProcessChanges(
+  accessTokenSource: AccessTokenSource,
+  options: {
+    cursor?: SyncCursor | null
+    maxPages?: number
+    onPage?: (page: PullPage) => Promise<void> | void
+  } = {}
+): Promise<PullProcessResult> {
+  const startCursor = options.cursor === undefined ? await getPullCursor() : options.cursor
+  const maxPages = options.maxPages ?? MAX_PAGES_PER_SYNC
+  if (maxPages < 1) {
+    throw new Error("maxPages must be >= 1")
+  }
+
+  let currentCursor: SyncCursor | null = startCursor ?? null
+  let cursorVersion = currentCursor?.version ?? 0
+  let serverTimestampMs = Date.now()
+  const affectedCollections = new Set<SyncCollection>()
+  let hasMore = false
+  let pagesProcessed = 0
+
+  while (pagesProcessed < maxPages) {
     // eslint-disable-next-line no-await-in-loop
-    const response = await pullChanges(accessToken, {
+    const response = await pullChanges(readAccessToken(accessTokenSource), {
       cursor: { version: cursorVersion },
       limit: MAX_PULL_LIMIT,
     })
 
+    const pageCursor = resolveCursor(currentCursor, response.changes, response.nextCursor)
+    currentCursor = pageCursor
+    cursorVersion = pageCursor?.version ?? 0
     serverTimestampMs = response.serverTimestampMs
-    allChanges.push(...response.changes)
+    hasMore = response.hasMore
+    pagesProcessed += 1
 
-    if (response.nextCursor) {
-      cursorVersion = response.nextCursor.version
-      finalCursor = response.nextCursor
-      cursorAdvanced = true
+    const pageAffectedCollections = new Set<SyncCollection>()
+    response.changes.forEach((change) => {
+      affectedCollections.add(change.collection)
+      pageAffectedCollections.add(change.collection)
+    })
+
+    if (options.onPage) {
+      // eslint-disable-next-line no-await-in-loop
+      await options.onPage({
+        changes: response.changes,
+        cursor: pageCursor,
+        serverTimestampMs: response.serverTimestampMs,
+        affectedCollections: pageAffectedCollections,
+        hasMore: response.hasMore,
+      })
     }
 
     if (!response.hasMore) {
@@ -50,19 +108,33 @@ export async function pullAllChanges(
     }
   }
 
-  const affectedCollections = new Set<SyncCollection>()
-  allChanges.forEach((change) => affectedCollections.add(change.collection))
-  let fallbackCursor: SyncCursor | null = null
-  if (allChanges.length > 0) {
-    const lastChange = allChanges[allChanges.length - 1]
-    fallbackCursor = { version: lastChange.version }
+  if (hasMore && import.meta.env.DEV) {
+    console.warn(`[Sync] Pull stopped after ${pagesProcessed} pages; will resume from cursor ${currentCursor?.version ?? 0}`)
   }
-  const resolvedCursor = allChanges.length === 0 ? startCursor ?? null : cursorAdvanced ? finalCursor : fallbackCursor
 
   return {
-    changes: allChanges,
-    cursor: resolvedCursor,
+    cursor: currentCursor,
     serverTimestampMs,
     affectedCollections,
+    hasMore,
+    pagesProcessed,
   }
+}
+
+function resolveCursor(
+  currentCursor: SyncCursor | null,
+  changes: PullChange[],
+  nextCursor: SyncCursor | null
+): SyncCursor | null {
+  if (nextCursor) {
+    return nextCursor
+  }
+  if (changes.length === 0) {
+    return currentCursor
+  }
+  const lastChange = changes[changes.length - 1]
+  if (!lastChange) {
+    return currentCursor
+  }
+  return { version: lastChange.version }
 }

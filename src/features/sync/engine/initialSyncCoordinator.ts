@@ -1,6 +1,9 @@
-import { db } from "@/services/db"
-import { applyPulledChanges, clearLocalSyncData } from "@/features/sync/engine/applyPipeline"
-import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
+import {
+  applyPulledChangesChunk,
+  clearLocalSyncData,
+  finalizeAppliedPullChanges,
+} from "@/features/sync/engine/applyPipeline"
+import { pullAndProcessChanges } from "@/features/sync/engine/pullPipeline"
 import {
   mergeCloudAndLocal,
   overwriteCloudWithLocal,
@@ -15,11 +18,14 @@ import {
   setLocalDataOwnerUserId,
   setPullCursor,
 } from "@/features/sync/changeTracker"
+import { readAccessToken, type AccessTokenSource } from "@/features/sync/engine/accessTokenSource"
+import { hasAnyLocalSyncData } from "@/features/sync/engine/syncTables"
 import type { InitialSyncStrategy } from "@/features/sync/types"
+import type { SyncCollection } from "@/features/sync/schemas"
 import { useSyncStore } from "@/features/sync/store"
 import { pullChanges } from "@/features/sync/api"
 
-export async function ensureInitialSync(accessToken: string, userId: string): Promise<boolean> {
+export async function ensureInitialSync(accessTokenSource: AccessTokenSource, userId: string): Promise<boolean> {
   const existingCursor = await getPullCursor()
   if (existingCursor) {
     const localDataOwnerUserId = await getLocalDataOwnerUserId()
@@ -30,8 +36,8 @@ export async function ensureInitialSync(accessToken: string, userId: string): Pr
     await clearSyncMetadata()
   }
 
-  const localHasData = await hasLocalData()
-  const cloudHasData = await hasCloudData(accessToken)
+  const localHasData = await hasAnyLocalSyncData()
+  const cloudHasData = await hasCloudData(accessTokenSource)
 
   if (!localHasData && !cloudHasData) {
     return true
@@ -44,21 +50,21 @@ export async function ensureInitialSync(accessToken: string, userId: string): Pr
       return false
     }
 
-    await pushFullSnapshot(accessToken)
-    await pullApplyAndPersist(accessToken, userId)
+    await pushFullSnapshot(accessTokenSource)
+    await pullApplyAndPersist(accessTokenSource, userId)
     return true
   }
 
   if (!localHasData && cloudHasData) {
-    await pullApplyAndPersist(accessToken, userId)
+    await pullApplyAndPersist(accessTokenSource, userId)
     return true
   }
 
   const localDataOwnerUserId = await getLocalDataOwnerUserId()
   if (localDataOwnerUserId === userId) {
-    const summary = await mergeCloudAndLocal(accessToken)
+    const summary = await mergeCloudAndLocal(accessTokenSource)
     persistMergeSummary(summary)
-    await pullApplyAndPersist(accessToken, userId)
+    await pullApplyAndPersist(accessTokenSource, userId)
     return true
   }
 
@@ -67,21 +73,21 @@ export async function ensureInitialSync(accessToken: string, userId: string): Pr
 }
 
 export async function resolveInitialSyncStrategy(
-  accessToken: string,
+  accessTokenSource: AccessTokenSource,
   userId: string,
   strategy: InitialSyncStrategy
 ): Promise<void> {
   if (strategy === "use-cloud") {
     await clearLocalSyncData()
     await clearSyncMetadata()
-    await pullApplyAndPersist(accessToken, userId)
+    await pullApplyAndPersist(accessTokenSource, userId)
   } else if (strategy === "merge") {
-    const summary = await mergeCloudAndLocal(accessToken)
+    const summary = await mergeCloudAndLocal(accessTokenSource)
     persistMergeSummary(summary)
-    await pullApplyAndPersist(accessToken, userId)
+    await pullApplyAndPersist(accessTokenSource, userId)
   } else if (strategy === "use-local") {
-    await overwriteCloudWithLocal(accessToken)
-    await pullApplyAndPersist(accessToken, userId)
+    await overwriteCloudWithLocal(accessTokenSource)
+    await pullApplyAndPersist(accessTokenSource, userId)
   }
 
   useSyncStore.getState().setInitialSyncState(null)
@@ -95,49 +101,25 @@ function persistMergeSummary(summary: MergeCloudAndLocalResult | null | undefine
   })
 }
 
-async function pullApplyAndPersist(accessToken: string, userId: string): Promise<void> {
-  const pullResult = await pullAllChanges(accessToken)
-  await applyPulledChanges(pullResult.changes)
-  if (pullResult.cursor) {
-    await setPullCursor(pullResult.cursor)
-  }
+async function pullApplyAndPersist(accessTokenSource: AccessTokenSource, userId: string): Promise<void> {
+  const affectedCollections = new Set<SyncCollection>()
+  const pullResult = await pullAndProcessChanges(accessTokenSource, {
+    onPage: async (page) => {
+      const pageAffectedCollections = await applyPulledChangesChunk(page.changes)
+      pageAffectedCollections.forEach((collection) => affectedCollections.add(collection))
+      if (page.cursor) {
+        await setPullCursor(page.cursor)
+      }
+    },
+  })
+
+  await finalizeAppliedPullChanges(affectedCollections)
   await setLastSyncedAtMs(pullResult.serverTimestampMs)
   await setLocalDataOwnerUserId(userId)
   useSyncStore.getState().setLastSyncedAtMs(pullResult.serverTimestampMs)
 }
 
-async function hasCloudData(accessToken: string): Promise<boolean> {
-  const response = await pullChanges(accessToken, { limit: 1, cursor: { version: 0 } })
+async function hasCloudData(accessTokenSource: AccessTokenSource): Promise<boolean> {
+  const response = await pullChanges(readAccessToken(accessTokenSource), { limit: 1, cursor: { version: 0 } })
   return response.changes.length > 0
-}
-
-async function hasLocalData(): Promise<boolean> {
-  const [
-    workouts,
-    activeSession,
-    templates,
-    foods,
-    nutrition,
-    mealTemplates,
-    bodyWeight,
-    exercises,
-    settings,
-    pendingChanges,
-  ] = await Promise.all([
-    db.workoutSessions.count(),
-    db.activeSession.count(),
-    db.workoutTemplates.count(),
-    db.foods.count(),
-    db.nutritionLogs.count(),
-    db.mealTemplates.count(),
-    db.bodyWeight.count(),
-    db.customExercises.count(),
-    db.settings.get("settings"),
-    db.syncPendingChanges.count(),
-  ])
-
-  return (
-    workouts + activeSession + templates + foods + nutrition + mealTemplates + bodyWeight + exercises + pendingChanges > 0 ||
-    !!settings
-  )
 }

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest"
-import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { pullAllChanges, pullAndProcessChanges } from "@/features/sync/engine/pullPipeline"
 
 const pullChangesMock = vi.fn()
 
@@ -8,6 +8,10 @@ vi.mock("@/features/sync/api", () => ({
 }))
 
 describe("pullPipeline", () => {
+  beforeEach(() => {
+    pullChangesMock.mockReset()
+  })
+
   it("pulls all pages and returns affected collections", async () => {
     pullChangesMock
       .mockResolvedValueOnce({
@@ -60,5 +64,72 @@ describe("pullPipeline", () => {
     const result = await pullAllChanges("token", { cursor: { version: 0 } })
 
     expect(result.cursor).toEqual({ version: 42 })
+  })
+
+  it("reads access token lazily from source for each page", async () => {
+    const accessTokens = ["token-1", "token-2"]
+    let tokenIndex = 0
+
+    pullChangesMock
+      .mockResolvedValueOnce({
+        changes: [{ collection: "foods", id: "f1", data: { id: "f1" }, version: 1, deleted: false }],
+        nextCursor: { version: 1 },
+        hasMore: true,
+        serverTimestampMs: 100,
+      })
+      .mockResolvedValueOnce({
+        changes: [{ collection: "foods", id: "f2", data: { id: "f2" }, version: 2, deleted: false }],
+        nextCursor: { version: 2 },
+        hasMore: false,
+        serverTimestampMs: 200,
+      })
+
+    await pullAllChanges(
+      () => accessTokens[Math.min(tokenIndex++, accessTokens.length - 1)] ?? "token-2",
+      { cursor: { version: 0 } }
+    )
+
+    expect(pullChangesMock).toHaveBeenNthCalledWith(1, "token-1", {
+      cursor: { version: 0 },
+      limit: 500,
+    })
+    expect(pullChangesMock).toHaveBeenNthCalledWith(2, "token-2", {
+      cursor: { version: 1 },
+      limit: 500,
+    })
+  })
+
+  it("stops at maxPages and resumes with next cursor on following runs", async () => {
+    pullChangesMock
+      .mockResolvedValueOnce({
+        changes: [{ collection: "foods", id: "f1", data: { id: "f1" }, version: 1, deleted: false }],
+        nextCursor: { version: 1 },
+        hasMore: true,
+        serverTimestampMs: 100,
+      })
+      .mockResolvedValueOnce({
+        changes: [{ collection: "foods", id: "f2", data: { id: "f2" }, version: 2, deleted: false }],
+        nextCursor: { version: 2 },
+        hasMore: false,
+        serverTimestampMs: 200,
+      })
+
+    const pages: number[] = []
+    const first = await pullAndProcessChanges("token", {
+      cursor: { version: 0 },
+      maxPages: 1,
+      onPage: (page) => {
+        pages.push(page.changes.length)
+      },
+    })
+
+    expect(first.hasMore).toBe(true)
+    expect(first.cursor).toEqual({ version: 1 })
+    expect(pages).toEqual([1])
+
+    const second = await pullAllChanges("token", { cursor: first.cursor })
+    expect(second.cursor).toEqual({ version: 2 })
+    expect(second.changes).toHaveLength(1)
+    expect(second.hasMore).toBe(false)
   })
 })

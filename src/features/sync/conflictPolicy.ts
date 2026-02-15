@@ -1,10 +1,8 @@
 import type { PushConflict } from "@/features/sync/schemas"
 import type { InitialSyncStrategy } from "@/features/sync/types"
 
-export function shouldAcknowledgePushConflict(_conflict: PushConflict): boolean {
-  // Always acknowledge conflicts so pending changes don't get stuck.
-  // The conflict policy determines the *resolution strategy*, not whether to clear the pending change.
-  return true
+export function shouldAcknowledgePushConflict(conflict: PushConflict): boolean {
+  return conflict.reason === "VERSION_MISMATCH"
 }
 
 export const INITIAL_SYNC_POLICY: Record<

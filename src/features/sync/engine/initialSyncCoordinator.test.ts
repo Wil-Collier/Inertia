@@ -4,11 +4,12 @@ import { db } from "@/services/db"
 import { setLocalDataOwnerUserId, setPullCursor } from "@/features/sync/changeTracker"
 import { useSyncStore } from "@/features/sync/store"
 import { ensureInitialSync, resolveInitialSyncStrategy } from "@/features/sync/engine/initialSyncCoordinator"
-import type { PullPipelineResult } from "@/features/sync/engine/pullPipeline"
+import type { PullProcessResult } from "@/features/sync/engine/pullPipeline"
 
 const pullChangesMock = vi.fn()
-const pullAllChangesMock = vi.fn<(accessToken: string) => Promise<PullPipelineResult>>()
-const applyPulledChangesMock = vi.fn()
+const pullAndProcessChangesMock = vi.fn<(accessToken: string) => Promise<PullProcessResult>>()
+const applyPulledChangesChunkMock = vi.fn()
+const finalizeAppliedPullChangesMock = vi.fn()
 const pushFullSnapshotMock = vi.fn()
 const mergeCloudAndLocalMock = vi.fn()
 const overwriteCloudWithLocalMock = vi.fn()
@@ -19,11 +20,12 @@ vi.mock("@/features/sync/api", () => ({
 }))
 
 vi.mock("@/features/sync/engine/pullPipeline", () => ({
-  pullAllChanges: (...args: [string]) => pullAllChangesMock(...args),
+  pullAndProcessChanges: (...args: [string]) => pullAndProcessChangesMock(...args),
 }))
 
 vi.mock("@/features/sync/engine/applyPipeline", () => ({
-  applyPulledChanges: (...args: unknown[]) => applyPulledChangesMock(...args),
+  applyPulledChangesChunk: (...args: unknown[]) => applyPulledChangesChunkMock(...args),
+  finalizeAppliedPullChanges: (...args: unknown[]) => finalizeAppliedPullChangesMock(...args),
   clearLocalSyncData: (...args: unknown[]) => clearLocalSyncDataMock(...args),
 }))
 
@@ -33,12 +35,13 @@ vi.mock("@/features/sync/engine/pushPipeline", () => ({
   overwriteCloudWithLocal: (...args: unknown[]) => overwriteCloudWithLocalMock(...args),
 }))
 
-function defaultPullResult(): PullPipelineResult {
+function defaultPullResult(): PullProcessResult {
   return {
-    changes: [],
     cursor: null,
     serverTimestampMs: 123,
     affectedCollections: new Set(),
+    hasMore: false,
+    pagesProcessed: 1,
   }
 }
 
@@ -46,8 +49,9 @@ describe("initialSyncCoordinator", () => {
   beforeEach(async () => {
     await clearDatabase()
     pullChangesMock.mockReset()
-    pullAllChangesMock.mockReset().mockResolvedValue(defaultPullResult())
-    applyPulledChangesMock.mockReset().mockResolvedValue(new Set())
+    pullAndProcessChangesMock.mockReset().mockResolvedValue(defaultPullResult())
+    applyPulledChangesChunkMock.mockReset().mockResolvedValue(new Set())
+    finalizeAppliedPullChangesMock.mockReset().mockResolvedValue(undefined)
     pushFullSnapshotMock.mockReset().mockResolvedValue(undefined)
     mergeCloudAndLocalMock.mockReset().mockResolvedValue(undefined)
     overwriteCloudWithLocalMock.mockReset().mockResolvedValue(undefined)
@@ -183,8 +187,8 @@ describe("initialSyncCoordinator", () => {
 
     expect(canProceed).toBe(true)
     expect(pushFullSnapshotMock).toHaveBeenCalledWith("token")
-    expect(pullAllChangesMock).toHaveBeenCalledWith("token")
-    expect(applyPulledChangesMock).toHaveBeenCalled()
+    expect(pullAndProcessChangesMock).toHaveBeenCalledWith("token", expect.any(Object))
+    expect(finalizeAppliedPullChangesMock).toHaveBeenCalled()
   })
 
   it("pulls cloud snapshot when local is empty", async () => {
@@ -199,7 +203,7 @@ describe("initialSyncCoordinator", () => {
 
     expect(canProceed).toBe(true)
     expect(pushFullSnapshotMock).not.toHaveBeenCalled()
-    expect(pullAllChangesMock).toHaveBeenCalledWith("token")
+    expect(pullAndProcessChangesMock).toHaveBeenCalledWith("token", expect.any(Object))
   })
 
   it("applies each explicit initial-sync resolution strategy", async () => {

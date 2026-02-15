@@ -23,7 +23,7 @@ describe("sync conflict policy", () => {
         clientBaseVersion: 1,
         reason: "SOMETHING_NEW",
       })
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it("defines explicit data ownership behavior for every initial sync strategy", () => {

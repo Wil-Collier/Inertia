@@ -6,8 +6,9 @@ import { clearDatabase } from "@/test/helpers/dbTestUtils"
 const ensureInitialSyncMock = vi.fn()
 const resolveInitialSyncStrategyMock = vi.fn()
 const pushPendingChangesInternalMock = vi.fn()
-const pullAllChangesMock = vi.fn()
-const applyPulledChangesMock = vi.fn()
+const pullAndProcessChangesMock = vi.fn()
+const applyPulledChangesChunkMock = vi.fn()
+const finalizeAppliedPullChangesMock = vi.fn()
 const setPullCursorMock = vi.fn()
 const setLastSyncedAtMsMock = vi.fn()
 const setLocalDataOwnerUserIdMock = vi.fn()
@@ -23,11 +24,12 @@ vi.mock("@/features/sync/engine/pushPipeline", () => ({
 }))
 
 vi.mock("@/features/sync/engine/pullPipeline", () => ({
-  pullAllChanges: (...args: unknown[]) => pullAllChangesMock(...args),
+  pullAndProcessChanges: (...args: unknown[]) => pullAndProcessChangesMock(...args),
 }))
 
 vi.mock("@/features/sync/engine/applyPipeline", () => ({
-  applyPulledChanges: (...args: unknown[]) => applyPulledChangesMock(...args),
+  applyPulledChangesChunk: (...args: unknown[]) => applyPulledChangesChunkMock(...args),
+  finalizeAppliedPullChanges: (...args: unknown[]) => finalizeAppliedPullChangesMock(...args),
 }))
 
 vi.mock("@/features/sync/changeTracker", () => ({
@@ -58,13 +60,26 @@ describe("sync orchestrator", () => {
     ensureInitialSyncMock.mockReset().mockResolvedValue(true)
     resolveInitialSyncStrategyMock.mockReset().mockResolvedValue(undefined)
     pushPendingChangesInternalMock.mockReset().mockResolvedValue(undefined)
-    pullAllChangesMock.mockReset().mockResolvedValue({
-      changes: [],
-      cursor: null,
-      serverTimestampMs: 100,
-      affectedCollections: new Set(),
+    pullAndProcessChangesMock.mockReset().mockImplementation(async (_tokenSource, options?: { onPage?: (page: unknown) => Promise<void> }) => {
+      if (options?.onPage) {
+        await options.onPage({
+          changes: [],
+          cursor: null,
+          serverTimestampMs: 100,
+          affectedCollections: new Set(),
+          hasMore: false,
+        })
+      }
+      return {
+        cursor: null,
+        serverTimestampMs: 100,
+        affectedCollections: new Set(),
+        hasMore: false,
+        pagesProcessed: 1,
+      }
     })
-    applyPulledChangesMock.mockReset().mockResolvedValue(new Set())
+    applyPulledChangesChunkMock.mockReset().mockResolvedValue(new Set())
+    finalizeAppliedPullChangesMock.mockReset().mockResolvedValue(undefined)
     setPullCursorMock.mockReset().mockResolvedValue(undefined)
     setLastSyncedAtMsMock.mockReset().mockResolvedValue(undefined)
     setLocalDataOwnerUserIdMock.mockReset().mockResolvedValue(undefined)
@@ -85,6 +100,7 @@ describe("sync orchestrator", () => {
       pendingCount: 0,
       conflicts: [],
       initialSyncState: null,
+      lastAutoMergeSummary: null,
     })
   })
 
@@ -100,21 +116,83 @@ describe("sync orchestrator", () => {
 
   it("runs full sync flow and marks success", async () => {
     setOnline(true)
-    pullAllChangesMock.mockResolvedValue({
-      changes: [{ collection: "foods", id: "food-1", data: { id: "food-1" }, version: 1, deleted: false }],
-      cursor: { version: 1 },
-      serverTimestampMs: 222,
-      affectedCollections: new Set(["foods"]),
+    pullAndProcessChangesMock.mockImplementation(async (_tokenSource, options?: { onPage?: (page: unknown) => Promise<void> }) => {
+      if (options?.onPage) {
+        await options.onPage({
+          changes: [{ collection: "foods", id: "food-1", data: { id: "food-1" }, version: 1, deleted: false }],
+          cursor: { version: 1 },
+          serverTimestampMs: 222,
+          affectedCollections: new Set(["foods"]),
+          hasMore: false,
+        })
+      }
+      return {
+        cursor: { version: 1 },
+        serverTimestampMs: 222,
+        affectedCollections: new Set(["foods"]),
+        hasMore: false,
+        pagesProcessed: 1,
+      }
+    })
+    applyPulledChangesChunkMock.mockResolvedValue(new Set(["foods"]))
+
+    const { syncNow } = await loadOrchestrator()
+    await syncNow()
+
+    const ensureInitialSyncTokenSource = ensureInitialSyncMock.mock.calls[0]?.[0]
+    expect(typeof ensureInitialSyncTokenSource).toBe("function")
+    expect(ensureInitialSyncMock).toHaveBeenCalledWith(expect.any(Function), "user-1")
+    expect(pushPendingChangesInternalMock).toHaveBeenCalledWith(expect.any(Function), true)
+    expect(applyPulledChangesChunkMock).toHaveBeenCalled()
+    expect(finalizeAppliedPullChangesMock).toHaveBeenCalledWith(new Set(["foods"]))
+    expect(setPullCursorMock).toHaveBeenCalledWith({ version: 1 })
+    expect(useSyncStore.getState().status).toBe("success")
+  })
+
+  it("uses the latest auth token throughout a single sync session", async () => {
+    setOnline(true)
+
+    ensureInitialSyncMock.mockImplementationOnce(async (tokenSource: () => string) => {
+      expect(tokenSource()).toBe("token")
+      useAuthStore.setState({
+        accessToken: "rotated-token",
+        userId: "user-1",
+        email: "u@example.com",
+        expiresAtMs: Date.now() + 60_000,
+        isAuthenticated: true,
+      })
+      return true
+    })
+
+    pushPendingChangesInternalMock.mockImplementationOnce(async (tokenSource: () => string) => {
+      expect(tokenSource()).toBe("rotated-token")
+    })
+
+    pullAndProcessChangesMock.mockImplementationOnce(async (tokenSource: () => string, options?: { onPage?: (page: unknown) => Promise<void> }) => {
+      expect(tokenSource()).toBe("rotated-token")
+      if (options?.onPage) {
+        await options.onPage({
+          changes: [],
+          cursor: { version: 3 },
+          serverTimestampMs: 300,
+          affectedCollections: new Set(),
+          hasMore: false,
+        })
+      }
+      return {
+        cursor: { version: 3 },
+        serverTimestampMs: 300,
+        affectedCollections: new Set(),
+        hasMore: false,
+        pagesProcessed: 1,
+      }
     })
 
     const { syncNow } = await loadOrchestrator()
     await syncNow()
 
-    expect(ensureInitialSyncMock).toHaveBeenCalledWith("token", "user-1")
-    expect(pushPendingChangesInternalMock).toHaveBeenCalledWith("token", true)
-    expect(applyPulledChangesMock).toHaveBeenCalled()
-    expect(setPullCursorMock).toHaveBeenCalledWith({ version: 1 })
-    expect(useSyncStore.getState().status).toBe("success")
+    expect(pushPendingChangesInternalMock).toHaveBeenCalledTimes(1)
+    expect(pullAndProcessChangesMock).toHaveBeenCalledTimes(1)
   })
 
   it("retries transient failures with backoff and eventually succeeds", async () => {
@@ -185,13 +263,15 @@ describe("sync orchestrator", () => {
 
     const first = syncNow()
     const second = syncNow()
-    await Promise.resolve()
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(pushPendingChangesInternalMock).toHaveBeenCalledTimes(1)
-
-    resolveSync?.()
-
-    await Promise.all([first, second])
+      expect(pushPendingChangesInternalMock).toHaveBeenCalledTimes(1)
+    } finally {
+      resolveSync?.()
+      await Promise.allSettled([first, second])
+    }
   })
 
   it("delegates explicit initial-sync strategy resolution", async () => {
@@ -200,7 +280,7 @@ describe("sync orchestrator", () => {
 
     await resolveInitialSync("merge")
 
-    expect(resolveInitialSyncStrategyMock).toHaveBeenCalledWith("token", "user-1", "merge")
+    expect(resolveInitialSyncStrategyMock).toHaveBeenCalledWith(expect.any(Function), "user-1", "merge")
     expect(useSyncStore.getState().status).toBe("success")
   })
 
@@ -256,19 +336,13 @@ describe("sync orchestrator", () => {
 
   it("pushPendingChanges pulls after pushing", async () => {
     setOnline(true)
-    pullAllChangesMock.mockResolvedValue({
-      changes: [],
-      cursor: null,
-      serverTimestampMs: 300,
-      affectedCollections: new Set(),
-    })
 
     const { pushPendingChanges } = await loadOrchestrator()
     await pushPendingChanges()
 
-    expect(pushPendingChangesInternalMock).toHaveBeenCalledWith("token", true)
-    expect(pullAllChangesMock).toHaveBeenCalledWith("token")
-    expect(applyPulledChangesMock).toHaveBeenCalled()
+    expect(pushPendingChangesInternalMock).toHaveBeenCalledWith(expect.any(Function), true)
+    expect(pullAndProcessChangesMock).toHaveBeenCalledWith(expect.any(Function), expect.any(Object))
+    expect(finalizeAppliedPullChangesMock).toHaveBeenCalled()
     expect(useSyncStore.getState().status).toBe("success")
   })
 })

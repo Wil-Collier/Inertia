@@ -1,18 +1,22 @@
-import { applyPulledChanges } from "@/features/sync/engine/applyPipeline"
+import {
+  applyPulledChangesChunk,
+  finalizeAppliedPullChanges,
+} from "@/features/sync/engine/applyPipeline"
 import { handleSyncError } from "@/features/sync/engine/errors"
 import { ensureInitialSync, resolveInitialSyncStrategy } from "@/features/sync/engine/initialSyncCoordinator"
-import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
+import { pullAndProcessChanges } from "@/features/sync/engine/pullPipeline"
 import { pushPendingChangesInternal } from "@/features/sync/engine/pushPipeline"
+import { runWithSyncSession } from "@/features/sync/engine/syncSession"
+import { SyncSessionInactiveError, type AccessTokenSource } from "@/features/sync/engine/accessTokenSource"
 import { SyncApiError } from "@/features/sync/api"
 import { setLastSyncedAtMs, setLocalDataOwnerUserId, setPullCursor } from "@/features/sync/changeTracker"
 import { lastPullTimestamp } from "@/features/sync/lastPullTracker"
+import type { SyncCollection } from "@/features/sync/schemas"
 import type { InitialSyncStrategy } from "@/features/sync/types"
-import { useAuthStore, useSyncStore } from "@/features/sync/store"
+import { useSyncStore } from "@/features/sync/store"
 
 const MAX_RETRIES = 3
 const RETRY_DELAYS_MS = [1000, 5000, 15000]
-
-let syncInFlight = false
 
 export const SYNC_ENABLED = import.meta.env.VITE_ENABLE_SYNC !== "false"
 
@@ -25,71 +29,77 @@ export const pushPendingChanges = syncNow
 
 async function runAuthenticatedSyncCycle(): Promise<void> {
   if (!SYNC_ENABLED) return
-  const auth = useAuthStore.getState()
-  if (!auth.isAuthenticated || !auth.accessToken || !auth.userId) return
-  const accessToken = auth.accessToken
-  const userId = auth.userId
   if (!navigator.onLine) {
     useSyncStore.getState().setStatus("offline")
     return
   }
 
-  if (syncInFlight) return
-  syncInFlight = true
-
   const syncStore = useSyncStore.getState()
-  syncStore.setStatus("syncing")
-  syncStore.setLastError(null)
-  syncStore.setConflicts([])
-  syncStore.setLastAutoMergeSummary(null)
 
   try {
-    await syncWithRetry(async () => {
-      const canProceed = await ensureInitialSync(accessToken, userId)
-      if (!canProceed) {
-        syncStore.setStatus("idle")
-        return
-      }
+    await runWithSyncSession("drop-if-busy", async (session) => {
+      const accessTokenSource: AccessTokenSource = session.getAccessToken
 
-      await pushPendingChangesInternal(accessToken, true)
-      const pullResult = await pullAllChanges(accessToken)
-      await applyPulledChanges(pullResult.changes)
+      syncStore.setStatus("syncing")
+      syncStore.setLastError(null)
+      syncStore.setConflicts([])
+      syncStore.setLastAutoMergeSummary(null)
 
-      if (pullResult.cursor) {
-        await setPullCursor(pullResult.cursor)
-      }
+      await syncWithRetry(async () => {
+        const canProceed = await ensureInitialSync(accessTokenSource, session.userId)
+        if (!canProceed) {
+          syncStore.setStatus("idle")
+          return
+        }
 
-      lastPullTimestamp.value = Date.now()
-      syncStore.setLastSyncedAtMs(pullResult.serverTimestampMs)
-      await setLastSyncedAtMs(pullResult.serverTimestampMs)
-      await setLocalDataOwnerUserId(userId)
-      syncStore.setStatus("success")
-    }, () => {
-      const authState = useAuthStore.getState()
-      return authState.isAuthenticated && authState.accessToken === accessToken && authState.userId === userId
+        await pushPendingChangesInternal(accessTokenSource, true)
+
+        const affectedCollections = new Set<SyncCollection>()
+        const pullResult = await pullAndProcessChanges(accessTokenSource, {
+          onPage: async (page) => {
+            const pageAffectedCollections = await applyPulledChangesChunk(page.changes)
+            pageAffectedCollections.forEach((collection) => affectedCollections.add(collection))
+            if (page.cursor) {
+              await setPullCursor(page.cursor)
+            }
+          },
+        })
+
+        await finalizeAppliedPullChanges(affectedCollections)
+
+        lastPullTimestamp.value = Date.now()
+        syncStore.setLastSyncedAtMs(pullResult.serverTimestampMs)
+        await setLastSyncedAtMs(pullResult.serverTimestampMs)
+        await setLocalDataOwnerUserId(session.userId)
+        syncStore.setStatus("success")
+      }, () => session.isActive())
     })
   } catch (error) {
+    if (error instanceof SyncSessionInactiveError) {
+      syncStore.setStatus("idle")
+      return
+    }
     handleSyncError(error)
-  } finally {
-    syncInFlight = false
   }
 }
 
 export async function resolveInitialSync(strategy: InitialSyncStrategy): Promise<void> {
-  const auth = useAuthStore.getState()
-  if (!auth.isAuthenticated || !auth.accessToken || !auth.userId) return
-  const accessToken = auth.accessToken
-  const userId = auth.userId
-
   const syncStore = useSyncStore.getState()
-  syncStore.setStatus("syncing")
-  syncStore.setLastError(null)
-  syncStore.setConflicts([])
 
   try {
-    await resolveInitialSyncStrategy(accessToken, userId, strategy)
-    syncStore.setStatus("success")
+    await runWithSyncSession("wait-for-turn", async (session) => {
+      syncStore.setStatus("syncing")
+      syncStore.setLastError(null)
+      syncStore.setConflicts([])
+
+      await resolveInitialSyncStrategy(session.getAccessToken, session.userId, strategy)
+      syncStore.setStatus("success")
+    })
   } catch (error) {
+    if (error instanceof SyncSessionInactiveError) {
+      syncStore.setStatus("idle")
+      return
+    }
     handleSyncError(error)
   }
 }
@@ -112,6 +122,9 @@ function isRetryableSyncError(error: unknown): boolean {
     const status = error.status
     if (typeof status !== "number") return false
     return status === 429 || (status >= 500 && status <= 599)
+  }
+  if (error instanceof SyncSessionInactiveError) {
+    return false
   }
   return error instanceof Error
 }

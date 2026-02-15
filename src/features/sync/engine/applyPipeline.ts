@@ -7,9 +7,16 @@ import { recalculateDerivedData } from "@/features/sync/derivedData"
 import { invalidateQueriesForCollections } from "@/features/sync/queryInvalidation"
 import { clearLocalDataOwnerUserId } from "@/features/sync/changeTracker"
 import { COLLECTION_REGISTRY, resolveCollectionLocalId } from "@/features/sync/collectionRegistry"
+import { CLEAR_LOCAL_SYNC_TABLES, SYNC_COLLECTION_TABLES_WITH_VERSIONS } from "@/features/sync/engine/syncTables"
 import { runSequentially } from "../../../../shared/asyncUtils"
 
 export async function applyPulledChanges(changes: PullChange[]): Promise<Set<SyncCollection>> {
+  const affectedCollections = await applyPulledChangesChunk(changes)
+  await finalizeAppliedPullChanges(affectedCollections)
+  return affectedCollections
+}
+
+export async function applyPulledChangesChunk(changes: PullChange[]): Promise<Set<SyncCollection>> {
   const affectedCollections = new Set<SyncCollection>()
   changes.forEach((change) => affectedCollections.add(change.collection))
 
@@ -20,18 +27,7 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
   await withSyncHooksSuppressed(async () => {
     await db.transaction(
       "rw",
-      [
-        db.workoutSessions,
-        db.activeSession,
-        db.workoutTemplates,
-        db.foods,
-        db.nutritionLogs,
-        db.mealTemplates,
-        db.bodyWeight,
-        db.settings,
-        db.customExercises,
-        db.syncRecordVersions,
-      ],
+      SYNC_COLLECTION_TABLES_WITH_VERSIONS,
       async (transaction) => {
         await runSequentially(changes, async (change) => {
           const localId = resolveCollectionLocalId(change.collection, change.id)
@@ -71,32 +67,24 @@ export async function applyPulledChanges(changes: PullChange[]): Promise<Set<Syn
     )
   })
 
+  return affectedCollections
+}
+
+export async function finalizeAppliedPullChanges(affectedCollections: Set<SyncCollection>): Promise<void> {
+  if (affectedCollections.size === 0) {
+    return
+  }
+
   await rebuildLocalOnlyFields(affectedCollections)
   await recalculateDerivedData(affectedCollections)
   invalidateQueriesForCollections(affectedCollections)
-
-  return affectedCollections
 }
 
 export async function clearLocalSyncData(): Promise<void> {
   await withSyncHooksSuppressed(async () => {
     await db.transaction(
       "rw",
-      [
-        db.workoutSessions,
-        db.activeSession,
-        db.workoutTemplates,
-        db.personalRecords,
-        db.foods,
-        db.nutritionLogs,
-        db.mealTemplates,
-        db.bodyWeight,
-        db.settings,
-        db.achievements,
-        db.userStats,
-        db.customExercises,
-        db.syncRecordVersions,
-      ],
+      CLEAR_LOCAL_SYNC_TABLES,
       async () => {
         await db.workoutSessions.clear()
         await db.activeSession.clear()
