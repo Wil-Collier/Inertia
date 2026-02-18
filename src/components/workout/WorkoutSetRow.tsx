@@ -73,7 +73,7 @@ export const WorkoutSetRow = memo(({
   }, [weightMax, weightStep, set.weight])
 
   const repsOptions = useMemo(() => {
-    const opts = Array.from({ length: 101 }, (_, i) => i)
+    const opts = Array.from({ length: 100 }, (_, i) => i + 1)
     if (!opts.includes(set.reps)) {
       opts.push(set.reps)
       opts.sort((a, b) => a - b)
@@ -236,7 +236,7 @@ export const WorkoutSetRow = memo(({
                 <ScrollPicker
                   value={set.reps}
                   options={repsOptions}
-                  onChange={(reps) => onUpdateSet(workoutExerciseId, set.id, { reps })}
+                  onChange={(reps) => onUpdateSet(workoutExerciseId, set.id, { reps: Math.max(1, reps) })}
                   unit="reps"
                   className="w-full border-none bg-transparent"
                   height={250}

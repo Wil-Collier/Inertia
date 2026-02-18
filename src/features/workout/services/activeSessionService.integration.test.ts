@@ -103,6 +103,21 @@ describe("activeSessionService integration", () => {
     expect(session?.workout.exercises).toHaveLength(0)
   })
 
+  it("clamps set reps to at least one when updating", async () => {
+    await activeSessionService.startWorkout("Clamp Reps")
+    await activeSessionService.addExercise("bench")
+
+    const session = await db.activeSession.get("current")
+    const workoutExercise = session?.workout.exercises[0]
+    const setId = workoutExercise?.sets[0]?.id
+    if (!workoutExercise || !setId) throw new Error("expected workout exercise set")
+
+    await activeSessionService.updateSet(workoutExercise.id, setId, { reps: 0 })
+
+    const updated = await db.activeSession.get("current")
+    expect(updated?.workout.exercises[0]?.sets[0]?.reps).toBe(1)
+  })
+
   it("finishes active workout by moving it to history and clearing active session", async () => {
     vi.spyOn(achievementService, "updateStreaks").mockResolvedValue()
     vi.spyOn(achievementService, "checkWorkoutAchievements").mockResolvedValue()

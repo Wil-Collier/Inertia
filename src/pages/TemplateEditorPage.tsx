@@ -127,7 +127,7 @@ export function TemplateEditorPage() {
     }
   }
 
-  const handleAddFoodToTemplate = async (food: FoodItem, quantity: number) => {
+  const handleAddFoodToTemplate = useCallback(async (food: FoodItem, quantity: number) => {
     // Ensure the food exists in our local DB if it's from an external search
     if (!food.isCustom) {
       try {
@@ -154,7 +154,7 @@ export function TemplateEditorPage() {
     setSearchQuery("")
     setBarcodeResults([])
     toast.success(`Added ${food.name}`)
-  }
+  }, [addFoodMutation, templateId])
 
   const handleRemoveEntry = (index: number) => {
     setEntries((prev) => prev.filter((_, i) => i !== index))
@@ -180,10 +180,7 @@ export function TemplateEditorPage() {
       const food = await getProductByBarcode(barcode)
 
       if (food) {
-        setBarcodeResults([food])
-        setSearchQuery("")
-        setActiveTab("search")
-        toast.success(`Found: ${food.name}`)
+        await handleAddFoodToTemplate(food, 1)
       } else {
         setScannedBarcode(barcode)
         setActiveTab("myfoods")
@@ -195,7 +192,7 @@ export function TemplateEditorPage() {
     } finally {
       setIsLookingUp(false)
     }
-  }, [])
+  }, [handleAddFoodToTemplate])
   
   const [resolvedFoods, setResolvedFoods] = useState<Map<string, FoodItem>>(new Map())
   

@@ -12,6 +12,8 @@ import {
   WORKOUT_COMPLETION_SYNC_WRITE_TABLES,
 } from "@/services/dbTransactionTables"
 
+const MIN_REPS = 1
+
 /** Defer a callback to run in the background without blocking UI */
 function deferToBackground(callback: () => void) {
   if ("requestIdleCallback" in window) {
@@ -243,7 +245,7 @@ export const activeSessionService = {
         const newExercise: WorkoutExercise = {
           id: crypto.randomUUID(),
           exerciseId,
-          sets: [{ id: crypto.randomUUID(), reps: 0, weight: 0, isCompleted: false }],
+          sets: [{ id: crypto.randomUUID(), reps: MIN_REPS, weight: 0, isCompleted: false }],
         }
 
         session.workout.exercises.push(newExercise)
@@ -336,7 +338,7 @@ export const activeSessionService = {
           const lastSet = exercise.sets[exercise.sets.length - 1]
           const newSet: WorkoutSet = {
             id: crypto.randomUUID(),
-            reps: lastSet?.reps ?? 0,
+            reps: Math.max(MIN_REPS, lastSet?.reps ?? MIN_REPS),
             weight: lastSet?.weight ?? 0,
             isCompleted: false
           }
@@ -361,7 +363,10 @@ export const activeSessionService = {
         if (exercise) {
           const setIndex = exercise.sets.findIndex(s => s.id === setId)
           if (setIndex !== -1) {
-            exercise.sets[setIndex] = { ...exercise.sets[setIndex], ...updates }
+            const normalizedUpdates = updates.reps === undefined
+              ? updates
+              : { ...updates, reps: Math.max(MIN_REPS, updates.reps) }
+            exercise.sets[setIndex] = { ...exercise.sets[setIndex], ...normalizedUpdates }
             await db.activeSession.put(session)
           }
         }

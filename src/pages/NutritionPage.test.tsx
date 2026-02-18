@@ -120,7 +120,7 @@ describe("NutritionPage", () => {
     })
   })
 
-  it("handles barcode lookup success and shows resolved result", async () => {
+  it("handles barcode lookup success and adds meal entry immediately", async () => {
     const user = userEvent.setup()
 
     await renderNutritionRoute()
@@ -132,8 +132,20 @@ describe("NutritionPage", () => {
     })
 
     expect(screen.queryByTestId("barcode-scanner")).toBeNull()
-    expect(screen.getByText("Remote Oats")).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Add Remote Oats" })).toBeTruthy()
+
+    await waitFor(() => {
+      expect(screen.queryByText("Add to Breakfast")).toBeNull()
+    })
+
+    await waitFor(async () => {
+      const nutritionLog = await db.nutritionLogs.get("2026-02-09")
+      expect(nutritionLog?.entries).toHaveLength(1)
+      expect(nutritionLog?.entries[0]).toMatchObject({
+        foodId: REMOTE_FOOD.id,
+        mealType: "breakfast",
+        quantity: 1,
+      })
+    })
   })
 
   it("handles missing barcode results by switching to custom flow", async () => {
@@ -188,8 +200,6 @@ describe("NutritionPage", () => {
     await openBreakfastSheet(user)
     await scanDefaultBarcode(user)
 
-    await user.click(screen.getByRole("button", { name: "Add Remote Oats" }))
-
     await waitFor(async () => {
       const persistedFood = await db.foods.get(REMOTE_FOOD.id)
       const nutritionLog = await db.nutritionLogs.get("2026-02-09")
@@ -217,8 +227,6 @@ describe("NutritionPage", () => {
     await openBreakfastSheet(user)
     await scanDefaultBarcode(user)
 
-    await user.click(screen.getByRole("button", { name: "Add Remote Oats" }))
-
     await waitFor(async () => {
       const foods = await db.foods.toArray()
       const nutritionLog = await db.nutritionLogs.get("2026-02-09")
@@ -235,8 +243,14 @@ describe("NutritionPage", () => {
     await renderNutritionRoute()
     await openBreakfastSheet(user)
     await scanDefaultBarcode(user)
+    const closeSheetButton = screen.queryByRole("button", { name: "Close" })
+    if (closeSheetButton) {
+      await user.click(closeSheetButton)
+    }
+    await openBreakfastSheet(user)
+    await user.type(screen.getByPlaceholderText("Search foods..."), "oats")
 
-    await user.click(screen.getByRole("button", { name: "Toggle favorite for Remote Oats" }))
+    await user.click(await screen.findByRole("button", { name: "Toggle favorite for Remote Oats" }))
 
     await waitFor(async () => {
       const favoriteFood = await db.foods.get(REMOTE_FOOD.id)

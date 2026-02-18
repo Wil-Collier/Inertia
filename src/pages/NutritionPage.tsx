@@ -165,10 +165,7 @@ export function NutritionPage() {
       const food = await getProductByBarcode(barcode)
 
       if (food) {
-        // Product found - add to barcode results and show it
-        setBarcodeResults([food])
-        setSearchQuery("")
-        setActiveTab("search")
+        await handleAddFood(food, 1)
         toast.success(`Found: ${food.name}`)
       } else {
         // Product not found - switch to My Foods tab and open custom food form with barcode
@@ -182,7 +179,7 @@ export function NutritionPage() {
     } finally {
       setIsLookingUp(false)
     }
-  }, [])
+  }, [handleAddFood])
 
   const selectedMealLabel = useMemo(
     () => mealTypes.find((m) => m.type === selectedMealType)?.label,

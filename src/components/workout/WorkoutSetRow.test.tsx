@@ -299,6 +299,6 @@ describe("WorkoutSetRow", () => {
     await user.click(screen.getByRole("button", { name: "Confirm" }))
     await user.click(screen.getByRole("button", { name: "Set 1 reps" }))
     await user.click(screen.getByRole("button", { name: "Pick reps" }))
-    expect(onUpdateSet).toHaveBeenCalledWith("workout-exercise-1", "set-1", { reps: 0 })
+    expect(onUpdateSet).toHaveBeenCalledWith("workout-exercise-1", "set-1", { reps: 1 })
   })
 })
