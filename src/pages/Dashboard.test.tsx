@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { cleanup, screen, waitFor } from "@testing-library/react"
 import { db } from "@/services/db"
@@ -28,12 +28,6 @@ vi.mock("@/components/AchievementBadge", () => ({
   AchievementBadge: () => <div>Achievement Badge</div>,
 }))
 
-// Pin today's date to a deterministic value so seeded workout/nutrition data with
-// date "2026-02-09" is always treated as "today" regardless of when the test runs.
-vi.mock("@/lib/dateUtils", () => ({
-  getToday: () => "2026-02-09",
-}))
-
 async function renderDashboardRoute() {
   return await renderAppRoute({
     initialPath: "/",
@@ -48,6 +42,18 @@ async function renderDashboardRoute() {
 }
 
 describe("Dashboard", () => {
+  // Pin today's date to a deterministic value so seeded workout/nutrition data with
+  // date "2026-02-09" is always treated as "today" regardless of when the test runs.
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    // Use local noon to avoid UTC-to-local-date shifting in date-fns format()
+    vi.setSystemTime(new Date(2026, 1, 9, 12, 0, 0))
+  })
+
+  afterAll(() => {
+    vi.useRealTimers()
+  })
+
   afterEach(() => {
     cleanup()
   })

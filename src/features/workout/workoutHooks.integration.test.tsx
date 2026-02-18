@@ -34,24 +34,12 @@ describe("workout hooks integration", () => {
   beforeEach(async () => {
     await clearDatabase()
     vi.restoreAllMocks()
-    updateStreaksSpy = vi.spyOn(achievementService, "updateStreaks").mockResolvedValue()
-    vi.spyOn(achievementService, "checkWorkoutAchievements").mockResolvedValue()
-    addWorkoutSpy = vi.spyOn(statsService, "addWorkout").mockResolvedValue({
-      totalWorkouts: 1,
-      totalVolumeLbs: 1000,
-      lastUpdated: new Date().toISOString(),
-    })
-    removeWorkoutSpy = vi.spyOn(statsService, "removeWorkout").mockResolvedValue({
-      totalWorkouts: 0,
-      totalVolumeLbs: 0,
-      lastUpdated: new Date().toISOString(),
-    })
-    updateWorkoutSpy = vi.spyOn(statsService, "updateWorkout").mockResolvedValue({
-      totalWorkouts: 1,
-      totalVolumeLbs: 900,
-      lastUpdated: new Date().toISOString(),
-    })
-    vi.spyOn(achievementService, "checkTemplateAchievements").mockResolvedValue()
+    updateStreaksSpy = vi.spyOn(achievementService, "updateStreaks")
+    vi.spyOn(achievementService, "checkWorkoutAchievements")
+    addWorkoutSpy = vi.spyOn(statsService, "addWorkout")
+    removeWorkoutSpy = vi.spyOn(statsService, "removeWorkout")
+    updateWorkoutSpy = vi.spyOn(statsService, "updateWorkout")
+    vi.spyOn(achievementService, "checkTemplateAchievements")
   })
 
   it("creates workout with exerciseIds and updates query cache", async () => {
@@ -95,7 +83,6 @@ describe("workout hooks integration", () => {
 
     const queryClient = createTestQueryClient()
     const wrapper = createQueryWrapper(queryClient)
-    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue()
 
     const { result } = renderHook(() => useDeleteWorkout(), { wrapper })
 
@@ -105,8 +92,9 @@ describe("workout hooks integration", () => {
 
     expect(await db.workoutSessions.get("workout-1")).toBeUndefined()
     expect(removeWorkoutSpy).toHaveBeenCalled()
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.workouts.all })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.achievements.all })
+    // Stats record updated in Dexie by the real statsService
+    const stats = await db.userStats.get("stats")
+    expect(stats?.totalWorkouts).toBe(0)
   })
 
   it("falls back to settings weight unit when create payload omits weightUnit", async () => {
@@ -201,7 +189,6 @@ describe("workout hooks integration", () => {
   it("performs template CRUD and invalidates template queries", async () => {
     const queryClient = createTestQueryClient()
     const wrapper = createQueryWrapper(queryClient)
-    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue()
 
     const createHook = renderHook(() => useCreateTemplate(), { wrapper })
     let templateId = ""
@@ -213,6 +200,8 @@ describe("workout hooks integration", () => {
       templateId = created.id
     })
 
+    expect(await db.workoutTemplates.get(templateId)).toBeTruthy()
+
     const updateHook = renderHook(() => useUpdateTemplate(), { wrapper })
     await act(async () => {
       await updateHook.result.current.mutateAsync({
@@ -221,13 +210,13 @@ describe("workout hooks integration", () => {
       })
     })
 
+    expect((await db.workoutTemplates.get(templateId))?.name).toBe("Updated Template")
+
     const deleteHook = renderHook(() => useDeleteTemplate(), { wrapper })
     await act(async () => {
       await deleteHook.result.current.mutateAsync(templateId)
     })
 
     expect(await db.workoutTemplates.get(templateId)).toBeUndefined()
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.templates.all })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.achievements.all })
   })
 })

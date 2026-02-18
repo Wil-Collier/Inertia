@@ -1,5 +1,5 @@
-import { act, renderHook } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { act, cleanup, renderHook } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useSyncTriggers } from "@/features/sync/useSyncTriggers"
 import { useAuthStore } from "@/features/sync/store"
 import { lastPullTimestamp } from "@/features/sync/lastPullTracker"
@@ -28,6 +28,15 @@ function setOnline(value: boolean) {
   })
 }
 
+function setAuthenticatedUser() {
+  useAuthStore.getState().setAuth({
+    accessToken: "token",
+    userId: "user-1",
+    email: "user@example.com",
+    expiresAtMs: Date.now() + 60_000,
+  })
+}
+
 describe("useSyncTriggers", () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -39,45 +48,64 @@ describe("useSyncTriggers", () => {
     useAuthStore.getState().clearAuth()
   })
 
-  it("triggers sync on mount, online events, visible events and interval", async () => {
-    useAuthStore.getState().setAuth({
-      accessToken: "token",
-      userId: "user-1",
-      email: "user@example.com",
-      expiresAtMs: Date.now() + 60_000,
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+    // Reset visibilityState to default to avoid leaking between tests
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
     })
+  })
 
+  it("triggers sync on mount when authenticated", () => {
+    setAuthenticatedUser()
     renderHook(() => useSyncTriggers())
-
     expect(syncNowMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("triggers sync when the browser comes back online", () => {
+    setAuthenticatedUser()
+    renderHook(() => useSyncTriggers())
+    const callsAfterMount = syncNowMock.mock.calls.length
 
     act(() => {
       window.dispatchEvent(new Event("online"))
     })
 
+    expect(syncNowMock).toHaveBeenCalledTimes(callsAfterMount + 1)
+  })
+
+  it("triggers sync when the page becomes visible", () => {
+    setAuthenticatedUser()
+    renderHook(() => useSyncTriggers())
+    const callsAfterMount = syncNowMock.mock.calls.length
+
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
       value: "visible",
     })
-
     act(() => {
       document.dispatchEvent(new Event("visibilitychange"))
     })
+
+    expect(syncNowMock).toHaveBeenCalledTimes(callsAfterMount + 1)
+  })
+
+  it("triggers sync on the 30-second interval", () => {
+    setAuthenticatedUser()
+    renderHook(() => useSyncTriggers())
+    const callsAfterMount = syncNowMock.mock.calls.length
 
     act(() => {
       vi.advanceTimersByTime(30 * 1000)
     })
 
-    expect(syncNowMock).toHaveBeenCalledTimes(4)
+    expect(syncNowMock).toHaveBeenCalledTimes(callsAfterMount + 1)
   })
 
   it("skips interval poll if a pull happened recently", () => {
-    useAuthStore.getState().setAuth({
-      accessToken: "token",
-      userId: "user-1",
-      email: "user@example.com",
-      expiresAtMs: Date.now() + 60_000,
-    })
+    setAuthenticatedUser()
 
     renderHook(() => useSyncTriggers())
 
@@ -101,12 +129,7 @@ describe("useSyncTriggers", () => {
   })
 
   it("triggers sync on route change", () => {
-    useAuthStore.getState().setAuth({
-      accessToken: "token",
-      userId: "user-1",
-      email: "user@example.com",
-      expiresAtMs: Date.now() + 60_000,
-    })
+    setAuthenticatedUser()
 
     const { rerender } = renderHook(() => useSyncTriggers())
     const callsAfterMount = syncNowMock.mock.calls.length
@@ -125,13 +148,7 @@ describe("useSyncTriggers", () => {
 
   it("does not trigger sync when sync is disabled", () => {
     syncEnabled = false
-
-    useAuthStore.getState().setAuth({
-      accessToken: "token",
-      userId: "user-1",
-      email: "user@example.com",
-      expiresAtMs: Date.now() + 60_000,
-    })
+    setAuthenticatedUser()
 
     renderHook(() => useSyncTriggers())
 
@@ -139,12 +156,7 @@ describe("useSyncTriggers", () => {
   })
 
   it("skips interval sync while offline", () => {
-    useAuthStore.getState().setAuth({
-      accessToken: "token",
-      userId: "user-1",
-      email: "user@example.com",
-      expiresAtMs: Date.now() + 60_000,
-    })
+    setAuthenticatedUser()
 
     setOnline(false)
     renderHook(() => useSyncTriggers())

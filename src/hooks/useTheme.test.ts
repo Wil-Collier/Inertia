@@ -1,65 +1,83 @@
-import { act, renderHook } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { act, renderHook, waitFor } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { useTheme } from "@/hooks/useTheme"
-
-const mutateMock = vi.fn()
-const useSettingsMock = vi.fn()
-const useUpdateSettingsMock = vi.fn(() => ({ mutate: mutateMock }))
+import { db } from "@/services/db"
+import { clearDatabase } from "@/test/helpers/dbTestUtils"
+import { createQueryWrapper, createTestQueryClient } from "@/test/helpers/queryHookTestUtils"
 
 type Listener = (event: { matches: boolean }) => void
 let mediaListener: Listener | null = null
 let mediaMatches = false
 
-vi.mock("@/features/settings/queries", () => ({
-  useSettings: () => useSettingsMock(),
-}))
-
-vi.mock("@/features/settings/mutations", () => ({
-  useUpdateSettings: () => useUpdateSettingsMock(),
-}))
+// matchMedia is a browser API not available in jsdom — must be stubbed.
+function setupMatchMedia() {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: (query: string) => ({
+      matches: mediaMatches,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: (_event: string, listener: Listener) => {
+        mediaListener = listener
+      },
+      removeEventListener: () => {
+        mediaListener = null
+      },
+      dispatchEvent: () => false,
+    }),
+  })
+}
 
 describe("useTheme", () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+  beforeEach(async () => {
+    await clearDatabase()
     document.documentElement.className = ""
-
     mediaMatches = false
     mediaListener = null
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: vi.fn(() => ({
-        matches: mediaMatches,
-        media: "(prefers-color-scheme: dark)",
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: (_event: string, listener: Listener) => {
-          mediaListener = listener
-        },
-        removeEventListener: () => {
-          mediaListener = null
-        },
-        dispatchEvent: vi.fn(),
-      })),
-    })
+    setupMatchMedia()
   })
 
-  it("defaults to system theme and follows OS dark preference", () => {
+  afterEach(() => {
+    document.documentElement.className = ""
+  })
+
+  it("defaults to system theme and follows OS dark preference", async () => {
     mediaMatches = true
-    useSettingsMock.mockReturnValue({ data: undefined })
+    setupMatchMedia()
 
-    const { result } = renderHook(() => useTheme())
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
-    expect(result.current.theme).toBe("system")
+    // No settings seeded — defaults to system
+    await waitFor(() => {
+      expect(result.current.theme).toBe("system")
+    })
     expect(document.documentElement.classList.contains("dark")).toBe(true)
   })
 
-  it("reacts to system theme changes while using system mode", () => {
+  it("reacts to system theme changes while using system mode", async () => {
     mediaMatches = false
-    useSettingsMock.mockReturnValue({ data: { theme: "system" } })
+    setupMatchMedia()
 
-    renderHook(() => useTheme())
-    expect(document.documentElement.classList.contains("dark")).toBe(false)
+    await db.settings.put({
+      id: "settings",
+      theme: "system",
+      restTimerDuration: 90,
+      areNotificationsEnabled: false,
+      unitPreferences: { weight: "kg", distance: "km" },
+      nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+    })
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    renderHook(() => useTheme(), { wrapper })
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains("dark")).toBe(false)
+    })
 
     act(() => {
       mediaListener?.({ matches: true })
@@ -67,19 +85,35 @@ describe("useTheme", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(true)
   })
 
-  it("applies explicit dark/light themes and updates settings through setTheme", () => {
-    useSettingsMock.mockReturnValue({ data: { theme: "dark" } })
-    const { result, rerender } = renderHook(() => useTheme())
+  it("applies explicit dark theme and persists new theme via setTheme", async () => {
+    await db.settings.put({
+      id: "settings",
+      theme: "dark",
+      restTimerDuration: 90,
+      areNotificationsEnabled: false,
+      unitPreferences: { weight: "kg", distance: "km" },
+      nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+    })
 
-    expect(document.documentElement.classList.contains("dark")).toBe(true)
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
-    act(() => {
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains("dark")).toBe(true)
+    })
+
+    await act(async () => {
       result.current.setTheme("light")
     })
-    expect(mutateMock).toHaveBeenCalledWith({ theme: "light" })
 
-    useSettingsMock.mockReturnValue({ data: { theme: "light" } })
-    rerender()
-    expect(document.documentElement.classList.contains("dark")).toBe(false)
+    await waitFor(async () => {
+      const saved = await db.settings.get("settings")
+      expect(saved?.theme).toBe("light")
+    })
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains("dark")).toBe(false)
+    })
   })
 })

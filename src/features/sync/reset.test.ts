@@ -1,17 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it } from "vitest"
 import { resetSyncState } from "@/features/sync/reset"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
-
-const clearSyncMetadataMock = vi.fn()
-
-vi.mock("@/features/sync/changeTracker", () => ({
-  clearSyncMetadata: (...args: unknown[]) => clearSyncMetadataMock(...args),
-}))
+import { db } from "@/services/db"
+import { clearDatabase } from "@/test/helpers/dbTestUtils"
 
 describe("resetSyncState", () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    clearSyncMetadataMock.mockResolvedValue(undefined)
+  beforeEach(async () => {
+    await clearDatabase()
     localStorage.clear()
 
     useAuthStore.getState().setAuth({
@@ -29,6 +24,11 @@ describe("resetSyncState", () => {
       initialSyncState: { localHasData: true, cloudHasData: true },
     })
 
+    // Seed some sync metadata to confirm clearSyncMetadata runs
+    await db.syncPendingChanges.put({ collection: "foods", id: "f1", deleted: false, baseVersion: 1, mutationId: "m1", enqueuedAt: Date.now() })
+    await db.syncRecordVersions.put({ collection: "foods", id: "f1", version: 2 })
+    await db.metadata.put({ key: "sync.pullCursor", value: JSON.stringify({ version: 5 }) })
+
     localStorage.setItem("kinetic-device-id", "device-1")
   })
 
@@ -41,6 +41,11 @@ describe("resetSyncState", () => {
     expect(useSyncStore.getState().initialSyncState).toBeNull()
     expect(useSyncStore.getState().conflicts).toEqual([])
     expect(localStorage.getItem("kinetic-device-id")).toBeNull()
-    expect(clearSyncMetadataMock).toHaveBeenCalledTimes(1)
+
+    // Real clearSyncMetadata should have emptied sync tables
+    expect(await db.syncPendingChanges.count()).toBe(0)
+    expect(await db.syncRecordVersions.count()).toBe(0)
+    const cursor = await db.metadata.get("sync.pullCursor")
+    expect(cursor).toBeUndefined()
   })
 })

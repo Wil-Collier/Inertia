@@ -52,25 +52,13 @@ vi.mock("@/components/layout/Header", () => ({
   Header: ({ title, onBack, rightAction, bottomContent }: HeaderProps) => (
     <div>
       <h1>{title}</h1>
-      <button type="button" onClick={onBack}>
-        Back
+      <button type="button" aria-label="Go back" onClick={onBack}>
+        Go back
       </button>
       {rightAction}
       {bottomContent}
     </div>
   ),
-}))
-
-vi.mock("@/components/workout/RestTimerBanner", () => ({
-  RestTimerBanner: () => <div>Rest Timer Banner</div>,
-}))
-
-vi.mock("@/components/workout/WorkoutProgressSummary", () => ({
-  WorkoutProgressSummary: () => <div>Workout Progress</div>,
-}))
-
-vi.mock("@/components/workout/WorkoutExerciseCard", () => ({
-  WorkoutExerciseCard: () => <div>Workout Exercise Card</div>,
 }))
 
 vi.mock("@/components/ExercisePickerSheet", () => ({
@@ -119,9 +107,9 @@ describe("ActiveWorkout", () => {
     })
 
     const { router } = await renderActiveWorkoutRoute()
-    await screen.findByRole("button", { name: "Back" })
+    await screen.findByRole("button", { name: "Go back" })
 
-    await user.click(screen.getByRole("button", { name: "Back" }))
+    await user.click(screen.getByRole("button", { name: "Go back" }))
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/workout")
@@ -153,9 +141,9 @@ describe("ActiveWorkout", () => {
     })
 
     const { router } = await renderActiveWorkoutRoute()
-    await screen.findByRole("button", { name: "Back" })
+    await screen.findByRole("button", { name: "Go back" })
 
-    await user.click(screen.getByRole("button", { name: "Back" }))
+    await user.click(screen.getByRole("button", { name: "Go back" }))
 
     expect(await screen.findByText("Cancel Workout?")).toBeTruthy()
 
@@ -188,9 +176,9 @@ describe("ActiveWorkout", () => {
     })
 
     const { router } = await renderActiveWorkoutRoute()
-    await screen.findByRole("button", { name: "Back" })
+    await screen.findByRole("button", { name: "Go back" })
 
-    await user.click(screen.getByRole("button", { name: "Back" }))
+    await user.click(screen.getByRole("button", { name: "Go back" }))
     await user.click(screen.getByRole("button", { name: "Discard" }))
 
     await waitFor(() => {

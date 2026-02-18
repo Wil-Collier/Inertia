@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { cleanup, screen, waitFor } from "@testing-library/react"
 import { WorkoutHistory } from "@/pages/WorkoutHistory"
@@ -8,37 +8,6 @@ import { renderAppRoute } from "@/test/helpers/renderAppRoute"
 import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
 import { seedTestState } from "@/test/helpers/seedTestState"
 import { db } from "@/services/db"
-
-const historyTestState = vi.hoisted(() => ({
-    toastSuccess: vi.fn(),
-    toastError: vi.fn(),
-}))
-
-vi.mock("sonner", () => ({
-    toast: {
-        success: (...args: unknown[]) => historyTestState.toastSuccess(...args),
-        error: (...args: unknown[]) => historyTestState.toastError(...args),
-        info: vi.fn(),
-    },
-}))
-
-vi.mock("@/services/achievementService", () => ({
-    achievementService: {
-        updateStreaks: vi.fn().mockResolvedValue(undefined),
-        checkWorkoutAchievements: vi.fn().mockResolvedValue(undefined),
-        runWorkoutSideEffects: vi.fn().mockResolvedValue(undefined),
-    },
-}))
-
-vi.mock("@/services/statsService", () => ({
-    statsService: {
-        removeWorkout: vi.fn().mockResolvedValue({
-            totalWorkouts: 0,
-            totalVolumeLbs: 0,
-            lastUpdated: new Date().toISOString(),
-        }),
-    },
-}))
 
 async function renderHistoryRoute() {
     return await renderAppRoute({
@@ -56,7 +25,6 @@ describe("WorkoutHistory", () => {
     })
 
     beforeEach(async () => {
-        vi.clearAllMocks()
         await resetTestRuntime()
         await seedTestState({
             settings: createSettings(),
@@ -229,8 +197,10 @@ describe("WorkoutHistory", () => {
             expect(workout).toBeUndefined()
         })
 
-        // Toast should show success
-        expect(historyTestState.toastSuccess).toHaveBeenCalledWith("Workout deleted")
+        // The deleted workout should no longer appear in the list
+        await waitFor(() => {
+            expect(screen.queryByText("Delete Me Workout")).toBeNull()
+        })
     })
 
     it("cancels delete dialog without removing workout", async () => {

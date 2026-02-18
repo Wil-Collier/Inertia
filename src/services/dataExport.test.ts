@@ -5,6 +5,14 @@ const importDatabaseMock = vi.fn()
 const recoverDatabaseMock = vi.fn()
 const resetSyncStateMock = vi.fn()
 
+/**
+ * @/services/db is mocked here because dataExport.ts uses `exportDatabase` and `importDatabase`
+ * from dexie-export-import, which performs real IndexedDB bulk serialisation/deserialisation.
+ * The dexie-export-import library does not work reliably with fake-indexeddb in a jsdom
+ * environment (missing Blob/stream APIs). Stubbing `exportDatabase`/`importDatabase` lets us
+ * test dataExport's orchestration logic (wrapping, validation, sync reset, localStorage cleanup,
+ * page reload) without needing the full Dexie serialisation pipeline.
+ */
 vi.mock("@/services/db", () => ({
   exportDatabase: (...args: unknown[]) => exportDatabaseMock(...args),
   importDatabase: (...args: unknown[]) => importDatabaseMock(...args),

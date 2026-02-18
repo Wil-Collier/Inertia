@@ -46,10 +46,6 @@ vi.mock("@/lib/dateUtils", () => ({
   },
 }))
 
-vi.mock("@/hooks/useDebouncedValue", () => ({
-  useDebouncedValue: (value: string) => value,
-}))
-
 vi.mock("@/components/BarcodeScanner", () => ({
   BarcodeScanner: ({ isOpen, onScan, onClose }: BarcodeScannerProps) =>
     isOpen ? (
@@ -238,17 +234,20 @@ describe("NutritionPage", () => {
   })
 
   it("toggles favorites via real mutation and persists state", async () => {
+    // Seed the food so it shows up in the list without needing a barcode scan
+    await seedTestState({ foods: [REMOTE_FOOD] })
+
     const user = userEvent.setup()
 
     await renderNutritionRoute()
     await openBreakfastSheet(user)
-    await scanDefaultBarcode(user)
-    const closeSheetButton = screen.queryByRole("button", { name: "Close" })
-    if (closeSheetButton) {
-      await user.click(closeSheetButton)
-    }
-    await openBreakfastSheet(user)
-    await user.type(screen.getByPlaceholderText("Search foods..."), "oats")
+
+    // Type into the search box then advance past the debounce delay
+    const searchInput = screen.getByPlaceholderText("Search foods...")
+    await user.type(searchInput, "oats")
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(400)
+    vi.useRealTimers()
 
     await user.click(await screen.findByRole("button", { name: "Toggle favorite for Remote Oats" }))
 

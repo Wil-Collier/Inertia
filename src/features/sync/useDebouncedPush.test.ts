@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react"
+import { act, cleanup, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useDebouncedPush } from "@/features/sync/useDebouncedPush"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
@@ -40,6 +40,7 @@ describe("useDebouncedPush", () => {
   })
 
   afterEach(() => {
+    cleanup()
     vi.useRealTimers()
   })
 
@@ -65,14 +66,12 @@ describe("useDebouncedPush", () => {
     })
     expect(syncNowMock).not.toHaveBeenCalled()
 
-    const callsBeforeFinalDebounce = syncNowMock.mock.calls.length
-
     act(() => {
       useSyncStore.setState({ pendingCount: 2 })
       vi.advanceTimersByTime(5000)
     })
 
-    expect(syncNowMock.mock.calls.length).toBeGreaterThan(callsBeforeFinalDebounce)
+    expect(syncNowMock).toHaveBeenCalledTimes(1)
   })
 
   it("does not push when unauthenticated", () => {

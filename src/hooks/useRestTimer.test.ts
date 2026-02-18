@@ -2,29 +2,24 @@ import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useRestTimer } from "@/hooks/useRestTimer"
 import { useRestTimerStore } from "@/features/workout/restTimerStore"
+import { db } from "@/services/db"
+import { clearDatabase } from "@/test/helpers/dbTestUtils"
+import { createQueryWrapper, createTestQueryClient } from "@/test/helpers/queryHookTestUtils"
 
 const showRestTimerNotificationMock = vi.fn()
 const canShowNotificationsMock = vi.fn(() => true)
-let notificationsEnabled = false
 
+// notifications is a true browser-API boundary (Notification permission, ServiceWorker) — mock required.
 vi.mock("@/services/notifications", () => ({
   showRestTimerNotification: () => showRestTimerNotificationMock(),
   canShowNotifications: () => canShowNotificationsMock(),
 }))
 
-vi.mock("@/features/settings/queries", () => ({
-  useSettings: () => ({
-    data: {
-      areNotificationsEnabled: notificationsEnabled,
-    },
-  }),
-}))
-
 describe("useRestTimer", () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
+  beforeEach(async () => {
+    // Clear DB with real timers so IndexedDB promises resolve normally.
+    await clearDatabase()
     vi.clearAllMocks()
-    notificationsEnabled = false
     useRestTimerStore.getState().reset()
   })
 
@@ -33,12 +28,29 @@ describe("useRestTimer", () => {
     useRestTimerStore.getState().reset()
   })
 
-  it("shows completion notification when notifications are enabled and permitted", () => {
-    notificationsEnabled = true
+  it("shows completion notification when notifications are enabled and permitted", async () => {
+    await db.settings.put({
+      id: "settings",
+      theme: "system",
+      restTimerDuration: 90,
+      areNotificationsEnabled: true,
+      unitPreferences: { weight: "kg", distance: "km" },
+      nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+    })
     canShowNotificationsMock.mockReturnValue(true)
 
+    vi.useFakeTimers()
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
     const onComplete = vi.fn()
-    const { result } = renderHook(() => useRestTimer({ defaultDuration: 1, onComplete }))
+    const { result } = renderHook(() => useRestTimer({ defaultDuration: 1, onComplete }), { wrapper })
+
+    // Advance timers enough for React Query to complete the initial fetch,
+    // ensuring areNotificationsEnabled ref is populated before the timer starts.
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
 
     act(() => {
       result.current.start()
@@ -54,12 +66,23 @@ describe("useRestTimer", () => {
     expect(result.current.timeRemaining).toBe(0)
   })
 
-  it("does not show completion notification when disabled or not permitted", () => {
-    notificationsEnabled = false
+  it("does not show completion notification when disabled or not permitted", async () => {
+    await db.settings.put({
+      id: "settings",
+      theme: "system",
+      restTimerDuration: 90,
+      areNotificationsEnabled: false,
+      unitPreferences: { weight: "kg", distance: "km" },
+      nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+    })
     canShowNotificationsMock.mockReturnValue(false)
 
+    vi.useFakeTimers()
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
     const onComplete = vi.fn()
-    const { result } = renderHook(() => useRestTimer({ defaultDuration: 1, onComplete }))
+    const { result } = renderHook(() => useRestTimer({ defaultDuration: 1, onComplete }), { wrapper })
 
     act(() => {
       result.current.start()
@@ -74,9 +97,13 @@ describe("useRestTimer", () => {
   })
 
   it("updates default duration when idle and uses the latest value on start", () => {
+    vi.useFakeTimers()
+
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
     const { result, rerender } = renderHook(
       ({ defaultDuration }) => useRestTimer({ defaultDuration }),
-      { initialProps: { defaultDuration: 90 } }
+      { initialProps: { defaultDuration: 90 }, wrapper }
     )
 
     act(() => {

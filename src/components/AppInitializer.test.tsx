@@ -10,6 +10,12 @@ import * as syncApiModule from "@/features/sync/api"
 import { markSessionRestoreEligible } from "@/features/sync/sessionRestoreHint"
 import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
 
+/**
+ * useSyncTriggers and useDebouncedPush are mocked here because they establish
+ * network-polling intervals and Zustand-to-syncEngine side effects that are
+ * irrelevant to AppInitializer's initialization lifecycle under test.
+ * Letting them run would add timer noise and trigger unrelated sync network calls.
+ */
 vi.mock("@/features/sync/useSyncTriggers", () => ({
   useSyncTriggers: () => undefined,
 }))

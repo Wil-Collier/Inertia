@@ -77,7 +77,7 @@ describe("notifications service", () => {
     expect(MockNotification.requestPermission).not.toHaveBeenCalled()
   })
 
-  it("shows notification with defaults and auto-closes after 5 seconds", () => {
+  it("shows notification with defaults, auto-closes after 5 seconds, and canShowNotifications returns true", () => {
     MockNotification.permission = "granted"
 
     showRestTimerNotification()
@@ -93,6 +93,7 @@ describe("notifications service", () => {
       icon: "/icon.svg",
       badge: "/icon.svg",
     })
+    expect(canShowNotifications()).toBe(true)
 
     vi.advanceTimersByTime(5000)
     expect(notification.close).toHaveBeenCalledTimes(1)
@@ -102,19 +103,5 @@ describe("notifications service", () => {
     MockNotification.permission = "denied"
     expect(showRestTimerNotification()).toBeNull()
     expect(canShowNotifications()).toBe(false)
-  })
-
-  it("shows rest timer notification with user-facing content", () => {
-    MockNotification.permission = "granted"
-    showRestTimerNotification()
-    const notification = MockNotification.instances[0]
-    if (!notification) {
-      throw new Error("Expected rest timer notification instance")
-    }
-
-    expect(notification.title).toBe("Rest Complete!")
-    expect(notification.options?.body).toBe("Time to start your next set")
-    expect(notification.options?.tag).toBe("rest-timer")
-    expect(canShowNotifications()).toBe(true)
   })
 })
