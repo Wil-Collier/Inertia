@@ -465,6 +465,24 @@ describe("pushPipeline", () => {
     expect(acknowledgeProcessedPendingChangesMock).toHaveBeenCalledTimes(1)
   })
 
+  it("acknowledges accepted mutations for each full-snapshot batch", async () => {
+    workoutSessionsToArrayMock.mockResolvedValue(
+      Array.from({ length: 250 }, (_, index) => ({ id: `workout-${index}` }))
+    )
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+    getRecordVersionMock.mockResolvedValue(0)
+    pushChangesMock.mockImplementation(async (_token, payload: { changes: PushChange[] }) => ({
+      acceptedChanges: makeAcceptedFromChanges(payload.changes),
+      conflicts: [],
+    }))
+
+    const { pushFullSnapshot } = await loadPushPipeline()
+    await pushFullSnapshot("token")
+
+    expect(pushChangesMock).toHaveBeenCalledTimes(2)
+    expect(acknowledgeProcessedPendingChangesMock).toHaveBeenCalledTimes(2)
+  })
+
   it("fails full snapshot when conflictMode is error and server returns conflicts", async () => {
     foodsToArrayMock.mockResolvedValue([{ id: "food-1" }])
     toCloudRecordMock.mockImplementation((_collection, record) => record)
@@ -1036,6 +1054,47 @@ describe("pushPipeline", () => {
           change.deviceId === "device-1"
       )
     ).toBe(true)
+  })
+
+  it("throws when overwriteCloudWithLocal hits persistent conflicts", async () => {
+    foodsToArrayMock.mockResolvedValue([{ id: "food-local" }])
+    toCloudRecordMock.mockImplementation((_collection, record) => record)
+
+    pullAllChangesMock.mockResolvedValue({
+      changes: [
+        {
+          collection: "foods",
+          id: "food-local",
+          data: { id: "food-local" },
+          version: 3,
+          deleted: false,
+        },
+      ],
+      cursor: { version: 3 },
+      serverTimestampMs: Date.now(),
+      affectedCollections: new Set(["foods"]),
+    })
+
+    pushChangesMock.mockResolvedValue({
+      acceptedChanges: [],
+      conflicts: [
+        {
+          collection: "foods",
+          id: "food-local",
+          serverVersion: 4,
+          clientBaseVersion: 3,
+          reason: "VERSION_MISMATCH",
+        },
+      ],
+    })
+
+    const { overwriteCloudWithLocal } = await loadPushPipeline()
+
+    await expect(overwriteCloudWithLocal("token")).rejects.toThrow(
+      "Failed to overwrite cloud with local data after 3 attempts. Conflicts on: foods:food-local"
+    )
+    expect(pushChangesMock).toHaveBeenCalledTimes(3)
+    expect(pullAllChangesMock).toHaveBeenCalledTimes(3)
   })
 
   it("retries overwriteCloudWithLocal on transient version conflicts", async () => {

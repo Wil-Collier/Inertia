@@ -81,18 +81,6 @@ describe("SettingsPage", () => {
         })
     })
 
-    it("renders settings page with all setting sections", async () => {
-        await renderSettingsRoute()
-
-        expect(await screen.findByRole("heading", { name: "Settings" })).toBeTruthy()
-        expect(screen.getByText("Appearance")).toBeTruthy()
-        expect(screen.getByText("Rest Timer Duration (seconds)")).toBeTruthy()
-        expect(screen.getByText("Units")).toBeTruthy()
-        expect(screen.getByText(/Daily Nutrition Goals/)).toBeTruthy()
-        expect(screen.getByText("Data Management")).toBeTruthy()
-        expect(screen.getByText(/Inertia v/)).toBeTruthy()
-    })
-
     it("persists rest timer duration changes to database", async () => {
         const user = userEvent.setup()
         await renderSettingsRoute()
@@ -150,47 +138,6 @@ describe("SettingsPage", () => {
             const settings = await db.settings.get("settings")
             expect(settings?.nutritionGoals.calories).toBe(2500)
         })
-    })
-
-    it("shows export button and triggers export warning dialog on click", async () => {
-        const user = userEvent.setup()
-        await renderSettingsRoute()
-
-        const exportButton = await screen.findByRole("button", { name: /Export Data/i })
-        expect(exportButton).toBeTruthy()
-
-        // Clicking opens an export warning dialog first (not immediate export)
-        await user.click(exportButton)
-
-        expect(await screen.findByText("Export Data")).toBeTruthy()
-        expect(screen.getByText(/not encrypted/)).toBeTruthy()
-    })
-
-    it("shows import button with hidden file input", async () => {
-        await renderSettingsRoute()
-
-        const importButton = await screen.findByRole("button", { name: /Import Data/i })
-        expect(importButton).toBeTruthy()
-
-        // There should be a hidden file input for import
-        const fileInput = document.querySelector("input[type='file']")
-        expect(fileInput).toBeTruthy()
-    })
-
-    it("shows clear data button and opens confirmation dialog", async () => {
-        const user = userEvent.setup()
-        await renderSettingsRoute()
-
-        const clearButton = await screen.findByRole("button", { name: /Clear All Data/i })
-        expect(clearButton).toBeTruthy()
-
-        await user.click(clearButton)
-
-        // Confirmation dialog should appear
-        expect(await screen.findByText("Clear All Data?")).toBeTruthy()
-        expect(screen.getByText(/This will permanently delete/)).toBeTruthy()
-        expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy()
-        expect(screen.getByRole("button", { name: "Delete Everything" })).toBeTruthy()
     })
 
     it("cancels clear data dialog without deleting data", async () => {

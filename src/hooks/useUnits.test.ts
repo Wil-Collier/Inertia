@@ -9,6 +9,7 @@ import {
   getDisplayWeight,
   parseDistance,
   parseWeight,
+  useWeightUnit,
   useUnits,
 } from "@/hooks/useUnits"
 import type { UserSettings } from "@/lib/types"
@@ -80,5 +81,22 @@ describe("useUnits utilities", () => {
     expect(units.distance.toDisplay(3.1)).toBe(3.1)
     expect(units.distance.toStorage(3.1)).toBe(3.1)
     expect(units.distance.parse("3.1")).toBe(3.1)
+  })
+
+  it("exposes weight-only helpers through useWeightUnit", () => {
+    mockSettings = {
+      theme: "system",
+      restTimerDuration: 90,
+      areNotificationsEnabled: false,
+      unitPreferences: { weight: "lbs", distance: "km" },
+      nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+    }
+
+    const { result } = renderHook(() => useWeightUnit())
+
+    expect(result.current.unit).toBe("lbs")
+    expect(result.current.unitLabel).toBe("lbs")
+    expect(result.current.format(185)).toBe("185 lbs")
+    expect(result.current.parse("185")).toBe(185)
   })
 })

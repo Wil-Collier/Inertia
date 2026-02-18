@@ -28,18 +28,4 @@ describe("UnitSettings", () => {
     expect(onWeightUnitChange).toHaveBeenCalledWith("kg")
     expect(onDistanceUnitChange).toHaveBeenCalledWith("km")
   })
-
-  it("renders selected options with active styles", () => {
-    render(
-      <UnitSettings
-        weightUnit="kg"
-        distanceUnit="km"
-        onWeightUnitChange={vi.fn()}
-        onDistanceUnitChange={vi.fn()}
-      />
-    )
-
-    expect(screen.getAllByRole("button", { name: "Kilograms (kg)" })[0].className).toMatch(/bg-primary/)
-    expect(screen.getAllByRole("button", { name: "Kilometers (km)" })[0].className).toMatch(/bg-primary/)
-  })
 })

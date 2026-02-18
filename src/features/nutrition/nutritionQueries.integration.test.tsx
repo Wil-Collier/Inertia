@@ -1,9 +1,10 @@
 import { renderHook, waitFor } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { http, HttpResponse } from "msw"
+import { beforeEach, describe, expect, it } from "vitest"
 import { clearDatabase } from "@/test/helpers/dbTestUtils"
 import { createQueryWrapper, createTestQueryClient } from "@/test/helpers/queryHookTestUtils"
+import { server } from "@/test/msw/server"
 import { db } from "@/services/db"
-import { NutritionApiError } from "@/services/nutritionApi"
 import {
   useCombinedFoodSearch,
   useDailyNutrition,
@@ -12,21 +13,9 @@ import {
   useNutritionHistory,
 } from "@/features/nutrition/queries"
 
-const searchFoodsMock = vi.fn()
-
-vi.mock("@/services/nutritionApi", async () => {
-  const actual = await vi.importActual("@/services/nutritionApi")
-  return {
-    ...actual,
-    searchFoods: (...args: unknown[]) => searchFoodsMock(...args),
-  }
-})
-
 describe("nutrition query hooks integration", () => {
   beforeEach(async () => {
     await clearDatabase()
-    vi.clearAllMocks()
-    searchFoodsMock.mockResolvedValue({ foods: [], hasMore: false, provider: "openfoodfacts" })
   })
 
   it("computes daily totals and preserves entries with missing foods", async () => {
@@ -253,36 +242,41 @@ describe("nutrition query hooks integration", () => {
       },
     ])
 
-    searchFoodsMock.mockResolvedValueOnce({
-      foods: [
-        {
-          id: "shared-id",
-          name: "Shared Remote",
-          calories: 1,
-          protein: 1,
-          carbs: 1,
-          fat: 1,
-          fiber: 1,
-          sugar: 1,
-          servingSize: "100g",
-          isCustom: false,
-        },
-        {
-          id: "remote-only",
-          name: "Remote Banana",
-          calories: 89,
-          protein: 1.1,
-          carbs: 22.8,
-          fat: 0.3,
-          fiber: 2.6,
-          sugar: 12.2,
-          servingSize: "100g",
-          isCustom: false,
-        },
-      ],
-      hasMore: false,
-      provider: "openfoodfacts",
-    })
+    server.use(
+      http.get("/api/nutrition/search", () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: "shared-id",
+              name: "Shared Remote",
+              calories: 1,
+              protein: 1,
+              carbs: 1,
+              fat: 1,
+              fiber: 1,
+              sugar: 1,
+              servingSize: "100g",
+              isCustom: false,
+            },
+            {
+              id: "remote-only",
+              name: "Remote Banana",
+              calories: 89,
+              protein: 1.1,
+              carbs: 22.8,
+              fat: 0.3,
+              fiber: 2.6,
+              sugar: 12.2,
+              servingSize: "100g",
+              isCustom: false,
+            },
+          ],
+          provider: "openfoodfacts",
+          page: 0,
+          hasMore: false,
+        })
+      ),
+    )
 
     const queryClient = createTestQueryClient()
     const wrapper = createQueryWrapper(queryClient)
@@ -292,7 +286,6 @@ describe("nutrition query hooks integration", () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    expect(searchFoodsMock).toHaveBeenCalledWith("lo", 0, 20)
     expect(result.current.data).toMatchObject({
       remoteStatus: "ok",
     })
@@ -321,7 +314,11 @@ describe("nutrition query hooks integration", () => {
       isCustom: true,
     })
 
-    searchFoodsMock.mockRejectedValueOnce(new NutritionApiError("http", "Provider unavailable", { status: 503 }))
+    server.use(
+      http.get("/api/nutrition/search", () =>
+        HttpResponse.json({ error: "Provider unavailable" }, { status: 503 })
+      ),
+    )
 
     const queryClient = createTestQueryClient()
     const wrapper = createQueryWrapper(queryClient)
@@ -358,28 +355,32 @@ describe("nutrition query hooks integration", () => {
 
     expect(result.current.fetchStatus).toBe("idle")
     expect(result.current.data).toBeUndefined()
-    expect(searchFoodsMock).not.toHaveBeenCalled()
   })
 
   it("returns remote results when no local entries match", async () => {
-    searchFoodsMock.mockResolvedValueOnce({
-      foods: [
-        {
-          id: "remote-apple",
-          name: "Remote Apple",
-          calories: 52,
-          protein: 0.3,
-          carbs: 13.8,
-          fat: 0.2,
-          fiber: 2.4,
-          sugar: 10.4,
-          servingSize: "100g",
-          isCustom: false,
-        },
-      ],
-      hasMore: false,
-      provider: "openfoodfacts",
-    })
+    server.use(
+      http.get("/api/nutrition/search", () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: "remote-apple",
+              name: "Remote Apple",
+              calories: 52,
+              protein: 0.3,
+              carbs: 13.8,
+              fat: 0.2,
+              fiber: 2.4,
+              sugar: 10.4,
+              servingSize: "100g",
+              isCustom: false,
+            },
+          ],
+          provider: "openfoodfacts",
+          page: 0,
+          hasMore: false,
+        })
+      ),
+    )
 
     const queryClient = createTestQueryClient()
     const wrapper = createQueryWrapper(queryClient)

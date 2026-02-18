@@ -16,7 +16,6 @@ import {
 import { renderAppRoute } from "@/test/helpers/renderAppRoute"
 import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
 import { seedTestState } from "@/test/helpers/seedTestState"
-import type * as WorkoutMutationsModule from "@/features/workout/mutations"
 
 interface HeaderProps {
   title: string
@@ -35,7 +34,6 @@ const activeWorkoutTestState = vi.hoisted(() => ({
   toastError: vi.fn(),
   unlockAudio: vi.fn(),
   playDingSound: vi.fn(),
-  createTemplateShouldFail: false,
 }))
 
 vi.mock("sonner", () => ({
@@ -84,39 +82,6 @@ vi.mock("@/components/ExercisePickerSheet", () => ({
     ) : null,
 }))
 
-vi.mock("@/features/workout/mutations", async () => {
-  const actual = await vi.importActual<typeof WorkoutMutationsModule>(
-    "@/features/workout/mutations"
-  )
-
-  return {
-    ...actual,
-    useCreateTemplate: () => {
-      return {
-        mutateAsync: async (input: {
-          name: string
-          exercises: Array<{
-            exerciseId: string
-            targetSets: number
-            targetReps?: number
-            targetWeight?: number
-          }>
-        }) => {
-          if (activeWorkoutTestState.createTemplateShouldFail) {
-            throw new Error("template failed")
-          }
-          const template = {
-            ...input,
-            id: crypto.randomUUID(),
-          }
-          await db.workoutTemplates.add(template)
-          return template
-        },
-      }
-    },
-  }
-})
-
 async function renderActiveWorkoutRoute() {
   return await renderAppRoute({
     initialPath: "/workout/active",
@@ -134,7 +99,6 @@ describe("ActiveWorkout", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    activeWorkoutTestState.createTemplateShouldFail = false
     await resetTestRuntime()
   })
 
@@ -309,7 +273,7 @@ describe("ActiveWorkout", () => {
 
   it("keeps workout saved when template creation fails during finish", async () => {
     const user = userEvent.setup()
-    activeWorkoutTestState.createTemplateShouldFail = true
+    vi.spyOn(db.workoutTemplates, "add").mockRejectedValueOnce(new Error("template failed"))
 
     await seedTestState({
       settings: createSettings(),

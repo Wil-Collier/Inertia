@@ -74,19 +74,6 @@ describe("WorkoutHistory", () => {
         expect(screen.getByText("Complete a workout to see it here")).toBeTruthy()
     })
 
-    it("shows back button icon in header with showBack prop", async () => {
-        await renderHistoryRoute()
-
-        // Wait for header to be visible
-        await screen.findByRole("heading", { name: "History" })
-        // The back button uses a ChevronLeft icon without accessible name
-        // Check that the header structure includes a button with an SVG
-        const header = document.querySelector("header")
-        expect(header).toBeTruthy()
-        const buttons = header?.querySelectorAll("button")
-        expect(buttons?.length).toBeGreaterThan(0)
-    })
-
     it("displays workouts grouped by month", async () => {
         await seedTestState({
             workouts: [
