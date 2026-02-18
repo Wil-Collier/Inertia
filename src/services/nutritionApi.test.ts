@@ -1,26 +1,13 @@
+import { http, HttpResponse } from "msw"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NutritionApiError, getProductByBarcode, getNutritionProvider, searchFoods } from "@/services/nutritionApi"
 import { useAuthStore } from "@/features/sync/store"
-
-const refreshAccessTokenMock = vi.fn()
-
-vi.mock("@/features/sync/api", () => ({
-  refreshAccessToken: (...args: unknown[]) => refreshAccessTokenMock(...args),
-  SyncApiError: class SyncApiError extends Error {
-    readonly status?: number
-
-    constructor(message: string, _code?: string, status?: number) {
-      super(message)
-      this.status = status
-    }
-  },
-}))
+import { server } from "@/test/msw/server"
 
 describe("nutritionApi service", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
-    refreshAccessTokenMock.mockReset()
     localStorage.clear()
     useAuthStore.getState().clearAuth()
   })
@@ -43,9 +30,10 @@ describe("nutritionApi service", () => {
       expiresAtMs: Date.now() + 60_000,
     })
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(JSON.stringify({ error: "backend-failed" }), { status: 500 }))
+    server.use(
+      http.get("/api/nutrition/search", () =>
+        HttpResponse.json({ error: "backend-failed" }, { status: 500 })
+      )
     )
 
     await expect(searchFoods("rice")).rejects.toMatchObject({
@@ -88,7 +76,11 @@ describe("nutritionApi service", () => {
       expiresAtMs: Date.now() + 60_000,
     })
 
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "not found" }), { status: 404 })))
+    server.use(
+      http.get("/api/nutrition/barcode", () =>
+        HttpResponse.json({ error: "not found" }, { status: 404 })
+      )
+    )
 
     await expect(getProductByBarcode("12345")).resolves.toBeNull()
   })
@@ -101,9 +93,9 @@ describe("nutritionApi service", () => {
       expiresAtMs: Date.now() + 60_000,
     })
 
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new Error("network down")
-    }))
+    server.use(
+      http.get("/api/nutrition/barcode", () => HttpResponse.error())
+    )
 
     await expect(getProductByBarcode("12345")).rejects.toBeInstanceOf(NutritionApiError)
     await expect(getProductByBarcode("12345")).rejects.toMatchObject({ kind: "network" })
@@ -117,24 +109,22 @@ describe("nutritionApi service", () => {
       expiresAtMs: Date.now() + 60_000,
     })
 
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
-      return new Response(
-        JSON.stringify({
+    let authorizationHeader: string | null = null
+    server.use(
+      http.get("/api/nutrition/search", ({ request }) => {
+        authorizationHeader = request.headers.get("Authorization")
+        return HttpResponse.json({
           items: [],
           provider: "openfoodfacts",
           page: 0,
           hasMore: false,
-        }),
-        { status: 200 }
-      )
-    })
-    vi.stubGlobal("fetch", fetchMock)
+        })
+      })
+    )
 
     await searchFoods("rice")
 
-    const init = fetchMock.mock.calls[0]?.[1]
-    const authHeader = init?.headers ? new Headers(init.headers).get("Authorization") : null
-    expect(authHeader).toBe("Bearer token-1")
+    expect(authorizationHeader).toBe("Bearer token-1")
   })
 
   it("refreshes and retries once when nutrition search returns 401", async () => {
@@ -145,64 +135,71 @@ describe("nutritionApi service", () => {
       expiresAtMs: Date.now() + 60_000,
     })
 
-    refreshAccessTokenMock.mockResolvedValue({
-      accessToken: "new-token",
-      userId: "u1",
-      email: "u1@example.com",
-      expiresAtMs: Date.now() + 120_000,
-    })
-
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      const auth = init?.headers ? new Headers(init.headers).get("Authorization") : null
-      if (auth === "Bearer old-token") {
-        return new Response(JSON.stringify({ error: "UNAUTHORIZED", message: "expired" }), { status: 401 })
-      }
-      return new Response(
-        JSON.stringify({
-          items: [],
-          provider: "openfoodfacts",
-          page: 0,
-          hasMore: false,
-        }),
-        { status: 200 }
+    let searchCalls = 0
+    server.use(
+      http.get("/api/nutrition/search", ({ request }) => {
+        searchCalls += 1
+        const auth = request.headers.get("Authorization")
+        if (auth === "Bearer old-token") {
+          return HttpResponse.json({ error: "expired" }, { status: 401 })
+        }
+        if (auth === "Bearer new-token") {
+          return HttpResponse.json({
+            items: [],
+            provider: "openfoodfacts",
+            page: 0,
+            hasMore: false,
+          })
+        }
+        return HttpResponse.json({ error: "UNAUTHORIZED" }, { status: 401 })
+      }),
+      http.post("/api/auth/refresh", () =>
+        HttpResponse.json({
+          accessToken: "new-token",
+          userId: "u1",
+          email: "u1@example.com",
+          expiresAtMs: Date.now() + 120_000,
+        })
       )
-    })
-    vi.stubGlobal("fetch", fetchMock)
+    )
 
     const result = await searchFoods("rice")
     expect(result).toEqual({ foods: [], hasMore: false, provider: "openfoodfacts" })
-    expect(refreshAccessTokenMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(searchCalls).toBe(2)
+    expect(useAuthStore.getState().accessToken).toBe("new-token")
   })
 
   it("searches without sign-in when no auth session exists", async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
-      return new Response(
-        JSON.stringify({
+    let authorizationHeader: string | null = null
+    let refreshCalls = 0
+    server.use(
+      http.get("/api/nutrition/search", ({ request }) => {
+        authorizationHeader = request.headers.get("Authorization")
+        return HttpResponse.json({
           items: [],
           provider: "openfoodfacts",
           page: 0,
           hasMore: false,
-        }),
-        { status: 200 }
-      )
-    })
-    vi.stubGlobal("fetch", fetchMock)
+        })
+      }),
+      http.post("/api/auth/refresh", () => {
+        refreshCalls += 1
+        return HttpResponse.json({ error: "UNAUTHORIZED" }, { status: 401 })
+      })
+    )
 
     const result = await searchFoods("rice")
     expect(result).toEqual({ foods: [], hasMore: false, provider: "openfoodfacts" })
 
-    expect(refreshAccessTokenMock).not.toHaveBeenCalled()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    const init = fetchMock.mock.calls[0]?.[1]
-    const authHeader = init?.headers ? new Headers(init.headers).get("Authorization") : null
-    expect(authHeader).toBeNull()
+    expect(refreshCalls).toBe(0)
+    expect(authorizationHeader).toBeNull()
   })
 
   it("returns active nutrition provider", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(JSON.stringify({ provider: "fatsecret" }), { status: 200 }))
+    server.use(
+      http.get("/api/nutrition/provider", () =>
+        HttpResponse.json({ provider: "fatsecret" })
+      )
     )
 
     await expect(getNutritionProvider()).resolves.toBe("fatsecret")

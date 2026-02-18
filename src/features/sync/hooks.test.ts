@@ -1,10 +1,10 @@
 import { act, renderHook } from "@testing-library/react"
+import { http, HttpResponse } from "msw"
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest"
 import { useSync } from "@/features/sync/hooks"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
+import { server } from "@/test/msw/server"
 
-const loginWithGoogleMock = vi.fn()
-const logoutSessionMock = vi.fn()
 const clearSyncMetadataMock = vi.fn()
 const resolveInitialSyncMock = vi.fn()
 const syncNowMock = vi.fn()
@@ -14,11 +14,6 @@ vi.mock("sonner", () => ({
   toast: {
     info: (...args: unknown[]) => toastInfoMock(...args),
   },
-}))
-
-vi.mock("@/features/sync/api", () => ({
-  loginWithGoogle: (...args: unknown[]) => loginWithGoogleMock(...args),
-  logoutSession: (...args: unknown[]) => logoutSessionMock(...args),
 }))
 
 vi.mock("@/features/sync/changeTracker", () => ({
@@ -46,13 +41,20 @@ describe("sync hooks", () => {
     })
     localStorage.clear()
 
-    loginWithGoogleMock.mockResolvedValue({
-      accessToken: "token-1",
-      userId: "user-1",
-      email: "user-1@example.com",
-      expiresAtMs: Date.now() + 60_000,
-    })
-    logoutSessionMock.mockResolvedValue({ ok: true })
+    server.use(
+      http.post("/api/auth/login", () =>
+        HttpResponse.json({
+          accessToken: "token-1",
+          userId: "user-1",
+          email: "user-1@example.com",
+          expiresAtMs: Date.now() + 60_000,
+        })
+      ),
+      http.post("/api/auth/logout", () =>
+        HttpResponse.json({ success: true })
+      )
+    )
+
     clearSyncMetadataMock.mockResolvedValue(undefined)
     resolveInitialSyncMock.mockResolvedValue(undefined)
     syncNowMock.mockResolvedValue(undefined)
@@ -113,7 +115,11 @@ describe("sync hooks", () => {
   })
 
   it("signs out safely even if remote logout fails and resets local sync state", async () => {
-    logoutSessionMock.mockRejectedValue(new Error("network"))
+    server.use(
+      http.post("/api/auth/logout", () =>
+        HttpResponse.json({ error: "network", message: "network" }, { status: 500 })
+      )
+    )
     useAuthStore.getState().setAuth({
       accessToken: "token-old",
       userId: "old-user",
