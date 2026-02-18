@@ -109,7 +109,7 @@ export default (defineConfig as any)({
             if (id.includes("zustand") || id.includes("date-fns")) {
               return "vendor-utils"
             }
-            if (id.includes("html5-qrcode")) {
+            if (id.includes("quagga2")) {
               return "vendor-barcode"
             }
           }

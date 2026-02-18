@@ -1,10 +1,31 @@
 import { useEffect, useRef, useState, useCallback } from "react"
-import { Html5Qrcode } from "html5-qrcode"
+import Quagga from "@ericblade/quagga2"
+import type { QuaggaJSResultObject } from "@ericblade/quagga2"
 import { X, Camera, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 const CAMERA_DISABLED = import.meta.env.VITE_E2E_DISABLE_CAMERA === "true"
+
+// Reject detections where average decode error exceeds this threshold.
+// Lower = stricter. Quagga error values are typically 0-1, with good reads < 0.1.
+const MAX_AVG_ERROR = 0.15
+
+// Require the same barcode to be read this many consecutive times before accepting.
+// Eliminates one-off misreads while keeping response time snappy at 10 fps.
+const CONFIRMATION_READS = 3
+
+/**
+ * Compute average error across decoded segments that have an error value.
+ * Returns 0 when no error info is available (e.g. in tests), which passes the filter.
+ */
+export function getAverageDecodeError(result: QuaggaJSResultObject): number {
+  const errors = result.codeResult.decodedCodes
+    .map((c) => c.error)
+    .filter((e): e is number => typeof e === "number")
+  if (errors.length === 0) return 0
+  return errors.reduce((sum, e) => sum + e, 0) / errors.length
+}
 
 interface BarcodeScannerProps {
   isOpen: boolean
@@ -16,9 +37,9 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const [manualBarcode, setManualBarcode] = useState("")
-  const scannerRef = useRef<Html5Qrcode | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const onScanRef = useRef(onScan)
+  const activeRef = useRef(false)
 
   // Keep the callback ref updated without causing re-renders
   useEffect(() => {
@@ -26,13 +47,13 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
   }, [onScan])
 
   const stopScanner = useCallback(async () => {
-    if (scannerRef.current) {
+    if (activeRef.current) {
+      activeRef.current = false
       try {
-        await scannerRef.current.stop()
+        await Quagga.stop()
       } catch {
         // Ignore errors when stopping (may already be stopped)
       }
-      scannerRef.current = null
     }
   }, [])
 
@@ -45,7 +66,6 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
       return
     }
 
-    const scannerId = "barcode-scanner-container"
     let mounted = true
 
     const startScanner = async () => {
@@ -55,61 +75,79 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
       // Small delay to ensure DOM is ready
       await new Promise((resolve) => setTimeout(resolve, 100))
 
-      if (!mounted) return
+      if (!mounted || !containerRef.current) return
 
       try {
-        const scanner = new Html5Qrcode(scannerId)
-        scannerRef.current = scanner
+        await Quagga.init({
+          inputStream: {
+            type: "LiveStream",
+            target: containerRef.current,
+            constraints: {
+              facingMode: "environment",
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+          },
+          locator: {
+            patchSize: "medium",
+            halfSample: true,
+          },
+          frequency: 10,
+          numOfWorkers: 0,
+          locate: true,
+          decoder: {
+            readers: [
+              "ean_reader",
+              "ean_8_reader",
+              "upc_reader",
+              "upc_e_reader",
+              "code_128_reader",
+            ],
+          },
+        })
 
-        const config = {
-          fps: 10,
-          qrbox: { width: 250, height: 150 },
-          aspectRatio: 1.0,
-          formatsToSupport: [
-            0,  // QR_CODE
-            1,  // AZTEC
-            2,  // CODABAR
-            3,  // CODE_39
-            4,  // CODE_93
-            5,  // CODE_128
-            6,  // DATA_MATRIX
-            7,  // MAXICODE
-            8,  // ITF
-            9,  // EAN_13
-            10, // EAN_8
-            11, // PDF_417
-            12, // RSS_14
-            13, // RSS_EXPANDED
-            14, // UPC_A
-            15, // UPC_E
-            16, // UPC_EAN_EXTENSION
-          ],
+        if (!mounted) {
+          await Quagga.stop()
+          return
         }
 
-        await scanner.start(
-          { facingMode: "environment" },
-          config,
-          (decodedText) => {
-            void (async () => {
-              if (mounted && scannerRef.current) {
-                // Stop scanner before calling onScan to prevent multiple scans
-                try {
-                  await scanner.stop()
-                } catch {
-                  // Ignore
-                }
-                scannerRef.current = null
-                // Use ref to avoid stale closure
-                onScanRef.current(decodedText)
-              }
-            })().catch(() => {
-              // Ignore
-            })
-          },
-          () => {
-            // Ignore scan failures (no barcode detected yet)
+        // Confirmation buffer: track consecutive reads of the same code
+        let lastCode: string | null = null
+        let streak = 0
+
+        const onDetected = (result: QuaggaJSResultObject) => {
+          const code = result.codeResult.code
+          if (!code || !mounted || !activeRef.current) return
+
+          // Reject high-error detections (likely misreads)
+          const avgError = getAverageDecodeError(result)
+          if (avgError > MAX_AVG_ERROR) return
+
+          // Require CONFIRMATION_READS consecutive matching reads
+          if (code === lastCode) {
+            streak++
+          } else {
+            lastCode = code
+            streak = 1
           }
-        )
+          if (streak < CONFIRMATION_READS) return
+
+          // Confirmed -- stop scanner before calling onScan to prevent multiple scans
+          activeRef.current = false
+          Quagga.offDetected(onDetected)
+          void (async () => {
+            try {
+              await Quagga.stop()
+            } catch {
+              // Ignore
+            }
+            onScanRef.current(code)
+          })()
+        }
+
+        Quagga.onDetected(onDetected)
+        activeRef.current = true
+        Quagga.start()
 
         if (mounted) {
           setIsStarting(false)
@@ -193,9 +231,8 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
               </div>
             )}
             <div
-              id="barcode-scanner-container"
               ref={containerRef}
-              className="w-full max-w-sm rounded-lg overflow-hidden"
+              className="w-full max-w-sm rounded-lg overflow-hidden [&>video]:w-full [&>canvas]:absolute [&>canvas]:top-0 [&>canvas]:left-0"
             />
             <p className="text-white/80 text-sm mt-4 text-center px-8">
               Point your camera at a barcode on a food product
