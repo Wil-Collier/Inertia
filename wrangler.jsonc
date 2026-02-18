@@ -6,8 +6,10 @@
     "main": "./worker/index.ts",
     // Static assets configuration
     "assets": {
-        // SPA fallback: serve index.html for unmatched routes
-        "not_found_handling": "single-page-application",
+        // Expose static assets to the Worker for navigation-only SPA fallback.
+        "binding": "ASSETS",
+        // Avoid serving index.html for missing asset paths (for example stale JS chunks).
+        "not_found_handling": "none",
         // Ensure /api/* routes go to the Worker first
         "run_worker_first": [
             "/api/*"

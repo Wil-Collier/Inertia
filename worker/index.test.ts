@@ -5,6 +5,19 @@ import { isRecord } from "./lib/typeGuards"
 
 function createEnv() {
   return {
+    ASSETS: {
+      fetch: async (input: RequestInfo | URL) => {
+        const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url)
+
+        if (url.pathname === "/index.html") {
+          return new Response("<!doctype html><html><body>Inertia</body></html>", {
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          })
+        }
+
+        return new Response("Not found", { status: 404 })
+      },
+    },
     DB: {
       prepare: () => {
         throw new Error("DB should not be accessed in this test")
@@ -41,6 +54,38 @@ describe("worker app integration", () => {
 
     expect(response.status).toBe(404)
     expect(body).toEqual({ error: "Not found" })
+  })
+
+  it("serves index.html for non-api navigation routes", async () => {
+    const response = await app.request(
+      "/dashboard",
+      {
+        headers: {
+          Accept: "text/html",
+          "sec-fetch-mode": "navigate",
+        },
+      },
+      createEnv()
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get("Content-Type")).toContain("text/html")
+    await expect(response.text()).resolves.toContain("Inertia")
+  })
+
+  it("returns 404 for missing asset-like paths instead of html fallback", async () => {
+    const response = await app.request(
+      "/assets/missing-chunk.js",
+      {
+        headers: {
+          Accept: "*/*",
+        },
+      },
+      createEnv()
+    )
+
+    expect(response.status).toBe(404)
+    expect(response.headers.get("Content-Type") ?? "").not.toContain("text/html")
   })
 
   it("requires auth for sync routes", async () => {

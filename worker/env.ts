@@ -3,7 +3,12 @@
  */
 import type { D1Database } from "@cloudflare/workers-types"
 
+type AssetBinding = {
+    fetch: (input: RequestInfo | URL) => Promise<Response>
+}
+
 export interface Env {
+    ASSETS?: AssetBinding
     DB: D1Database
     JWT_SECRET: string
     GOOGLE_CLIENT_ID: string

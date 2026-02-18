@@ -19,7 +19,8 @@ export default (defineConfig as any)({
     tailwindcss(),
     ...(!isVitest ? [cloudflare()] : []),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
+      injectRegister: false,
       includeAssets: ["icon.svg"],
       manifest: {
         name: "Inertia",

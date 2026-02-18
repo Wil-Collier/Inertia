@@ -20,6 +20,25 @@ import type { ExecutionContext, ScheduledEvent } from "@cloudflare/workers-types
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>()
 
+function hasFileExtension(pathname: string): boolean {
+  const lastSegment = pathname.split("/").at(-1) ?? ""
+  return lastSegment.includes(".")
+}
+
+function isNavigationRequest(request: Request): boolean {
+  if (request.method !== "GET") {
+    return false
+  }
+
+  const secFetchMode = request.headers.get("sec-fetch-mode")
+  if (secFetchMode && secFetchMode !== "navigate") {
+    return false
+  }
+
+  const accept = request.headers.get("accept") ?? ""
+  return accept.includes("text/html")
+}
+
 // Middleware
 app.use("*", logger())
 app.use("/api/*", securityHeadersMiddleware)
@@ -55,6 +74,24 @@ app.get("/api/health", (c) => {
 // 404 for unmatched API routes
 app.all("/api/*", (c) => {
     return c.json({ error: "Not found" }, 404)
+})
+
+// Serve SPA app shell only for real navigation requests.
+// Missing asset URLs should remain 404s instead of being rewritten to index.html.
+app.get("*", async (c) => {
+  const request = c.req.raw
+  const url = new URL(request.url)
+
+  if (!isNavigationRequest(request) || hasFileExtension(url.pathname)) {
+    return c.notFound()
+  }
+
+  if (!c.env.ASSETS) {
+    return c.notFound()
+  }
+
+  const indexUrl = new URL("/index.html", url)
+  return await c.env.ASSETS.fetch(indexUrl.toString())
 })
 
 export default app
