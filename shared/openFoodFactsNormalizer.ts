@@ -45,22 +45,60 @@ function parseServingQuantity(value: unknown): number | undefined {
   return undefined
 }
 
+function resolveNutrientValue(
+  servingValue: number | undefined,
+  valuePer100g: number | undefined,
+  servingScale: number
+): number {
+  if (servingValue !== undefined) return servingValue
+  if (valuePer100g !== undefined) return valuePer100g * servingScale
+  return 0
+}
+
 export function normalizeOpenFoodFactsProduct(
   product: OpenFoodFactsProductLike
 ): NormalizedOpenFoodFactsFood | null {
   if (!product.product_name) return null
 
   const nutriments = product.nutriments ?? {}
-  const servingSize = product.serving_size || "100g"
+  const servingQuantity = parseServingQuantity(product.serving_quantity)
+  const servingScale =
+    servingQuantity !== undefined && servingQuantity > 0
+      ? servingQuantity / 100
+      : 1
 
   // Per-field serving detection: use the _serving variant if it exists for that field,
   // otherwise fall back to the _100g variant.
-  const calories = nutriments["energy-kcal_serving"] ?? nutriments["energy-kcal_100g"] ?? 0
-  const protein = nutriments.proteins_serving ?? nutriments.proteins_100g ?? 0
-  const carbs = nutriments.carbohydrates_serving ?? nutriments.carbohydrates_100g ?? 0
-  const fat = nutriments.fat_serving ?? nutriments.fat_100g ?? 0
-  const fiber = nutriments.fiber_serving ?? nutriments.fiber_100g ?? 0
-  const sugar = nutriments.sugars_serving ?? nutriments.sugars_100g ?? 0
+  const calories = resolveNutrientValue(
+    nutriments["energy-kcal_serving"],
+    nutriments["energy-kcal_100g"],
+    servingScale
+  )
+  const protein = resolveNutrientValue(
+    nutriments.proteins_serving,
+    nutriments.proteins_100g,
+    servingScale
+  )
+  const carbs = resolveNutrientValue(
+    nutriments.carbohydrates_serving,
+    nutriments.carbohydrates_100g,
+    servingScale
+  )
+  const fat = resolveNutrientValue(
+    nutriments.fat_serving,
+    nutriments.fat_100g,
+    servingScale
+  )
+  const fiber = resolveNutrientValue(
+    nutriments.fiber_serving,
+    nutriments.fiber_100g,
+    servingScale
+  )
+  const sugar = resolveNutrientValue(
+    nutriments.sugars_serving,
+    nutriments.sugars_100g,
+    servingScale
+  )
 
   // Determine if any per-serving data was available (for servingSize label)
   const hasAnyServing =
@@ -71,7 +109,9 @@ export function normalizeOpenFoodFactsProduct(
     nutriments.fiber_serving !== undefined ||
     nutriments.sugars_serving !== undefined
 
-  const servingQuantity = parseServingQuantity(product.serving_quantity)
+  const explicitServingSize = product.serving_size?.trim()
+  const servingSize = explicitServingSize || (hasAnyServing ? "1 serving" : "100g")
+  const servingGrams = servingQuantity ?? (servingSize === "100g" ? 100 : undefined)
 
   return {
     id: product.code || crypto.randomUUID(),
@@ -83,10 +123,9 @@ export function normalizeOpenFoodFactsProduct(
     fat: Math.round(fat * 10) / 10,
     fiber: Math.round(fiber * 10) / 10,
     sugar: Math.round(sugar * 10) / 10,
-    servingSize: hasAnyServing ? servingSize : "100g",
-    servingGrams: servingQuantity ?? 100,
+    servingSize,
+    servingGrams,
     barcode: product.code,
     isCustom: false,
   }
 }
-

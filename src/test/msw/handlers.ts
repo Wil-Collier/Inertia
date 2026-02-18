@@ -25,6 +25,12 @@ export const handlers = [
     })
   }),
 
+  http.get("/api/nutrition/provider", () => {
+    return HttpResponse.json({
+      provider: "openfoodfacts",
+    })
+  }),
+
   http.get("/api/nutrition/search", ({ request }) => {
     const url = new URL(request.url)
     const query = url.searchParams.get("q") ?? ""

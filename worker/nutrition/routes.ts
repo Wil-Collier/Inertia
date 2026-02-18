@@ -75,6 +75,11 @@ nutrition.get("/search", async (c) => {
   }
 })
 
+nutrition.get("/provider", (c) => {
+  const { name } = getProvider(c.env)
+  return c.json({ provider: name })
+})
+
 /**
  * GET /api/nutrition/barcode
  *

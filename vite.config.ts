@@ -84,7 +84,7 @@ export default (defineConfig as any)({
       "@tanstack/react-query",
       "@tanstack/react-router",
     ],
-    esbuildOptions: {
+    rolldownOptions: {
       target: "es2019",
     },
   },

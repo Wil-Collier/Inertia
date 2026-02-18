@@ -21,10 +21,10 @@ pnpm install              # Install dependencies
 pnpm dev --host           # Dev server with network access
 pnpm build                # Production build (tsc -b && vite build)
 pnpm lint                 # Oxlint with type-checking
-pnpm vitest run           # Run all tests once
+pnpm test                 # Run all tests once
 pnpm coverage             # Run tests with coverage report
-pnpm vitest run src/features/sync/__tests__/engine.test.ts  # Run a single test file
-pnpm vitest --watch       # Watch mode
+pnpm test src/features/sync/__tests__/engine.test.ts  # Run a single test file
+pnpm test --watch       # Watch mode
 pnpm deploy              # Build + deploy to Cloudflare Workers
 ```
 

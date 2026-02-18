@@ -26,7 +26,7 @@ describe("nutrition query hooks integration", () => {
   beforeEach(async () => {
     await clearDatabase()
     vi.clearAllMocks()
-    searchFoodsMock.mockResolvedValue({ foods: [], hasMore: false })
+    searchFoodsMock.mockResolvedValue({ foods: [], hasMore: false, provider: "openfoodfacts" })
   })
 
   it("computes daily totals and preserves entries with missing foods", async () => {
@@ -281,6 +281,7 @@ describe("nutrition query hooks integration", () => {
         },
       ],
       hasMore: false,
+      provider: "openfoodfacts",
     })
 
     const queryClient = createTestQueryClient()
@@ -377,6 +378,7 @@ describe("nutrition query hooks integration", () => {
         },
       ],
       hasMore: false,
+      provider: "openfoodfacts",
     })
 
     const queryClient = createTestQueryClient()

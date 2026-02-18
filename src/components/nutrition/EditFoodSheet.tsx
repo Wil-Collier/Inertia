@@ -20,6 +20,9 @@ interface EditFoodSheetProps {
   food: FoodItem | null
 }
 
+const QUANTITY_STEP = 0.25
+const MIN_QUANTITY = 0.25
+
 export function EditFoodSheet({
   isOpen,
   onClose,
@@ -39,14 +42,14 @@ export function EditFoodSheet({
   const handleIncrement = () => {
     setQuantity((q) => {
       const current = typeof q === "string" ? parseFloat(q) || 0 : q
-      return Math.round((Math.floor(current * 10 + 0.01) / 10 + 0.1) * 10) / 10
+      return Math.round((current + QUANTITY_STEP) * 100) / 100
     })
   }
 
   const handleDecrement = () => {
     setQuantity((q) => {
       const current = typeof q === "string" ? parseFloat(q) || 0 : q
-      return Math.max(0.1, Math.round((Math.ceil(current * 10 - 0.01) / 10 - 0.1) * 10) / 10)
+      return Math.max(MIN_QUANTITY, Math.round((current - QUANTITY_STEP) * 100) / 100)
     })
   }
 
@@ -91,7 +94,7 @@ export function EditFoodSheet({
                   variant="ghost"
                   size="icon-sm"
                   onClick={handleDecrement}
-                  disabled={displayQuantity <= 0.1}
+                  disabled={displayQuantity <= MIN_QUANTITY}
                   className="h-8 w-8 rounded-md"
                 >
                   <Minus className="h-4 w-4" />
@@ -101,8 +104,8 @@ export function EditFoodSheet({
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   className="w-16 h-8 border-none bg-transparent text-center text-sm font-bold font-mono focus-visible:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  step="0.01"
-                  min="0.1"
+                  step="0.25"
+                  min="0.25"
                 />
                 <Button variant="ghost" size="icon-sm" onClick={handleIncrement} className="h-8 w-8 rounded-md">
                   <Plus className="h-4 w-4" />

@@ -13,6 +13,7 @@ import {
   useCombinedFoodSearch,
   useFavoriteFoods,
   useCustomFoods,
+  useNutritionProvider,
 } from "@/features/nutrition/queries"
 import {
   useSaveMealTemplate,
@@ -83,6 +84,8 @@ export function TemplateEditorPage() {
   const searchResults = combinedSearch?.items ?? []
   const remoteStatus = combinedSearch?.remoteStatus
   const remoteError = combinedSearch?.remoteError
+  const { data: nutritionProvider } = useNutritionProvider()
+  const searchProvider = combinedSearch?.provider ?? nutritionProvider
   const { data: favorites = [] } = useFavoriteFoods()
   const { data: customFoods = [] } = useCustomFoods()
   
@@ -315,6 +318,7 @@ export function TemplateEditorPage() {
             searchResults={displayedResults}
             remoteStatus={remoteStatus}
             remoteError={remoteError}
+            searchProvider={searchProvider}
             onScanBarcode={handleScanBarcode}
             onAddFood={(food, qty) => void handleAddFoodToTemplate(food, qty)}
             onToggleFavorite={(id) => {

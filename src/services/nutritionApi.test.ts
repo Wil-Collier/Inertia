@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { NutritionApiError, getProductByBarcode, searchFoods } from "@/services/nutritionApi"
+import { NutritionApiError, getProductByBarcode, getNutritionProvider, searchFoods } from "@/services/nutritionApi"
 import { useAuthStore } from "@/features/sync/store"
 
 const refreshAccessTokenMock = vi.fn()
@@ -31,7 +31,7 @@ describe("nutritionApi service", () => {
 
     const result = await searchFoods("   ")
 
-    expect(result).toEqual({ foods: [], hasMore: false })
+    expect(result).toEqual({ foods: [], hasMore: false, provider: "openfoodfacts" })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -170,7 +170,7 @@ describe("nutritionApi service", () => {
     vi.stubGlobal("fetch", fetchMock)
 
     const result = await searchFoods("rice")
-    expect(result).toEqual({ foods: [], hasMore: false })
+    expect(result).toEqual({ foods: [], hasMore: false, provider: "openfoodfacts" })
     expect(refreshAccessTokenMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
@@ -190,12 +190,21 @@ describe("nutritionApi service", () => {
     vi.stubGlobal("fetch", fetchMock)
 
     const result = await searchFoods("rice")
-    expect(result).toEqual({ foods: [], hasMore: false })
+    expect(result).toEqual({ foods: [], hasMore: false, provider: "openfoodfacts" })
 
     expect(refreshAccessTokenMock).not.toHaveBeenCalled()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const init = fetchMock.mock.calls[0]?.[1]
     const authHeader = init?.headers ? new Headers(init.headers).get("Authorization") : null
     expect(authHeader).toBeNull()
+  })
+
+  it("returns active nutrition provider", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ provider: "fatsecret" }), { status: 200 }))
+    )
+
+    await expect(getNutritionProvider()).resolves.toBe("fatsecret")
   })
 })

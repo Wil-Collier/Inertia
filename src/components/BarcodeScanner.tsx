@@ -159,7 +159,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col">
+    <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col safe-area-top">
       {/* Header */}
       <div className="flex items-center justify-between p-4 text-white">
         <h2 className="text-lg font-semibold">Scan Barcode</h2>

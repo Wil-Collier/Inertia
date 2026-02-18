@@ -92,6 +92,55 @@ describe("OpenFoodFacts provider", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it("scales 100 g nutriments to explicit serving quantity when available", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          count: 1,
+          page: 1,
+          page_size: 20,
+          products: [
+            {
+              code: "slice-1",
+              product_name: "Whole Wheat Bread",
+              brands: "Bakery Co",
+              nutriments: {
+                "energy-kcal_100g": 265,
+                proteins_100g: 9,
+                carbohydrates_100g: 49,
+                fat_100g: 3.2,
+              },
+              serving_size: "1 slice",
+              serving_quantity: "25",
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    )
+
+    const provider = await loadProvider()
+    const result = await provider.search("bread", 0, 20)
+
+    expect(result.items).toEqual([
+      {
+        id: "slice-1",
+        name: "Whole Wheat Bread",
+        brand: "Bakery Co",
+        calories: 66,
+        protein: 2.3,
+        carbs: 12.3,
+        fat: 0.8,
+        fiber: 0,
+        sugar: 0,
+        servingSize: "1 slice",
+        servingGrams: 25,
+        barcode: "slice-1",
+        isCustom: false,
+      },
+    ])
+  })
+
   it("skips malformed products instead of failing the entire search", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(

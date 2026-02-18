@@ -240,7 +240,7 @@ export function WorkoutTemplates() {
                 key={template.id}
                 template={template}
                 exercisesById={exercisesById}
-                onStart={(template) => void handleStartFromTemplate(template)}
+                onStart={(selectedTemplate) => void handleStartFromTemplate(selectedTemplate)}
                 onEdit={handleEditOpen}
                 onDelete={setTemplateToDelete}
               />

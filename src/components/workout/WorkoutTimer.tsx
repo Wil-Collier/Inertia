@@ -6,7 +6,7 @@ interface WorkoutTimerProps {
   className?: string
 }
 
-export const WorkoutTimer = memo(function WorkoutTimer({ startedAt, className }: WorkoutTimerProps) {
+export const WorkoutTimer = memo(({ startedAt, className }: WorkoutTimerProps) => {
   const { formattedTime } = useElapsedTime({ startedAt })
 
   return (

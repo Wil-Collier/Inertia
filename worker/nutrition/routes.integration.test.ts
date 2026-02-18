@@ -89,6 +89,14 @@ describe("nutrition routes integration", () => {
     expect(body).toEqual({ error: "SERVER_ERROR", message: "Nutrition search failed" })
   })
 
+  it("returns currently configured nutrition provider", async () => {
+    const response = await nutrition.request("/provider", {}, createEnv())
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toEqual({ provider: "openfoodfacts" })
+  })
+
   it("returns 400 when barcode code is missing", async () => {
     const response = await nutrition.request("/barcode", {}, createEnv())
     expect(response.status).toBe(400)

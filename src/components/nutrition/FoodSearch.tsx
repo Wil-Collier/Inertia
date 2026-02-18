@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { FoodListItem } from "./FoodListItem"
 import { CustomFoodForm } from "./CustomFoodForm"
 import type { FoodItem } from "@/lib/types"
+import type { NutritionProviderName } from "@/services/nutritionApi"
 
 interface FoodSearchProps {
   activeTab: string
@@ -28,9 +29,21 @@ interface FoodSearchProps {
   onSaveAndAddCustomFood: (food: Omit<FoodItem, "id" | "isCustom">) => void
   remoteStatus?: "idle" | "ok" | "error"
   remoteError?: string
+  searchProvider?: NutritionProviderName
   className?: string
   extraTabTriggers?: React.ReactNode
   extraTabContents?: React.ReactNode
+}
+
+const PROVIDER_METADATA: Record<NutritionProviderName, { label: string; href: string }> = {
+  fatsecret: {
+    label: "FatSecret",
+    href: "https://platform.fatsecret.com/api/",
+  },
+  openfoodfacts: {
+    label: "Open Food Facts",
+    href: "https://world.openfoodfacts.org/",
+  },
 }
 
 export function FoodSearch({
@@ -53,10 +66,13 @@ export function FoodSearch({
   onSaveAndAddCustomFood,
   remoteStatus,
   remoteError,
+  searchProvider,
   className,
   extraTabTriggers,
   extraTabContents,
 }: FoodSearchProps) {
+  const providerMeta = searchProvider ? PROVIDER_METADATA[searchProvider] : null
+
   return (
     <div className={cn("flex flex-col", className)}>
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full flex-1 flex flex-col min-h-0">
@@ -111,7 +127,7 @@ export function FoodSearch({
             </Button>
           </div>
 
-          {remoteStatus === "error" && searchQuery.trim().length >= 2 && (
+          {remoteStatus === "error" && searchQuery.trim().length >= 2 && searchResults.length > 0 && (
             <p className="mt-2 text-xs text-muted-foreground shrink-0">
               Remote search unavailable. Showing local results{remoteError ? ": " + remoteError : ""}
             </p>
@@ -144,7 +160,23 @@ export function FoodSearch({
                 </p>
               ) : (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  Search foods from local data and public nutrition databases. No sign-in required.
+                  Search foods from local data
+                  {providerMeta ? (
+                    <>
+                      {" and "}
+                      <a
+                        href={providerMeta.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline underline-offset-2"
+                      >
+                        {providerMeta.label}
+                      </a>
+                      .
+                    </>
+                  ) : (
+                    " and your configured nutrition provider."
+                  )}
                 </p>
               )}
             </div>

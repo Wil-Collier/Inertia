@@ -4,6 +4,7 @@ import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
 import type { Exercise } from "@/lib/types"
 import { ACTIVE_SESSION_ID } from "@/lib/constants"
+import { isDefaultExercise } from "@/data/exerciseDatabase"
 import {
   CUSTOM_EXERCISES_SYNC_WRITE_TABLES,
   EXERCISE_DELETE_SYNC_WRITE_TABLES,
@@ -46,7 +47,6 @@ export function useDeleteExercise() {
   return useMutation({
     mutationFn: async (id: string) => {
       // Check if this is a default (built-in) exercise - these cannot be deleted
-      const { isDefaultExercise } = await import("@/data/exerciseDatabase")
       if (isDefaultExercise(id)) {
         throw new Error("Cannot delete built-in exercises")
       }

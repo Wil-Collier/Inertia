@@ -44,6 +44,7 @@ export const queryKeys = {
   foods: {
     all: ["foods"] as const,
     list: () => [...queryKeys.foods.all, "list"] as const,
+    provider: () => [...queryKeys.foods.all, "provider"] as const,
     search: (query: string) => [...queryKeys.foods.all, "search", query] as const,
     combinedSearch: (query: string) => [...queryKeys.foods.all, "combinedSearch", query] as const,
     favorites: () => [...queryKeys.foods.all, "favorites"] as const,

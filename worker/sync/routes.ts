@@ -567,9 +567,9 @@ syncRoutes.post("/pull", async (c) => {
 
     if (row.data) {
       try {
-        const parsed: unknown = JSON.parse(row.data)
-        if (isRecord(parsed)) {
-          data = parsed
+        const parsedData: unknown = JSON.parse(row.data)
+        if (isRecord(parsedData)) {
+          data = parsedData
         }
       } catch (error) {
         console.error(`Corrupted sync_events data for ${row.collection}/${row.id} at version ${row.version}:`, error)

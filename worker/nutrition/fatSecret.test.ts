@@ -134,17 +134,88 @@ describe("FatSecret provider", () => {
         id: "fatsecret:111",
         name: "Chicken Breast",
         brand: "Acme",
-        calories: 165,
-        protein: 31,
+        calories: 82,
+        protein: 15.5,
         carbs: 0,
-        fat: 3.6,
+        fat: 1.8,
         fiber: 0,
         sugar: 0,
-        servingSize: "100 g",
-        servingGrams: 100,
+        servingSize: "50 g",
+        servingGrams: 50,
         isCustom: false,
       },
     ])
+  })
+
+  it("prefers explicit portions like slices over generic 100 g servings", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "token-1",
+            expires_in: 3600,
+            token_type: "Bearer",
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            foods_search: {
+              total_results: "1",
+              page_number: "0",
+              results: {
+                food: [
+                  {
+                    food_id: "222",
+                    food_name: "Whole Wheat Bread",
+                    servings: {
+                      serving: [
+                        {
+                          serving_id: "0",
+                          serving_description: "100 g",
+                          metric_serving_amount: "100",
+                          metric_serving_unit: "g",
+                          calories: "260",
+                          protein: "12",
+                          carbohydrate: "49",
+                          fat: "3",
+                          fiber: "7",
+                          sugar: "6",
+                        },
+                        {
+                          serving_id: "2",
+                          serving_description: "1 slice",
+                          metric_serving_amount: "32",
+                          metric_serving_unit: "g",
+                          calories: "83",
+                          protein: "3.8",
+                          carbohydrate: "15.7",
+                          fat: "1",
+                          fiber: "2.2",
+                          sugar: "1.9",
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          }),
+          { status: 200 }
+        )
+      )
+
+    const provider = await loadProvider()
+    const result = await provider.search("bread", 0, 20)
+
+    expect(result.items[0]).toMatchObject({
+      name: "Whole Wheat Bread",
+      servingSize: "1 slice",
+      servingGrams: 32,
+      calories: 83,
+    })
   })
 
   it("uses token single-flight for concurrent requests", async () => {

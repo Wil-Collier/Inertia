@@ -8,16 +8,22 @@ import { refreshAccessToken } from "@/features/sync/api"
 import { useAuthStore } from "@/features/sync/store"
 import { shouldAttemptSessionRestore } from "@/features/sync/sessionRestoreHint"
 
+export type NutritionProviderName = "openfoodfacts" | "fatsecret"
+
 export interface NutritionSearchResponse {
   items: FoodItem[]
-  provider: "openfoodfacts" | "fatsecret"
+  provider: NutritionProviderName
   page: number
   hasMore: boolean
 }
 
 export interface NutritionBarcodeResponse {
   item: FoodItem
-  provider: "openfoodfacts" | "fatsecret"
+  provider: NutritionProviderName
+}
+
+export interface NutritionProviderResponse {
+  provider: NutritionProviderName
 }
 
 export type NutritionApiErrorKind =
@@ -150,9 +156,9 @@ export async function searchFoods(
   query: string,
   page: number = 0,
   limit: number = 20
-): Promise<{ foods: FoodItem[]; hasMore: boolean }> {
+): Promise<{ foods: FoodItem[]; hasMore: boolean; provider: NutritionProviderName }> {
   if (!query.trim()) {
-    return { foods: [], hasMore: false }
+    return { foods: [], hasMore: false, provider: "openfoodfacts" }
   }
 
   const params = new URLSearchParams({
@@ -177,7 +183,24 @@ export async function searchFoods(
   return {
     foods: data.items,
     hasMore: data.hasMore,
+    provider: data.provider,
   }
+}
+
+export async function getNutritionProvider(): Promise<NutritionProviderName> {
+  const response = await fetchAuthorized("/api/nutrition/provider")
+
+  if (!response.ok) {
+    const data: unknown = await response.json().catch(() => ({}))
+    throw new NutritionApiError(
+      "http",
+      getErrorMessage(data, `Provider lookup failed: ${response.status}`),
+      { status: response.status }
+    )
+  }
+
+  const data: NutritionProviderResponse = await response.json()
+  return data.provider
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   useCustomFoods,
   useMealTemplates,
   useCombinedFoodSearch,
+  useNutritionProvider,
 } from "@/features/nutrition/queries"
 import {
   useAddMealEntry,
@@ -76,6 +77,8 @@ export function NutritionPage() {
   const searchResults = combinedSearch?.items ?? []
   const remoteStatus = combinedSearch?.remoteStatus
   const remoteError = combinedSearch?.remoteError
+  const { data: nutritionProvider } = useNutritionProvider()
+  const searchProvider = combinedSearch?.provider ?? nutritionProvider
 
   // Combine search results with barcode results (barcode results take precedence when shown)
   const displayedResults = barcodeResults.length > 0 ? barcodeResults : searchResults
@@ -254,6 +257,7 @@ export function NutritionPage() {
           searchResults={displayedResults}
           remoteStatus={remoteStatus}
           remoteError={remoteError}
+          searchProvider={searchProvider}
           onScanBarcode={() => setShowScanner(true)}
           onAddFood={handleAddFood}
           onToggleFavorite={handleToggleFavorite}

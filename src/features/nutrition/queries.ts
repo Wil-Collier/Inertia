@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import { searchFoods, NutritionApiError } from "@/services/nutritionApi"
+import { searchFoods, NutritionApiError, getNutritionProvider, type NutritionProviderName } from "@/services/nutritionApi"
 import { getActiveEntries } from "@/lib/nutritionEntryUtils"
 import type { FoodItem, NutritionMealEntry } from "@/lib/types"
 import { calculateNutritionTotals, calculateNutritionAverages, INITIAL_TOTALS } from "@/lib/nutritionUtils"
@@ -15,6 +15,7 @@ export interface CombinedFoodSearchResult {
   items: FoodItem[]
   remoteStatus: "idle" | "ok" | "error"
   remoteError?: string
+  provider?: NutritionProviderName
 }
 
 async function searchLocalFoods(query: string, limit = 20): Promise<FoodItem[]> {
@@ -95,6 +96,14 @@ export function useMealTemplates() {
   })
 }
 
+export function useNutritionProvider() {
+  return useQuery({
+    queryKey: queryKeys.foods.provider(),
+    queryFn: getNutritionProvider,
+    staleTime: 5 * 60_000,
+  })
+}
+
 export function useFoodSearch(query: string) {
   return useQuery({
     queryKey: queryKeys.foods.search(query),
@@ -168,11 +177,13 @@ export function useCombinedFoodSearch(query: string) {
       let remote: FoodItem[] = []
       let remoteStatus: CombinedFoodSearchResult["remoteStatus"] = "ok"
       let remoteError: string | undefined
+      let provider: NutritionProviderName | undefined
 
       try {
         // Use page 0 (0-indexed) for the API
         const res = await searchFoods(query, 0, 20)
         remote = res.foods
+        provider = res.provider
       } catch (error) {
         remoteStatus = "error"
         if (error instanceof NutritionApiError) {
@@ -203,6 +214,7 @@ export function useCombinedFoodSearch(query: string) {
         items: [...localOnly, ...mappedRemote],
         remoteStatus,
         remoteError,
+        provider,
       } satisfies CombinedFoodSearchResult
     },
     enabled: query.length >= 2,

@@ -4,30 +4,21 @@ import { queryKeys } from "@/lib/queryKeys"
 import type { Exercise, MuscleGroup } from "@/lib/types"
 import { muscleGroups } from "@/lib/muscleGroups"
 import { resolveExercisesByIds } from "@/features/exercises/resolveExercises"
+import { getDefaultExercises, getDefaultExercisesByMuscle } from "@/data/exerciseDatabase"
 
 function isMuscleGroup(value: string): value is MuscleGroup {
   return (muscleGroups as readonly string[]).includes(value)
 }
 
 /**
- * Dynamically import the exercise database to keep it code-split.
- * The module is cached after first import.
- */
-async function getExerciseModule() {
-  return await import("@/data/exerciseDatabase")
-}
-
-/**
  * Returns all exercises (default + custom), merged.
- * Default exercises come from the static JS bundle (lazy-loaded).
+ * Default exercises come from static data.
  * Custom exercises come from IndexedDB.
  */
 export function useExercises() {
   return useQuery({
     queryKey: queryKeys.exercises.list(),
     queryFn: async (): Promise<Exercise[]> => {
-      // Lazy-load exercise database (code-split)
-      const { getDefaultExercises } = await getExerciseModule()
       const defaultExercises = getDefaultExercises()
 
       // Get custom exercises from IndexedDB
@@ -78,9 +69,6 @@ export function useExercisesByMuscle(muscleGroup: string) {
     queryKey: queryKeys.exercises.byMuscle(muscleGroup),
     queryFn: async (): Promise<Exercise[]> => {
       if (!isMuscleGroup(muscleGroup)) return []
-
-      // Lazy-load exercise database (code-split)
-      const { getDefaultExercisesByMuscle } = await getExerciseModule()
 
       // Get filtered defaults from static data
       const defaultByMuscle = getDefaultExercisesByMuscle(muscleGroup)

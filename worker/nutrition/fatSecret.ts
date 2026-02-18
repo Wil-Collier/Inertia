@@ -167,7 +167,7 @@ function toNumber(val: string | number | undefined): number {
 
 /**
  * Select the best serving from a FatSecret food item.
- * Prefers serving_id === "0" when present, otherwise uses first serving.
+ * Prefer human-readable portions over generic 100 g entries.
  */
 function selectServing(
     servings: FatSecretServing | FatSecretServing[] | undefined
@@ -177,13 +177,25 @@ function selectServing(
     const servingArray = Array.isArray(servings) ? servings : [servings]
     if (servingArray.length === 0) return null
 
-    // Prefer serving_id === "0" or 0
-    const preferredServing = servingArray.find((s) => {
-        const id = s.serving_id
-        return id === "0" || id === 0
+    const normalizedServing = servingArray.find((serving) => {
+        const description = serving.serving_description?.trim()
+        if (!description) return false
+        return !/^\d+(\.\d+)?\s*(g|gram|grams|ml|oz)$/i.test(description)
     })
 
-    return preferredServing || servingArray[0]
+    if (normalizedServing) return normalizedServing
+
+    const nonHundredGramServing = servingArray.find((serving) => {
+        const metricAmount = toNumber(serving.metric_serving_amount)
+        const metricUnit = serving.metric_serving_unit?.trim().toLowerCase()
+        if (metricAmount !== 100 || metricUnit !== "g") return true
+
+        const description = serving.serving_description?.trim()
+        if (!description) return false
+        return !/^100(\.0+)?\s*(g|gram|grams)$/i.test(description)
+    })
+
+    return nonHundredGramServing || servingArray[0]
 }
 
 function parseFatSecretFood(food: FatSecretFood): FoodItem | null {

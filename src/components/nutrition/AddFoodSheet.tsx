@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { FoodSearch } from "./FoodSearch"
 import type { FoodItem, MealTemplateEntry } from "@/lib/types"
+import type { NutritionProviderName } from "@/services/nutritionApi"
 
 interface AddFoodSheetProps {
   isOpen: boolean
@@ -25,6 +26,7 @@ interface AddFoodSheetProps {
   searchResults: FoodItem[]
   remoteStatus?: "idle" | "ok" | "error"
   remoteError?: string
+  searchProvider?: NutritionProviderName
   onScanBarcode: () => void
   onAddFood: (food: FoodItem, qty: number) => Promise<void>
   onToggleFavorite: (foodId: string) => Promise<void>
@@ -57,6 +59,7 @@ export function AddFoodSheet({
   searchResults,
   remoteStatus,
   remoteError,
+  searchProvider,
   onScanBarcode,
   onAddFood,
   onToggleFavorite,
@@ -91,6 +94,7 @@ export function AddFoodSheet({
           searchResults={searchResults}
           remoteStatus={remoteStatus}
           remoteError={remoteError}
+          searchProvider={searchProvider}
           onScanBarcode={onScanBarcode}
           onAddFood={(food, qty) => void onAddFood(food, qty)}
           onToggleFavorite={(foodId) => void onToggleFavorite(foodId)}

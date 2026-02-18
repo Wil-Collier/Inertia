@@ -14,6 +14,9 @@ interface MealEntryItemProps {
   isNested?: boolean
 }
 
+const QUANTITY_STEP = 0.25
+const MIN_QUANTITY = 0.25
+
 export const MealEntryItem = memo(({
   entry,
   food,
@@ -44,19 +47,32 @@ export const MealEntryItem = memo(({
 
   const handleIncrement = useCallback((e?: React.MouseEvent | React.KeyboardEvent) => {
     e?.stopPropagation()
-    const newQty = Math.round((Math.floor(quantity * 10 + 0.01) / 10 + 0.1) * 10) / 10
+    const newQty = Math.round((quantity + QUANTITY_STEP) * 100) / 100
     setQuantity(newQty)
     onUpdateQuantity?.(newQty)
   }, [quantity, onUpdateQuantity])
 
   const handleDecrement = useCallback((e?: React.MouseEvent | React.KeyboardEvent) => {
     e?.stopPropagation()
-    const newQty = Math.max(0.1, Math.round((Math.ceil(quantity * 10 - 0.01) / 10 - 0.1) * 10) / 10)
+    const newQty = Math.max(MIN_QUANTITY, Math.round((quantity - QUANTITY_STEP) * 100) / 100)
     setQuantity(newQty)
     onUpdateQuantity?.(newQty)
   }, [quantity, onUpdateQuantity])
 
   const displayQuantity = Math.round(quantity * 100) / 100
+  const editProps = onEdit
+    ? {
+      onClick: handleEdit,
+      onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          handleEdit()
+        }
+      },
+      role: "button" as const,
+      tabIndex: 0,
+    }
+    : {}
 
   return (
     <div className={cn(
@@ -69,15 +85,7 @@ export const MealEntryItem = memo(({
           "flex items-center gap-2 px-3 py-2 outline-none focus-visible:bg-muted/70",
           onEdit ? "cursor-pointer hover:bg-muted/70" : ""
         )}
-        onClick={handleEdit}
-        onKeyDown={(e) => {
-          if (onEdit && (e.key === "Enter" || e.key === " ")) {
-            e.preventDefault()
-            handleEdit()
-          }
-        }}
-        role={onEdit ? "button" : undefined}
-        tabIndex={onEdit ? 0 : undefined}
+        {...editProps}
       >
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold truncate">{food.name}</p>
@@ -98,7 +106,7 @@ export const MealEntryItem = memo(({
               variant="ghost"
               className="h-6 w-6 rounded-full"
               onClick={handleDecrement}
-              disabled={quantity <= 0.1}
+              disabled={quantity <= MIN_QUANTITY}
               aria-label={`Decrease quantity for ${food.name}`}
             >
               <Minus className="h-3 w-3" />
