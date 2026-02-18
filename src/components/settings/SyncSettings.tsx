@@ -137,7 +137,7 @@ export function SyncSettings() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                Sync keeps workouts and nutrition aligned across devices. Food search works without sign-in.
+                Sync keeps workouts and nutrition aligned across devices.
               </p>
             </div>
           )}
