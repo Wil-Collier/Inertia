@@ -160,16 +160,16 @@ describe("BarcodeScanner", () => {
 
     expect(quaggaState.initConfig).toMatchObject({
       locator: { patchSize: "medium", halfSample: true },
-      frequency: 10,
+      frequency: 15,
       locate: true,
     })
 
-    // First two reads: not enough to confirm
+    // First read: not enough to confirm
     expect(quaggaState.detectedCallback).not.toBeNull()
-    emitDetections("0123456789", 2)
+    emitDetections("0123456789", 1)
     expect(onScan).not.toHaveBeenCalled()
 
-    // Third read: confirmation threshold reached
+    // Second read: confirmation threshold reached
     emitDetections("0123456789", 1)
 
     await waitFor(() => {
@@ -222,13 +222,13 @@ describe("BarcodeScanner", () => {
       expect(mockOnDetected).toHaveBeenCalledTimes(1)
     })
 
-    // 2 reads of code A, then 1 read of code B resets the streak
-    emitDetections("1111111111", 2)
+    // 1 read of code A, then 1 read of code B resets the streak
+    emitDetections("1111111111", 1)
     emitDetections("2222222222", 1)
     expect(onScan).not.toHaveBeenCalled()
 
-    // 2 more reads of code B reaches 3 total for B
-    emitDetections("2222222222", 2)
+    // 1 more read of code B reaches 2 total for B
+    emitDetections("2222222222", 1)
 
     await waitFor(() => {
       expect(onScan).toHaveBeenCalledWith("2222222222")
@@ -255,7 +255,7 @@ describe("BarcodeScanner", () => {
     // Scanner should not have started
     expect(mockStart).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole("button", { name: "Close" }))
+    await user.click(screen.getByRole("button", { name: "Close scanner" }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
   })

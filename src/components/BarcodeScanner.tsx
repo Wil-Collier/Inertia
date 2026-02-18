@@ -9,11 +9,11 @@ const CAMERA_DISABLED = import.meta.env.VITE_E2E_DISABLE_CAMERA === "true"
 
 // Reject detections where average decode error exceeds this threshold.
 // Lower = stricter. Quagga error values are typically 0-1, with good reads < 0.1.
-const MAX_AVG_ERROR = 0.15
+const MAX_AVG_ERROR = 0.2
 
 // Require the same barcode to be read this many consecutive times before accepting.
-// Eliminates one-off misreads while keeping response time snappy at 10 fps.
-const CONFIRMATION_READS = 3
+// Eliminates one-off misreads while keeping response time snappy at 15 fps.
+const CONFIRMATION_READS = 2
 
 /**
  * Compute average error across decoded segments that have an error value.
@@ -92,7 +92,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
             patchSize: "medium",
             halfSample: true,
           },
-          frequency: 10,
+          frequency: 15,
           numOfWorkers: 0,
           locate: true,
           decoder: {
@@ -197,9 +197,9 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col safe-area-top">
+    <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 text-white">
+      <div className="shrink-0 flex items-center justify-between p-4 text-white safe-area-top">
         <h2 className="text-lg font-semibold">Scan Barcode</h2>
         <Button
           variant="ghost"
@@ -212,37 +212,41 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
         </Button>
       </div>
 
-      {/* Scanner Area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
+      {/* Scanner Area — fixed aspect ratio so footer is always reachable */}
+      <div className="shrink-0 px-4">
         {error ? (
-          <div className="flex flex-col items-center gap-4 text-center px-8">
+          <div className="flex flex-col items-center gap-4 text-center py-8">
             <AlertCircle className="h-12 w-12 text-destructive" />
             <p className="text-white">{error}</p>
-            <Button variant="secondary" onClick={() => void handleClose()}>
-              Close
-            </Button>
           </div>
         ) : (
           <>
-            {isStarting && (
-              <div className="flex flex-col items-center gap-4 text-white absolute z-10">
-                <Camera className="h-12 w-12 animate-pulse" />
-                <p>Starting camera...</p>
-              </div>
-            )}
+            {/*
+              `relative` here is critical: Quagga injects a <canvas> with
+              position:absolute, which must be contained within this div.
+              Without it the canvas escapes and covers the entire overlay,
+              blocking the X button and footer.
+            */}
             <div
               ref={containerRef}
-              className="w-full max-w-sm rounded-lg overflow-hidden [&>video]:w-full [&>canvas]:absolute [&>canvas]:top-0 [&>canvas]:left-0"
-            />
-            <p className="text-white/80 text-sm mt-4 text-center px-8">
+              className="relative w-full aspect-video rounded-lg overflow-hidden bg-black [&>video]:absolute [&>video]:inset-0 [&>video]:w-full [&>video]:h-full [&>video]:object-cover [&>canvas]:absolute [&>canvas]:inset-0 [&>canvas]:w-full [&>canvas]:h-full"
+            >
+              {isStarting && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white z-10">
+                  <Camera className="h-8 w-8 animate-pulse" />
+                  <p className="text-sm">Starting camera...</p>
+                </div>
+              )}
+            </div>
+            <p className="text-white/80 text-sm mt-3 text-center px-4">
               Point your camera at a barcode on a food product
             </p>
           </>
         )}
       </div>
 
-      {/* Footer */}
-      <div className="p-4 safe-area-bottom space-y-3">
+      {/* Footer — flex-1 pushes it to the bottom on tall screens */}
+      <div className="flex-1 flex flex-col justify-end p-4 safe-area-bottom">
         <div className="space-y-2">
           <p className="text-xs text-white/80 uppercase tracking-widest">Manual Entry</p>
           <div className="flex gap-2">
@@ -270,13 +274,6 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
             </Button>
           </div>
         </div>
-        <Button
-          variant="secondary"
-          className="w-full"
-          onClick={() => void handleClose()}
-        >
-          Cancel
-        </Button>
       </div>
     </div>
   )
