@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { SyncApiError } from "@/features/sync/api"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
 import { clearDatabase } from "@/test/helpers/dbTestUtils"
@@ -57,6 +57,7 @@ async function loadOrchestrator() {
 describe("sync orchestrator", () => {
   beforeEach(async () => {
     await clearDatabase()
+    setOnline(true)
     ensureInitialSyncMock.mockReset().mockResolvedValue(true)
     resolveInitialSyncStrategyMock.mockReset().mockResolvedValue(undefined)
     pushPendingChangesInternalMock.mockReset().mockResolvedValue(undefined)
@@ -102,6 +103,10 @@ describe("sync orchestrator", () => {
       initialSyncState: null,
       lastAutoMergeSummary: null,
     })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it("sets offline status and aborts sync when network is offline", async () => {
@@ -206,13 +211,16 @@ describe("sync orchestrator", () => {
     const { syncNow } = await loadOrchestrator()
     const syncPromise = syncNow()
 
-    await vi.advanceTimersByTimeAsync(1_000)
-    await vi.advanceTimersByTimeAsync(5_000)
-    await syncPromise
+    try {
+      await vi.advanceTimersByTimeAsync(1_000)
+      await vi.advanceTimersByTimeAsync(5_000)
+      await syncPromise
 
-    expect(ensureInitialSyncMock).toHaveBeenCalledTimes(3)
-    expect(handleSyncErrorMock).not.toHaveBeenCalled()
-    vi.useRealTimers()
+      expect(ensureInitialSyncMock).toHaveBeenCalledTimes(3)
+      expect(handleSyncErrorMock).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("retries transient SyncApiError responses (503)", async () => {
@@ -226,12 +234,15 @@ describe("sync orchestrator", () => {
     const { syncNow } = await loadOrchestrator()
     const syncPromise = syncNow()
 
-    await vi.advanceTimersByTimeAsync(1_000)
-    await vi.advanceTimersByTimeAsync(5_000)
-    await syncPromise
+    try {
+      await vi.advanceTimersByTimeAsync(1_000)
+      await vi.advanceTimersByTimeAsync(5_000)
+      await syncPromise
 
-    expect(ensureInitialSyncMock).toHaveBeenCalledTimes(3)
-    vi.useRealTimers()
+      expect(ensureInitialSyncMock).toHaveBeenCalledTimes(3)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("does not retry non-retryable SyncApiError responses (400)", async () => {
@@ -241,12 +252,16 @@ describe("sync orchestrator", () => {
 
     const { syncNow } = await loadOrchestrator()
     const syncPromise = syncNow()
-    await vi.advanceTimersByTimeAsync(30_000)
-    await syncPromise
 
-    expect(ensureInitialSyncMock).toHaveBeenCalledTimes(1)
-    expect(handleSyncErrorMock).toHaveBeenCalledTimes(1)
-    vi.useRealTimers()
+    try {
+      await vi.advanceTimersByTimeAsync(30_000)
+      await syncPromise
+
+      expect(ensureInitialSyncMock).toHaveBeenCalledTimes(1)
+      expect(handleSyncErrorMock).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("prevents concurrent sync runs with in-flight guard", async () => {
@@ -323,15 +338,18 @@ describe("sync orchestrator", () => {
     const { pushPendingChanges } = await loadOrchestrator()
     const syncPromise = pushPendingChanges()
 
-    await vi.advanceTimersByTimeAsync(1_000)
-    await vi.advanceTimersByTimeAsync(5_000)
-    await vi.advanceTimersByTimeAsync(15_000)
-    await syncPromise
+    try {
+      await vi.advanceTimersByTimeAsync(1_000)
+      await vi.advanceTimersByTimeAsync(5_000)
+      await vi.advanceTimersByTimeAsync(15_000)
+      await syncPromise
 
-    expect(handleSyncErrorMock).toHaveBeenCalledTimes(1)
-    expect(useSyncStore.getState().status).toBe("error")
-    expect(useSyncStore.getState().lastError).toBe("push failed")
-    vi.useRealTimers()
+      expect(handleSyncErrorMock).toHaveBeenCalledTimes(1)
+      expect(useSyncStore.getState().status).toBe("error")
+      expect(useSyncStore.getState().lastError).toBe("push failed")
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("pushPendingChanges pulls after pushing", async () => {

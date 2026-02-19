@@ -221,6 +221,38 @@ describe("initialSyncCoordinator", () => {
     expect(useSyncStore.getState().initialSyncState).toBeNull()
   })
 
+  it("use-cloud: pulls before clearing local data (pull-first ordering)", async () => {
+    useSyncStore.getState().setInitialSyncState({ localHasData: true, cloudHasData: true })
+
+    const order: string[] = []
+    pullAndProcessChangesMock.mockImplementation(async () => {
+      order.push("pull")
+      return defaultPullResult()
+    })
+    clearLocalSyncDataMock.mockImplementation(async () => {
+      order.push("clearLocalSyncData")
+    })
+
+    await resolveInitialSyncStrategy("token", "user-1", "use-cloud")
+
+    expect(order[0]).toBe("pull")
+    expect(order).toContain("clearLocalSyncData")
+    const pullIndex = order.indexOf("pull")
+    const clearIndex = order.indexOf("clearLocalSyncData")
+    expect(pullIndex).toBeLessThan(clearIndex)
+  })
+
+  it("use-cloud: does not clear local data when pull fails (data-loss guard)", async () => {
+    useSyncStore.getState().setInitialSyncState({ localHasData: true, cloudHasData: true })
+    pullAndProcessChangesMock.mockRejectedValueOnce(new Error("Network error"))
+
+    await expect(resolveInitialSyncStrategy("token", "user-1", "use-cloud")).rejects.toThrow(
+      "Network error"
+    )
+
+    expect(clearLocalSyncDataMock).not.toHaveBeenCalled()
+  })
+
   it("bubbles merge conflicts so callers can surface manual conflict resolution", async () => {
     useSyncStore.getState().setInitialSyncState({ localHasData: true, cloudHasData: true })
     mergeCloudAndLocalMock.mockRejectedValueOnce(new Error("Merge requires manual resolution for settings:settings"))

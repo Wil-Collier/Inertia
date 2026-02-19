@@ -93,8 +93,11 @@ function makeAcceptedFromChanges(changes: PushChange[]) {
   }))
 }
 
+// Local copy of worker/lib/typeGuards.ts#isRecord — kept here to avoid a
+// cross-boundary src→worker import in a test file. Must stay in sync with the
+// production definition (non-null, non-array object check).
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function isPushChangeLike(value: unknown): value is PushChange {
@@ -481,6 +484,78 @@ describe("pushPipeline", () => {
 
     expect(pushChangesMock).toHaveBeenCalledTimes(2)
     expect(acknowledgeProcessedPendingChangesMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("acknowledges RECORD_TOO_LARGE conflicts and shows specific toast", async () => {
+    listPendingChangesMock.mockResolvedValue([
+      {
+        collection: "foods",
+        id: "food-huge",
+        deleted: false,
+        baseVersion: 0,
+        mutationId: "m-huge",
+        enqueuedAt: 1,
+      },
+    ])
+
+    pushChangesMock.mockResolvedValueOnce({
+      acceptedChanges: [],
+      conflicts: [
+        {
+          collection: "foods",
+          id: "food-huge",
+          serverVersion: 0,
+          clientBaseVersion: 0,
+          reason: "RECORD_TOO_LARGE",
+        },
+      ],
+    })
+
+    const { pushPendingChangesInternal } = await loadPushPipeline()
+    await pushPendingChangesInternal("token", true)
+
+    expect(acknowledgeProcessedPendingChangesMock).toHaveBeenCalledWith([
+      { collection: "foods", id: "food-huge", mutationId: "m-huge" },
+    ])
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "1 change was too large to sync and has been skipped"
+    )
+  })
+
+  it("acknowledges MUTATION_ID_REUSE conflicts and shows specific toast", async () => {
+    listPendingChangesMock.mockResolvedValue([
+      {
+        collection: "foods",
+        id: "food-reuse",
+        deleted: false,
+        baseVersion: 0,
+        mutationId: "m-reuse",
+        enqueuedAt: 1,
+      },
+    ])
+
+    pushChangesMock.mockResolvedValueOnce({
+      acceptedChanges: [],
+      conflicts: [
+        {
+          collection: "foods",
+          id: "food-reuse",
+          serverVersion: 0,
+          clientBaseVersion: 0,
+          reason: "MUTATION_ID_REUSE",
+        },
+      ],
+    })
+
+    const { pushPendingChangesInternal } = await loadPushPipeline()
+    await pushPendingChangesInternal("token", true)
+
+    expect(acknowledgeProcessedPendingChangesMock).toHaveBeenCalledWith([
+      { collection: "foods", id: "food-reuse", mutationId: "m-reuse" },
+    ])
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "1 change was rejected due to a duplicate sync ID and has been skipped"
+    )
   })
 
   it("fails full snapshot when conflictMode is error and server returns conflicts", async () => {

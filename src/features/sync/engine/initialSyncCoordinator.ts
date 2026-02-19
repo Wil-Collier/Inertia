@@ -78,9 +78,11 @@ export async function resolveInitialSyncStrategy(
   strategy: InitialSyncStrategy
 ): Promise<void> {
   if (strategy === "use-cloud") {
+    // Pull first so local data is only cleared after a successful pull.
+    // If the pull fails, local data is preserved and the user can retry.
+    await pullApplyAndPersist(accessTokenSource, userId)
     await clearLocalSyncData()
     await clearSyncMetadata()
-    await pullApplyAndPersist(accessTokenSource, userId)
   } else if (strategy === "merge") {
     const summary = await mergeCloudAndLocal(accessTokenSource)
     persistMergeSummary(summary)

@@ -58,7 +58,9 @@ export async function pushPendingChangesInternal(accessTokenSource: AccessTokenS
         useSyncStore.getState().setConflicts(response.conflicts)
 
         const overwriteConflicts = response.conflicts.filter((conflict) => conflict.reason === "VERSION_MISMATCH").length
-        const nonOverwriteConflicts = response.conflicts.length - overwriteConflicts
+        const tooLargeConflicts = response.conflicts.filter((conflict) => conflict.reason === "RECORD_TOO_LARGE").length
+        const mutationIdReuseConflicts = response.conflicts.filter((conflict) => conflict.reason === "MUTATION_ID_REUSE").length
+        const otherConflicts = response.conflicts.length - overwriteConflicts - tooLargeConflicts - mutationIdReuseConflicts
 
         if (overwriteConflicts > 0) {
           toast.error(
@@ -68,11 +70,27 @@ export async function pushPendingChangesInternal(accessTokenSource: AccessTokenS
           )
         }
 
-        if (nonOverwriteConflicts > 0) {
+        if (tooLargeConflicts > 0) {
           toast.error(
-            nonOverwriteConflicts === 1
+            tooLargeConflicts === 1
+              ? "1 change was too large to sync and has been skipped"
+              : `${tooLargeConflicts} changes were too large to sync and have been skipped`
+          )
+        }
+
+        if (mutationIdReuseConflicts > 0) {
+          toast.error(
+            mutationIdReuseConflicts === 1
+              ? "1 change was rejected due to a duplicate sync ID and has been skipped"
+              : `${mutationIdReuseConflicts} changes were rejected due to duplicate sync IDs and have been skipped`
+          )
+        }
+
+        if (otherConflicts > 0) {
+          toast.error(
+            otherConflicts === 1
               ? "1 change could not be synced and remains pending"
-              : `${nonOverwriteConflicts} changes could not be synced and remain pending`
+              : `${otherConflicts} changes could not be synced and remain pending`
           )
         }
       }

@@ -2,7 +2,11 @@ import type { PushConflict } from "@/features/sync/schemas"
 import type { InitialSyncStrategy } from "@/features/sync/types"
 
 export function shouldAcknowledgePushConflict(conflict: PushConflict): boolean {
-  return conflict.reason === "VERSION_MISMATCH"
+  return (
+    conflict.reason === "VERSION_MISMATCH" ||
+    conflict.reason === "RECORD_TOO_LARGE" ||
+    conflict.reason === "MUTATION_ID_REUSE"
+  )
 }
 
 export const INITIAL_SYNC_POLICY: Record<
