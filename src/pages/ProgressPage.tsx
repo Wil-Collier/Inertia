@@ -251,13 +251,14 @@ export function ProgressPage() {
             <BodyWeightTab
               newWeight={newWeight}
               setNewWeight={setNewWeight}
-              addWeightEntry={async (weight: number, date?: string) => {
-                await addWeightEntryMutation.mutateAsync({ weight, date: date || getToday() })
+              addWeightEntry={async (weightInLbs: number, date?: string) => {
+                await addWeightEntryMutation.mutateAsync({ weight: weightInLbs, date: date || getToday() })
               }}
               deleteWeightEntry={async (id: string) => {
                 await deleteWeightEntryMutation.mutateAsync(id)
               }}
               preferredUnit={weightUnit.unit}
+              parseWeight={(val) => weightUnit.parse(val)}
               weightEntries={weightEntries}
             />
 

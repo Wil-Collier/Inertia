@@ -27,6 +27,7 @@ import { formatDate, getToday, parseDbDate } from "@/lib/dateUtils"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { CHART_HEIGHTS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE } from "@/lib/chartConfig"
+import { getDisplayWeight } from "@/lib/conversions"
 import type { WeightEntry } from "@/lib/types"
 
 const CHART_MARGIN = { top: 5, right: 5, left: 5, bottom: 5 }
@@ -35,9 +36,10 @@ const LINE_DOT_CONFIG = { fill: "var(--primary)" }
 interface BodyWeightTabProps {
   newWeight: string
   setNewWeight: (value: string) => void
-  addWeightEntry: (weight: number, date?: string, note?: string) => Promise<WeightEntry | void>
+  addWeightEntry: (weightInLbs: number, date?: string, note?: string) => Promise<WeightEntry | void>
   deleteWeightEntry: (id: string) => Promise<void>
   preferredUnit: "lbs" | "kg"
+  parseWeight: (value: number) => number
   weightEntries: WeightEntry[]
 }
 
@@ -47,19 +49,24 @@ export function BodyWeightTab({
   addWeightEntry,
   deleteWeightEntry,
   preferredUnit,
+  parseWeight,
   weightEntries,
 }: BodyWeightTabProps) {
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null)
   const latestEntry = weightEntries[0]
 
+  // Entries are stored in lbs — convert to display unit for rendering
+  const latestDisplay = latestEntry ? getDisplayWeight(latestEntry.weight, preferredUnit) : null
+
   // Get weight change
   const sortedEntries = weightEntries
   const previousEntry = sortedEntries.length > 1 ? sortedEntries[1] : undefined
-  const weightChange = latestEntry && previousEntry
-    ? latestEntry.weight - previousEntry.weight
+  const previousDisplay = previousEntry ? getDisplayWeight(previousEntry.weight, preferredUnit) : null
+  const weightChange = latestDisplay !== null && previousDisplay !== null
+    ? latestDisplay - previousDisplay
     : 0
 
-  // Get last 30 days of data for chart
+  // Get last 30 days of data for chart — convert each entry to display unit
   const chartData = useMemo(() => {
     const today = getToday()
     const thirtyDaysAgo = formatDate(subDays(new Date(), 30))
@@ -68,9 +75,9 @@ export function BodyWeightTab({
       .toSorted((a, b) => a.date.localeCompare(b.date))
       .map((e) => ({
         date: format(parseDbDate(e.date), "MMM d"),
-        weight: e.weight,
+        weight: getDisplayWeight(e.weight, preferredUnit),
       }))
-  }, [weightEntries])
+  }, [weightEntries, preferredUnit])
 
   const handleAddWeight = async () => {
     const weight = parseFloat(newWeight)
@@ -78,9 +85,10 @@ export function BodyWeightTab({
       toast.error("Please enter a valid weight")
       return
     }
-    await addWeightEntry(weight, getToday())
+    // Convert user-entered display-unit value to lbs for canonical storage
+    const weightInLbs = parseWeight(weight)
+    await addWeightEntry(weightInLbs, getToday())
     setNewWeight("")
-    toast.success("Weight logged!")
   }
 
   const weightTooltipFormatter = useCallback((value: number | string | Array<number | string> | undefined) => [`${String(value ?? 0)} ${preferredUnit}`, "Weight"] as [string, string], [preferredUnit])
@@ -112,9 +120,9 @@ export function BodyWeightTab({
             </div>
             <Button onClick={() => void handleAddWeight()}>Log</Button>
           </div>
-          {latestEntry && (
+          {latestDisplay !== null && (
             <p className="mt-2 text-sm text-muted-foreground">
-              Current: {latestEntry.weight} {preferredUnit}
+              Current: {latestDisplay} {preferredUnit}
               {weightChange !== 0 && (
                 <span className={weightChange > 0 ? "text-trend-negative" : "text-trend-positive"}>
                   {" "}({weightChange > 0 ? "+" : ""}{weightChange.toFixed(1)})
@@ -181,7 +189,9 @@ export function BodyWeightTab({
             <div className="space-y-2">
               {sortedEntries.slice(0, 10).map((entry, index) => {
                 const prevEntry = sortedEntries[index + 1]
-                const change = prevEntry ? entry.weight - prevEntry.weight : 0
+                const entryDisplay = getDisplayWeight(entry.weight, preferredUnit)
+                const prevDisplay = prevEntry ? getDisplayWeight(prevEntry.weight, preferredUnit) : null
+                const change = prevDisplay !== null ? entryDisplay - prevDisplay : 0
 
                 return (
                   <div
@@ -200,7 +210,7 @@ export function BodyWeightTab({
                       </div>
                       <div>
                         <p className="font-medium">
-                          {entry.weight} {preferredUnit}
+                          {entryDisplay} {preferredUnit}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {format(parseDbDate(entry.date), "EEE, MMM d, yyyy")}
@@ -245,7 +255,6 @@ export function BodyWeightTab({
                 void (async () => {
                   if (entryToDelete) {
                     await deleteWeightEntry(entryToDelete)
-                    toast.success("Entry deleted")
                     setEntryToDelete(null)
                   }
                 })().catch((err) => {

@@ -76,6 +76,8 @@ describe("BodyWeightTab", () => {
         addWeightEntry={addWeightEntry}
         deleteWeightEntry={vi.fn().mockResolvedValue(undefined)}
         preferredUnit="lbs"
+        // lbs → lbs: no conversion needed
+        parseWeight={(v: number) => v}
         weightEntries={[]}
       />
     )
@@ -98,6 +100,8 @@ describe("BodyWeightTab", () => {
         addWeightEntry={addWeightEntry}
         deleteWeightEntry={vi.fn().mockResolvedValue(undefined)}
         preferredUnit="lbs"
+        // lbs → lbs: identity (parseWeight converts display unit → lbs)
+        parseWeight={(v: number) => v}
         weightEntries={[]}
       />
     )
@@ -105,10 +109,11 @@ describe("BodyWeightTab", () => {
     await user.click(screen.getAllByRole("button", { name: "Log" })[0])
 
     await waitFor(() => {
+      // parseWeight is identity for lbs, so value is passed through unchanged
       expect(addWeightEntry).toHaveBeenCalledWith(182.4, "2026-02-09")
     })
     expect(setNewWeight).toHaveBeenCalledWith("")
-    expect(toastSuccessMock).toHaveBeenCalledWith("Weight logged!")
+    // Success toast is fired by the mutation's onSuccess, not the component directly
   })
 
   it("opens delete confirmation and deletes selected entry", async () => {
@@ -123,6 +128,7 @@ describe("BodyWeightTab", () => {
         addWeightEntry={vi.fn().mockResolvedValue(undefined)}
         deleteWeightEntry={deleteWeightEntry}
         preferredUnit="lbs"
+        parseWeight={(v: number) => v}
         weightEntries={entries}
       />
     )
@@ -133,6 +139,6 @@ describe("BodyWeightTab", () => {
     await waitFor(() => {
       expect(deleteWeightEntry).toHaveBeenCalledWith("entry-1")
     })
-    expect(toastSuccessMock).toHaveBeenCalledWith("Entry deleted")
+    // Success toast is fired by the mutation's onSuccess, not the component directly
   })
 })

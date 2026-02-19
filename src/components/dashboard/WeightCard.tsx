@@ -5,6 +5,7 @@ import { useBodyWeightHistory } from "@/features/bodyweight/queries"
 import { useAddWeightEntry } from "@/features/bodyweight/mutations"
 import { getToday } from "@/lib/dateUtils"
 import { useWeightUnit } from "@/hooks/useUnits"
+import { getDisplayWeight } from "@/lib/conversions"
 import { Link } from "@tanstack/react-router"
 import { 
   Dialog, 
@@ -28,9 +29,12 @@ export function WeightCard() {
   
   const latestEntry = weightEntries[0]
   const previousEntry = weightEntries[1]
-  
-  const weightChange = latestEntry && previousEntry 
-    ? latestEntry.weight - previousEntry.weight 
+
+  // Entries are stored in lbs — compute change in display unit
+  const latestDisplay = latestEntry ? getDisplayWeight(latestEntry.weight, weightUnit.unit) : null
+  const previousDisplay = previousEntry ? getDisplayWeight(previousEntry.weight, weightUnit.unit) : null
+  const weightChange = latestDisplay !== null && previousDisplay !== null
+    ? latestDisplay - previousDisplay
     : 0
 
   const handleSave = async () => {
@@ -42,8 +46,9 @@ export function WeightCard() {
     
     try {
       setIsLoading(true)
-      await addWeightEntryMutation.mutateAsync({ weight: val, date: getToday() })
-      toast.success("Weight logged successfully!")
+      // Convert user-entered display-unit value to lbs for canonical storage
+      const weightInLbs = weightUnit.parse(val)
+      await addWeightEntryMutation.mutateAsync({ weight: weightInLbs, date: getToday() })
       setWeight("")
       setIsOpen(false)
     } catch {
@@ -65,7 +70,7 @@ export function WeightCard() {
               <p className="text-sm font-medium">Body Weight</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold">
-                  {latestEntry ? weightUnit.format(latestEntry.weight, { shouldShowUnit: false }) : "--"}
+                  {latestDisplay !== null ? weightUnit.format(latestEntry.weight, { shouldShowUnit: false }) : "--"}
                 </span>
                 <span className="text-xs text-muted-foreground">{weightUnit.unitLabel}</span>
               </div>
@@ -74,7 +79,7 @@ export function WeightCard() {
 
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-end">
-              {latestEntry && previousEntry && (
+              {latestDisplay !== null && previousDisplay !== null && (
                 <div className="flex items-center gap-1 text-xs">
                   {weightChange > 0 ? (
                     <>
