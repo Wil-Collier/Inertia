@@ -10,6 +10,27 @@ import { cloudflare } from "@cloudflare/vite-plugin"
 
 const isVitest = process.env.VITEST === "true"
 
+const CLIENT_TEST_INCLUDE = [
+  "src/**/*.test.ts",
+  "src/**/*.test.tsx",
+  "src/**/*.spec.ts",
+  "src/**/*.spec.tsx",
+  "src/**/*.integration.test.ts",
+  "src/**/*.integration.test.tsx",
+]
+
+const WORKER_TEST_INCLUDE = [
+  "worker/**/*.test.ts",
+  "worker/**/*.test.tsx",
+  "worker/**/*.integration.test.ts",
+  "worker/**/*.integration.test.tsx",
+]
+
+const SHARED_TEST_INCLUDE = [
+  "shared/**/*.test.ts",
+  "shared/**/*.test.tsx",
+]
+
 // https://vite.dev/config/
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, typescript-eslint/no-unsafe-type-assertion
 export default (defineConfig as any)({
@@ -120,25 +141,38 @@ export default (defineConfig as any)({
   },
   test: {
     pool: "threads",
-    environment: "jsdom",
-    setupFiles: "./src/test/setup.ts",
-    include: [
-      "src/**/*.test.ts",
-      "src/**/*.test.tsx",
-      "src/**/*.spec.ts",
-      "src/**/*.spec.tsx",
-      "src/**/*.integration.test.ts",
-      "src/**/*.integration.test.tsx",
-      "worker/**/*.test.ts",
-      "worker/**/*.test.tsx",
-      "worker/**/*.integration.test.ts",
-      "worker/**/*.integration.test.tsx",
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "client",
+          environment: "jsdom",
+          setupFiles: "./src/test/setup.ts",
+          include: CLIENT_TEST_INCLUDE,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "worker",
+          environment: "node",
+          include: WORKER_TEST_INCLUDE,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "shared",
+          environment: "node",
+          include: SHARED_TEST_INCLUDE,
+        },
+      },
     ],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
       reportsDirectory: "./coverage",
-      include: ["src/**/*.{ts,tsx}", "worker/**/*.{ts,tsx}"],
+      include: ["src/**/*.{ts,tsx}", "worker/**/*.{ts,tsx}", "shared/**/*.{ts,tsx}"],
       exclude: [
         "**/*.d.ts",
         "**/*.test.*",

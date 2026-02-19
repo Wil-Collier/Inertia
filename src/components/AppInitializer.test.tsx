@@ -8,7 +8,7 @@ import { statsService } from "@/services/statsService"
 import * as dexieHooksModule from "@/features/sync/dexieHooks"
 import * as syncApiModule from "@/features/sync/api"
 import { markSessionRestoreEligible } from "@/features/sync/sessionRestoreHint"
-import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
+import { resetEphemeralTestRuntime } from "@/test/helpers/resetTestRuntime"
 
 /**
  * useSyncTriggers and useDebouncedPush are mocked here because they establish
@@ -33,9 +33,9 @@ describe("AppInitializer", () => {
     cleanup()
   })
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.restoreAllMocks()
-    await resetTestRuntime()
+    resetEphemeralTestRuntime()
 
     vi.spyOn(dbModule, "isDatabaseHealthy").mockResolvedValue(true)
     vi.spyOn(dbModule, "recoverDatabase").mockResolvedValue()

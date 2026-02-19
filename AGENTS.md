@@ -239,6 +239,26 @@ Use `toSorted()` / `toReversed()` instead of mutating `.sort()` / `.reverse()`.
   - Browser/hardware APIs not available in jsdom (camera/scanner, notifications, audio, etc.)
 - If a mock is used for non-boundary code, document why it is unavoidable in test comments.
 
+### Network Test Policy (MSW-First)
+
+- For client code that performs HTTP requests (`fetch`, auth/sync clients, provider clients), prefer MSW handlers over stubbing `global.fetch` or mocking API modules.
+- In tests that exercise request/response behavior, avoid `vi.mock` for internal transport helpers such as `@/features/*/api` unless the test is explicitly unit-scoped to that module.
+- Use MSW to verify protocol-level behavior:
+  - auth headers/token propagation
+  - 401 refresh + retry behavior
+  - server error mapping (4xx/5xx)
+  - payload/query param handling
+- Keep default handlers in `src/test/msw/handlers.ts` broad and deterministic; override per-test with `server.use(...)` for scenario-specific behavior.
+- Prefer asserting outcomes from real request flow (returned data, store state changes, error class/messages) rather than asserting internal mock call counts.
+
+### Test Type Integrity
+
+- If a file is named `*.integration.test.*`, it should run with real module wiring for the feature under test.
+- Integration tests may still mock:
+  - unavailable browser/runtime capabilities
+  - heavyweight visualization primitives that jsdom cannot render reliably
+- Integration tests should not replace the core business collaborators of the subject under test with `vi.mock(...)`; if that is required, treat it as a unit test and name/scope it accordingly.
+
 ### Fail-First and Defect-Driven Fixes
 
 - For behavior changes and bug work, use fail-first workflow:

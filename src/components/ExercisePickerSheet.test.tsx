@@ -1,12 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { db } from "@/services/db"
 import { ExercisePickerSheet } from "@/components/ExercisePickerSheet"
 import type { Exercise } from "@/lib/types"
 import { createTestQueryClient } from "@/test/helpers/queryHookTestUtils"
-import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
+import { resetEphemeralTestRuntime } from "@/test/helpers/resetTestRuntime"
 
 const TEST_EXERCISES: Exercise[] = [
   {
@@ -38,6 +37,14 @@ const TEST_EXERCISES: Exercise[] = [
 async function seedCustomExercises(exercises: Exercise[] = TEST_EXERCISES) {
   await db.transaction("rw", [db.customExercises, db.syncPendingChanges, db.syncRecordVersions], async () => {
     await db.customExercises.bulkPut(exercises)
+  })
+}
+
+async function resetExercisePickerTables() {
+  await db.transaction("rw", [db.customExercises, db.syncPendingChanges, db.syncRecordVersions], async () => {
+    await db.customExercises.clear()
+    await db.syncPendingChanges.clear()
+    await db.syncRecordVersions.clear()
   })
 }
 
@@ -78,12 +85,12 @@ describe("ExercisePickerSheet", () => {
   beforeEach(async () => {
     vi.useRealTimers()
     vi.clearAllMocks()
-    await resetTestRuntime()
+    resetEphemeralTestRuntime()
+    await resetExercisePickerTables()
     await seedCustomExercises()
   })
 
   it("prevents selecting already added exercises and selects available ones", async () => {
-    const user = userEvent.setup()
     const onSelect = vi.fn()
     const onOpenChange = vi.fn()
 
@@ -93,7 +100,7 @@ describe("ExercisePickerSheet", () => {
       addedExerciseIds: ["bench-press"],
     })
 
-    await user.click(await screen.findByRole("button", { name: "Custom" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Custom" }))
 
     const benchButton = await screen.findByRole("button", { name: "Bench Press" })
     expect(benchButton instanceof HTMLButtonElement).toBe(true)
@@ -102,11 +109,11 @@ describe("ExercisePickerSheet", () => {
     }
     expect(benchButton.disabled).toBe(true)
 
-    await user.click(await screen.findByRole("button", { name: "Back Squat" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Back Squat" }))
 
     expect(onSelect).toHaveBeenCalledWith("back-squat")
     expect(onOpenChange).toHaveBeenCalledWith(false)
-  }, 20000)
+  })
 
   it("applies search/filter controls and shows empty states", async () => {
     renderExercisePickerSheet()
@@ -119,17 +126,18 @@ describe("ExercisePickerSheet", () => {
     expect(screen.queryByText("Custom Plank Hold")).toBeNull()
 
     fireEvent.change(screen.getByPlaceholderText("Search exercises..."), { target: { value: "zzz" } })
-
-    expect(await screen.findByText("No exercises found", {}, { timeout: 15000 })).toBeTruthy()
+    await waitFor(() => {
+      expect(screen.getByText("No exercises found")).toBeTruthy()
+    }, { timeout: 2000 })
     expect(screen.getByText("Try a different search term or filter")).toBeTruthy()
-  }, 20000)
+  })
 
   it("resets search state immediately when the sheet closes", async () => {
     const onOpenChange = vi.fn()
 
     renderExercisePickerSheet({ onOpenChange })
 
-    const searchInput = await screen.findByPlaceholderText("Search exercises...")
+    const searchInput = screen.getByPlaceholderText("Search exercises...")
     fireEvent.change(searchInput, { target: { value: "bench" } })
 
     expect(searchInput instanceof HTMLInputElement).toBe(true)
@@ -141,24 +149,21 @@ describe("ExercisePickerSheet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }))
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
-    await waitFor(() => {
-      expect(searchInput.value).toBe("")
-    })
-  }, 25000)
+    expect(searchInput.value).toBe("")
+  })
 
   it("supports create and edit dialog flows", async () => {
-    const user = userEvent.setup()
     const onSelect = vi.fn()
     const onOpenChange = vi.fn()
 
     renderExercisePickerSheet({ onSelect, onOpenChange })
 
-    await user.click(await screen.findByRole("button", { name: "Custom" }))
-    await user.click(await screen.findByRole("button", { name: "New" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Custom" }))
+    fireEvent.click(await screen.findByRole("button", { name: "New" }))
     expect(await screen.findByText("Create Custom Exercise")).toBeTruthy()
 
-    await user.type(screen.getByLabelText("Name"), "New Exercise")
-    await user.click(screen.getByRole("button", { name: "Create Exercise" }))
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "New Exercise" } })
+    fireEvent.click(screen.getByRole("button", { name: "Create Exercise" }))
 
     await waitFor(() => {
       expect(onSelect).toHaveBeenCalledTimes(1)
@@ -177,13 +182,12 @@ describe("ExercisePickerSheet", () => {
 
     onSelect.mockClear()
 
-    await user.click(await screen.findByRole("button", { name: "Edit Custom Plank Hold" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Custom Plank Hold" }))
     expect(await screen.findByText("Edit Exercise")).toBeTruthy()
 
     const nameInput = screen.getByLabelText("Name")
-    await user.clear(nameInput)
-    await user.type(nameInput, "Custom Plank Hold Updated")
-    await user.click(screen.getByRole("button", { name: "Update Exercise" }))
+    fireEvent.change(nameInput, { target: { value: "Custom Plank Hold Updated" } })
+    fireEvent.click(screen.getByRole("button", { name: "Update Exercise" }))
 
     await waitFor(() => {
       expect(screen.queryByText("Edit Exercise")).toBeNull()
@@ -192,12 +196,12 @@ describe("ExercisePickerSheet", () => {
     const updatedExercise = await db.customExercises.get("custom-plank")
     expect(updatedExercise?.name).toBe("Custom Plank Hold Updated")
     expect(onSelect).not.toHaveBeenCalled()
-  }, 25000)
+  })
 
   it("clears search query when clear button is pressed", async () => {
     renderExercisePickerSheet()
 
-    const searchInput = await screen.findByPlaceholderText("Search exercises...")
+    const searchInput = screen.getByPlaceholderText("Search exercises...")
     fireEvent.change(searchInput, { target: { value: "bench" } })
     fireEvent.click(screen.getByLabelText("Clear search"))
 
@@ -205,8 +209,6 @@ describe("ExercisePickerSheet", () => {
     if (!(searchInput instanceof HTMLInputElement)) {
       throw new Error("Expected search input element")
     }
-    await waitFor(() => {
-      expect(searchInput.value).toBe("")
-    })
-  }, 10000)
+    expect(searchInput.value).toBe("")
+  })
 })

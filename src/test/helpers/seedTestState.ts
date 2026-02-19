@@ -10,6 +10,7 @@ import type {
   Workout,
   WorkoutTemplate,
 } from "@/lib/types"
+import type { WeightEntry } from "@/lib/types/bodyweight"
 import { useAuthStore, useSyncStore } from "@/features/sync/store"
 import { db } from "@/services/db"
 
@@ -42,6 +43,7 @@ export interface TestStateSeed {
   nutritionLogs?: DailyNutrition[]
   mealTemplates?: MealTemplate[]
   achievements?: SeedAchievements
+  bodyWeight?: WeightEntry[]
   authState?: Partial<SeedAuthState>
   syncState?: Partial<SeedSyncState>
 }
@@ -58,6 +60,7 @@ export async function seedTestState(seed: TestStateSeed): Promise<void> {
       db.nutritionLogs,
       db.mealTemplates,
       db.achievements,
+      db.bodyWeight,
       db.syncPendingChanges,
       db.syncRecordVersions,
     ],
@@ -104,6 +107,10 @@ export async function seedTestState(seed: TestStateSeed): Promise<void> {
           unlockedAchievements: seed.achievements.unlockedAchievements,
           streaks: seed.achievements.streaks,
         })
+      }
+
+      if (seed.bodyWeight && seed.bodyWeight.length > 0) {
+        await db.bodyWeight.bulkPut(seed.bodyWeight)
       }
     }
   )

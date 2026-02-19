@@ -10,7 +10,7 @@
     "dev": "NODE_OPTIONS=--disable-warning=DEP0040 vite dev --host",
     "build": "NODE_OPTIONS=--disable-warning=DEP0040 tsgo -b && NODE_OPTIONS=--disable-warning=DEP0040 vite build",
     "lint": "oxlint -c oxlintrc.json --type-check --type-aware .",
-    "test": "NODE_OPTIONS=--disable-warning=DEP0040 vitest",
+    "test": "NODE_OPTIONS=--disable-warning=DEP0040 vitest run",
     "coverage": "NODE_OPTIONS=--disable-warning=DEP0040 vitest run --coverage",
     "test:e2e": "playwright test",
     "seed": "open http://localhost:5173/?seed=true",

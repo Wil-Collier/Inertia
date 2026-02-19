@@ -6,7 +6,7 @@ import { useAuthStore, useSyncStore } from "@/features/sync/store"
 import * as syncApiModule from "@/features/sync/api"
 import * as syncEngineModule from "@/features/sync/syncEngine"
 import * as changeTrackerModule from "@/features/sync/changeTracker"
-import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
+import { resetEphemeralTestRuntime } from "@/test/helpers/resetTestRuntime"
 
 const toastErrorMock = vi.fn()
 const toastInfoMock = vi.fn()
@@ -56,10 +56,10 @@ describe("SyncSettings", () => {
     cleanup()
   })
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.restoreAllMocks()
     vi.clearAllMocks()
-    await resetTestRuntime()
+    resetEphemeralTestRuntime()
 
     Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
