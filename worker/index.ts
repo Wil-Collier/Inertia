@@ -20,6 +20,20 @@ import type { ExecutionContext, ScheduledEvent } from "@cloudflare/workers-types
 // Create the main Hono app
 const app = new Hono<{ Bindings: Env }>()
 
+function isVitestRuntime(): boolean {
+  const processLike = Reflect.get(globalThis, "process")
+  if (typeof processLike !== "object" || processLike === null) {
+    return false
+  }
+
+  const envLike = Reflect.get(processLike, "env")
+  if (typeof envLike !== "object" || envLike === null) {
+    return false
+  }
+
+  return Reflect.get(envLike, "VITEST") === "true"
+}
+
 function hasFileExtension(pathname: string): boolean {
   const lastSegment = pathname.split("/").at(-1) ?? ""
   return lastSegment.includes(".")
@@ -40,7 +54,9 @@ function isNavigationRequest(request: Request): boolean {
 }
 
 // Middleware
-app.use("*", logger())
+if (!isVitestRuntime()) {
+  app.use("*", logger())
+}
 app.use("/api/*", securityHeadersMiddleware)
 app.use("/api/auth/*", createRateLimitMiddleware({ bucket: "auth", windowMs: 60_000, max: 30 }))
 app.use("/api/sync/*", createRateLimitMiddleware({ bucket: "sync", windowMs: 60_000, max: 240 }))

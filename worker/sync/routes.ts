@@ -1,10 +1,10 @@
 import { Hono } from "hono"
-import type { Context } from "hono"
 import type { Env } from "../env"
 import { PullRequestSchema, PushRequestSchema } from "../../shared/syncSchemas"
 import { logAudit } from "../lib/db"
 import { isRecord } from "../lib/typeGuards"
 import { runSequentially } from "../../shared/asyncUtils"
+import { parseJsonBodyWithLimit } from "../lib/requestUtils"
 
 type Variables = {
   userId: string
@@ -41,17 +41,6 @@ type SyncConflict = {
   reason: string
 }
 
-type SyncContext = Context<{ Bindings: Env; Variables: Variables }>
-
-type ParsedJsonBody =
-  | {
-    success: true
-    body: unknown
-  }
-  | {
-    success: false
-    response: Response
-  }
 
 const MAX_PUSH_REQUEST_BYTES = 1024 * 1024
 const MAX_PULL_REQUEST_BYTES = 64 * 1024
@@ -112,56 +101,6 @@ function getPageCursor(rows: unknown[]): { version: number } | null {
     }
   }
   return null
-}
-
-function getContentLength(headerValue: string | undefined): number | null {
-  if (!headerValue) return null
-  const parsed = Number.parseInt(headerValue, 10)
-  if (!Number.isFinite(parsed) || parsed < 0) return null
-  return parsed
-}
-
-async function parseJsonBodyWithLimit(c: SyncContext, maxBytes: number, sizeLimitMessage: string): Promise<ParsedJsonBody> {
-  const contentLength = getContentLength(c.req.header("Content-Length"))
-  if (contentLength !== null && contentLength > maxBytes) {
-    return {
-      success: false,
-      response: c.json({ error: "PAYLOAD_TOO_LARGE", message: sizeLimitMessage }, 413),
-    }
-  }
-
-  let bodyBytes: ArrayBuffer
-  try {
-    bodyBytes = await c.req.raw.arrayBuffer()
-  } catch {
-    return {
-      success: false,
-      response: c.json({ error: "INVALID_REQUEST", message: "Invalid JSON payload" }, 400),
-    }
-  }
-
-  if (bodyBytes.byteLength > maxBytes) {
-    return {
-      success: false,
-      response: c.json({ error: "PAYLOAD_TOO_LARGE", message: sizeLimitMessage }, 413),
-    }
-  }
-
-  let parsedBody: unknown
-  try {
-    const textBody = new TextDecoder().decode(bodyBytes)
-    parsedBody = JSON.parse(textBody)
-  } catch {
-    return {
-      success: false,
-      response: c.json({ error: "INVALID_REQUEST", message: "Invalid JSON payload" }, 400),
-    }
-  }
-
-  return {
-    success: true,
-    body: parsedBody,
-  }
 }
 
 async function upsertSyncStoreSnapshot(

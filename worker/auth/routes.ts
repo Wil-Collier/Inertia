@@ -5,12 +5,14 @@ import type { Env } from "../env"
 import { verifyGoogleIdToken } from "./google"
 import { LoginRequestSchema } from "../../shared/syncSchemas"
 import { logAudit } from "../lib/db"
+import { parseJsonBodyWithLimit } from "../lib/requestUtils"
 
 const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const PREVIOUS_TOKEN_GRACE_MS = 30 * 1000
 const REFRESH_COOKIE_NAME = "inertia_rt"
 const REFRESH_COOKIE_PATH = "/api/auth"
+const MAX_LOGIN_REQUEST_BYTES = 8 * 1024
 
 type RefreshSessionRow = {
   session_id: string
@@ -39,8 +41,10 @@ authRoutes.use("*", async (c, next) => {
 
 authRoutes.post("/login", async (c) => {
   try {
-    const body = await c.req.json()
-    const parsed = LoginRequestSchema.safeParse(body)
+    const bodyResult = await parseJsonBodyWithLimit(c, MAX_LOGIN_REQUEST_BYTES, "Login payload exceeds size limit")
+    if (!bodyResult.success) return bodyResult.response
+
+    const parsed = LoginRequestSchema.safeParse(bodyResult.body)
     if (!parsed.success) {
       return c.json({ error: "INVALID_TOKEN", message: "Invalid login payload" }, 400)
     }
@@ -147,7 +151,10 @@ authRoutes.post("/refresh", async (c) => {
   const nextRefreshHash = await sha256Hex(nextRefreshToken)
   const nextRefreshExpiresAtMs = now + REFRESH_TOKEN_TTL_MS
 
-  await c.env.DB
+  // CAS-style rotation: only rotate if token_hash_current still matches what we verified above.
+  // This prevents a concurrent refresh with the same token from also succeeding after the first
+  // rotation has already changed the hash.
+  const updateResult = await c.env.DB
     .prepare(`
       UPDATE refresh_sessions
       SET token_hash_previous = token_hash_current,
@@ -156,15 +163,23 @@ authRoutes.post("/refresh", async (c) => {
           expires_at = ?,
           updated_at = ?
       WHERE session_id = ?
+        AND token_hash_current = ?
     `)
     .bind(
       nextRefreshHash,
       now + PREVIOUS_TOKEN_GRACE_MS,
       nextRefreshExpiresAtMs,
       now,
-      session.session_id
+      session.session_id,
+      session.token_hash_current
     )
     .run()
+
+  if (!updateResult.success || (updateResult.meta.changes ?? 0) === 0) {
+    // A concurrent refresh already rotated the token; reject to force re-auth.
+    clearRefreshCookie(c)
+    return c.json({ error: "UNAUTHORIZED", message: "Refresh token already used" }, 401)
+  }
 
   const access = await createAccessToken({
     userId: session.user_id,

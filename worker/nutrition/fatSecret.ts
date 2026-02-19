@@ -5,7 +5,7 @@
 
 import type { Env } from "../env"
 import type { FoodItem, NutritionProvider } from "./types"
-import { fetchWithTimeout } from "../lib/fetchUtils"
+import { fetchWithTimeout } from "../lib/requestUtils"
 import { z } from "zod"
 
 const TOKEN_URL = "https://oauth.fatsecret.com/connect/token"

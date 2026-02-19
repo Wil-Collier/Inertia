@@ -93,20 +93,23 @@ class FakePrepared {
     }
 
     if (sql.includes("UPDATE refresh_sessions") && sql.includes("token_hash_previous")) {
+      // CAS-style rotation: args are (nextHash, previousValidUntil, expiresAt, updatedAt, sessionId, expectedCurrentHash)
       const nextHash = readStringArg(this.args, 0)
       const previousValidUntil = readNumberArg(this.args, 1)
       const expiresAt = readNumberArg(this.args, 2)
       const updatedAt = readNumberArg(this.args, 3)
       const sessionId = readStringArg(this.args, 4)
+      const expectedCurrentHash = readStringArg(this.args, 5)
       const session = this.db.refreshSessions.get(sessionId)
-      if (session) {
+      if (session && session.token_hash_current === expectedCurrentHash) {
         session.token_hash_previous = session.token_hash_current
         session.token_hash_current = nextHash
         session.previous_valid_until = previousValidUntil
         session.expires_at = expiresAt
         session.updated_at = updatedAt
+        return { success: true, meta: { changes: 1 } }
       }
-      return { success: true }
+      return { success: true, meta: { changes: 0 } }
     }
 
     if (sql.includes("UPDATE refresh_sessions") && sql.includes("revoked_at")) {

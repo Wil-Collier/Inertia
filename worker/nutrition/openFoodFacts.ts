@@ -5,7 +5,7 @@
 
 import type { FoodItem, NutritionProvider } from "./types"
 import { normalizeOpenFoodFactsProduct } from "../../shared/openFoodFactsNormalizer"
-import { fetchWithTimeout } from "../lib/fetchUtils"
+import { fetchWithTimeout } from "../lib/requestUtils"
 import { z } from "zod"
 
 const API_BASE = "https://world.openfoodfacts.org"
