@@ -31,7 +31,7 @@
     "date-fns": "^4.1.0",
     "dexie": "^4.3.0",
     "dexie-export-import": "^4.1.4",
-    "hono": "^4.11.9",
+    "hono": "^4.11.10",
     "lucide-react": "^0.574.0",
     "react": "^19.2.4",
     "react-day-picker": "^9.13.2",
