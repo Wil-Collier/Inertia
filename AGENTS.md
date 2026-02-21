@@ -37,15 +37,25 @@ pnpm deploy              # Build + deploy to Cloudflare Workers
 ```
 src/
   features/[domain]/     # Domain-sliced features (workout/, nutrition/, achievements/, etc.)
+    components/          # Feature-owned UI
+    screens/             # Feature-owned screen implementations
+    hooks/               # Feature-only hooks
     queries.ts           # React Query useQuery hooks
     mutations.ts         # React Query useMutation hooks
+  features/sync/
+    client/              # HTTP/auth/session client concerns
+    model/               # Sync schemas, types, guards, JSON utils
+    runtime/             # Zustand stores + runtime hooks/triggers
+    tracking/            # Dexie hooks and pending/version tracking
+    recovery/            # Recovery/reset/rebuild logic
+    engine/              # Pull/push/orchestration pipelines
   services/              # Business logic (achievementService, statsService, db)
   lib/                   # Shared utilities and domain types (queryKeys.ts, types/, utils.ts, constants.ts)
   types/                 # Ambient/global app types
-  components/            # UI components (ui/ for shadcn primitives)
-  pages/                 # Page-level components
+  components/            # App-shell + shared primitives only (layout/, ui/, app bootstrap)
+  pages/                 # Thin route-facing wrappers re-exporting feature screens
   routes/                # TanStack Router route definitions (file-based)
-  hooks/                 # Shared React hooks
+  hooks/                 # Cross-feature shared hooks only
   data/                  # Static data (exerciseDatabase.ts)
 worker/                  # Cloudflare Workers backend (Hono)
 shared/                  # Shared code between client and worker (Zod schemas)
@@ -88,8 +98,10 @@ await achievementService.runNutritionSideEffects()
 ### Routing & State
 
 - **Routing:** TanStack Router (file-based). Route files in `src/routes/` are thin wrappers that import page components from `src/pages/`.
+- **Pages vs Screens:** `src/pages/` should stay minimal. Put real page implementation in `src/features/*/screens/*Screen.tsx`, then re-export from `src/pages/*`.
 - **Ephemeral state:** Zustand (e.g., `restTimerStore.ts`). Never use Zustand for persisted data.
 - **Persisted state:** Always React Query + Dexie.
+
 
 ### Backend (Cloudflare Workers + Hono)
 
