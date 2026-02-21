@@ -8,12 +8,12 @@ import { pullAndProcessChanges } from "@/features/sync/engine/pullPipeline"
 import { pushPendingChangesInternal } from "@/features/sync/engine/pushPipeline"
 import { runWithSyncSession } from "@/features/sync/engine/syncSession"
 import { SyncSessionInactiveError, type AccessTokenSource } from "@/features/sync/engine/accessTokenSource"
-import { SyncApiError } from "@/features/sync/api"
-import { setLastSyncedAtMs, setLocalDataOwnerUserId, setPullCursor } from "@/features/sync/changeTracker"
-import { lastPullTimestamp } from "@/features/sync/lastPullTracker"
-import type { SyncCollection } from "@/features/sync/schemas"
-import type { InitialSyncStrategy } from "@/features/sync/types"
-import { useSyncStore } from "@/features/sync/store"
+import { SyncApiError } from "@/features/sync/client/api"
+import { setLastSyncedAtMs, setLocalDataOwnerUserId, setPullCursor } from "@/features/sync/tracking/changeTracker"
+import { lastPullTimestamp } from "@/features/sync/client/lastPullTracker"
+import type { SyncCollection } from "@/features/sync/model/schemas"
+import type { InitialSyncStrategy } from "@/features/sync/model/types"
+import { useSyncStore } from "@/features/sync/runtime/store"
 
 const MAX_RETRIES = 3
 const RETRY_DELAYS_MS = [1000, 5000, 15000]

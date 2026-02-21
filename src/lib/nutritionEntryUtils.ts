@@ -1,4 +1,4 @@
-import { jsonDeepEqual } from "@/features/sync/jsonUtils"
+import { jsonDeepEqual } from "@/features/sync/model/jsonUtils"
 import type { NutritionMealEntry } from "@/lib/types"
 
 function normalizeDeletedAt(value: number | undefined): number | undefined {

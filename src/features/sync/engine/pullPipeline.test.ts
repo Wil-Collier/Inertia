@@ -3,7 +3,7 @@ import { pullAllChanges, pullAndProcessChanges } from "@/features/sync/engine/pu
 
 const pullChangesMock = vi.fn()
 
-vi.mock("@/features/sync/api", () => ({
+vi.mock("@/features/sync/client/api", () => ({
   pullChanges: (...args: unknown[]) => pullChangesMock(...args),
 }))
 

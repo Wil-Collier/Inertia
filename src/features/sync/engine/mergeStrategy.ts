@@ -1,6 +1,6 @@
-import type { SyncCollection } from "@/features/sync/schemas"
-import { jsonDeepEqual } from "@/features/sync/jsonUtils"
-import { isRecord } from "@/features/sync/typeGuards"
+import type { SyncCollection } from "@/features/sync/model/schemas"
+import { jsonDeepEqual } from "@/features/sync/model/jsonUtils"
+import { isRecord } from "@/features/sync/model/typeGuards"
 import { mergeNutritionEntriesLww } from "@/lib/nutritionEntryUtils"
 import type { NutritionMealEntry } from "@/lib/types"
 

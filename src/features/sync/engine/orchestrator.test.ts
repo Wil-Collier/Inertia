@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { SyncApiError } from "@/features/sync/api"
-import { useAuthStore, useSyncStore } from "@/features/sync/store"
+import { SyncApiError } from "@/features/sync/client/api"
+import { useAuthStore, useSyncStore } from "@/features/sync/runtime/store"
 import { clearDatabase } from "@/test/helpers/dbTestUtils"
 
 const ensureInitialSyncMock = vi.fn()
@@ -32,7 +32,7 @@ vi.mock("@/features/sync/engine/applyPipeline", () => ({
   finalizeAppliedPullChanges: (...args: unknown[]) => finalizeAppliedPullChangesMock(...args),
 }))
 
-vi.mock("@/features/sync/changeTracker", () => ({
+vi.mock("@/features/sync/tracking/changeTracker", () => ({
   setPullCursor: (...args: unknown[]) => setPullCursorMock(...args),
   setLastSyncedAtMs: (...args: unknown[]) => setLastSyncedAtMsMock(...args),
   setLocalDataOwnerUserId: (...args: unknown[]) => setLocalDataOwnerUserIdMock(...args),

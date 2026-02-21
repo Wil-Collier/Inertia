@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest"
-import { SyncApiError } from "@/features/sync/api"
+import { SyncApiError } from "@/features/sync/client/api"
 import { handleSyncError } from "@/features/sync/engine/errors"
-import { useAuthStore, useSyncStore } from "@/features/sync/store"
+import { useAuthStore, useSyncStore } from "@/features/sync/runtime/store"
 
 describe("sync error handling", () => {
   beforeEach(() => {

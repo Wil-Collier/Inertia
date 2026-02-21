@@ -7,7 +7,7 @@ describe("lastSyncedAtMs persistence", () => {
     })
 
     it("reads and writes lastSyncedAtMs consistently with JSON serialization", async () => {
-        const { setLastSyncedAtMs, getLastSyncedAtMs } = await import("@/features/sync/changeTracker")
+        const { setLastSyncedAtMs, getLastSyncedAtMs } = await import("@/features/sync/tracking/changeTracker")
 
         const timestamp = 1707456000000
         await setLastSyncedAtMs(timestamp)
@@ -17,14 +17,14 @@ describe("lastSyncedAtMs persistence", () => {
     })
 
     it("returns null when lastSyncedAtMs has not been set", async () => {
-        const { getLastSyncedAtMs } = await import("@/features/sync/changeTracker")
+        const { getLastSyncedAtMs } = await import("@/features/sync/tracking/changeTracker")
 
         const retrieved = await getLastSyncedAtMs()
         expect(retrieved).toBeNull()
     })
 
     it("overwrites existing timestamp with new value", async () => {
-        const { setLastSyncedAtMs, getLastSyncedAtMs } = await import("@/features/sync/changeTracker")
+        const { setLastSyncedAtMs, getLastSyncedAtMs } = await import("@/features/sync/tracking/changeTracker")
 
         await setLastSyncedAtMs(1000)
         await setLastSyncedAtMs(2000)
@@ -40,7 +40,7 @@ describe("pull cursor persistence", () => {
     })
 
     it("reads and writes pull cursor correctly", async () => {
-        const { setPullCursor, getPullCursor } = await import("@/features/sync/changeTracker")
+        const { setPullCursor, getPullCursor } = await import("@/features/sync/tracking/changeTracker")
 
         await setPullCursor({ version: 42 })
         const retrieved = await getPullCursor()
@@ -49,14 +49,14 @@ describe("pull cursor persistence", () => {
     })
 
     it("returns null when no cursor has been set", async () => {
-        const { getPullCursor } = await import("@/features/sync/changeTracker")
+        const { getPullCursor } = await import("@/features/sync/tracking/changeTracker")
 
         const retrieved = await getPullCursor()
         expect(retrieved).toBeNull()
     })
 
     it("can clear cursor by setting null", async () => {
-        const { setPullCursor, getPullCursor } = await import("@/features/sync/changeTracker")
+        const { setPullCursor, getPullCursor } = await import("@/features/sync/tracking/changeTracker")
 
         await setPullCursor({ version: 10 })
         await setPullCursor(null)
@@ -72,7 +72,7 @@ describe("local data owner tracking", () => {
     })
 
     it("tracks the user who owns local data", async () => {
-        const { setLocalDataOwnerUserId, getLocalDataOwnerUserId } = await import("@/features/sync/changeTracker")
+        const { setLocalDataOwnerUserId, getLocalDataOwnerUserId } = await import("@/features/sync/tracking/changeTracker")
 
         await setLocalDataOwnerUserId("user-123")
         const retrieved = await getLocalDataOwnerUserId()
@@ -81,7 +81,7 @@ describe("local data owner tracking", () => {
     })
 
     it("returns null when no owner has been set", async () => {
-        const { getLocalDataOwnerUserId } = await import("@/features/sync/changeTracker")
+        const { getLocalDataOwnerUserId } = await import("@/features/sync/tracking/changeTracker")
 
         const retrieved = await getLocalDataOwnerUserId()
         expect(retrieved).toBeNull()

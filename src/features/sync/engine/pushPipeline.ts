@@ -1,15 +1,15 @@
 import { db } from "@/services/db"
-import { pushChanges } from "@/features/sync/api"
+import { pushChanges } from "@/features/sync/client/api"
 import {
   acknowledgeProcessedPendingChanges,
   getRecordVersion,
   listPendingChanges,
   rebasePendingChangesFromAccepted,
   setRecordVersionsBulk,
-} from "@/features/sync/changeTracker"
+} from "@/features/sync/tracking/changeTracker"
 import { readAccessToken, type AccessTokenSource } from "@/features/sync/engine/accessTokenSource"
 import { SYNC_COLLECTION_TABLES_WITH_VERSIONS } from "@/features/sync/engine/syncTables"
-import type { PendingChange } from "@/features/sync/types"
+import type { PendingChange } from "@/features/sync/model/types"
 import {
   MAX_PUSH_BATCH,
   type PushAcceptedChange,
@@ -17,14 +17,14 @@ import {
   type PushConflict,
   type PushResponse,
   type SyncCollection,
-} from "@/features/sync/schemas"
-import { toCloudRecord } from "@/features/sync/projection"
-import { getDeviceId } from "@/features/sync/deviceId"
-import { useSyncStore } from "@/features/sync/store"
-import { getLocalRecord } from "@/features/sync/localRecordAccess"
+} from "@/features/sync/model/schemas"
+import { toCloudRecord } from "@/features/sync/tracking/projection"
+import { getDeviceId } from "@/features/sync/client/deviceId"
+import { useSyncStore } from "@/features/sync/runtime/store"
+import { getLocalRecord } from "@/features/sync/tracking/localRecordAccess"
 import { ACTIVE_SESSION_ID } from "@/lib/constants"
 import { pullAllChanges } from "@/features/sync/engine/pullPipeline"
-import { shouldAcknowledgePushConflict } from "@/features/sync/conflictPolicy"
+import { shouldAcknowledgePushConflict } from "@/features/sync/model/conflictPolicy"
 import { buildRemoteState, resolveMergeDecision, type RemoteChangeState } from "@/features/sync/engine/mergeStrategy"
 import { runSequentially } from "../../../../shared/asyncUtils"
 import { toast } from "sonner"

@@ -20,11 +20,11 @@ vi.mock("@/services/db", () => ({
   CURRENT_SCHEMA_VERSION: 1,
 }))
 
-vi.mock("@/features/sync/reset", () => ({
+vi.mock("@/features/sync/recovery/reset", () => ({
   resetSyncState: (...args: unknown[]) => resetSyncStateMock(...args),
 }))
 
-vi.mock("@/features/sync/dexieHooks", () => ({
+vi.mock("@/features/sync/tracking/dexieHooks", () => ({
   withSyncHooksSuppressed: async <T>(fn: () => Promise<T>) => await fn(),
 }))
 

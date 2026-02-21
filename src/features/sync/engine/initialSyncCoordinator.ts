@@ -17,13 +17,13 @@ import {
   setLastSyncedAtMs,
   setLocalDataOwnerUserId,
   setPullCursor,
-} from "@/features/sync/changeTracker"
+} from "@/features/sync/tracking/changeTracker"
 import { readAccessToken, type AccessTokenSource } from "@/features/sync/engine/accessTokenSource"
 import { hasAnyLocalSyncData } from "@/features/sync/engine/syncTables"
-import type { InitialSyncStrategy } from "@/features/sync/types"
-import type { SyncCollection } from "@/features/sync/schemas"
-import { useSyncStore } from "@/features/sync/store"
-import { pullChanges } from "@/features/sync/api"
+import type { InitialSyncStrategy } from "@/features/sync/model/types"
+import type { SyncCollection } from "@/features/sync/model/schemas"
+import { useSyncStore } from "@/features/sync/runtime/store"
+import { pullChanges } from "@/features/sync/client/api"
 
 export async function ensureInitialSync(accessTokenSource: AccessTokenSource, userId: string): Promise<boolean> {
   const existingCursor = await getPullCursor()

@@ -11,7 +11,7 @@ import type {
   WorkoutTemplate,
 } from "@/lib/types"
 import type { WeightEntry } from "@/lib/types/bodyweight"
-import { useAuthStore, useSyncStore } from "@/features/sync/store"
+import { useAuthStore, useSyncStore } from "@/features/sync/runtime/store"
 import { db } from "@/services/db"
 
 interface SeedAchievements {

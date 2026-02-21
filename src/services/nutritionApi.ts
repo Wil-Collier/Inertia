@@ -4,9 +4,9 @@
  */
 
 import type { FoodItem } from "@/lib/types"
-import { refreshAccessToken } from "@/features/sync/api"
-import { useAuthStore } from "@/features/sync/store"
-import { shouldAttemptSessionRestore } from "@/features/sync/sessionRestoreHint"
+import { refreshAccessToken } from "@/features/sync/client/api"
+import { useAuthStore } from "@/features/sync/runtime/store"
+import { shouldAttemptSessionRestore } from "@/features/sync/client/sessionRestoreHint"
 
 export type NutritionProviderName = "openfoodfacts" | "fatsecret"
 

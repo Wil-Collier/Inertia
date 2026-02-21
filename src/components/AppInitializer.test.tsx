@@ -5,9 +5,9 @@ import { AppInitializer } from "@/components/AppInitializer"
 import * as dbModule from "@/services/db"
 import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
-import * as dexieHooksModule from "@/features/sync/dexieHooks"
-import * as syncApiModule from "@/features/sync/api"
-import { markSessionRestoreEligible } from "@/features/sync/sessionRestoreHint"
+import * as dexieHooksModule from "@/features/sync/tracking/dexieHooks"
+import * as syncApiModule from "@/features/sync/client/api"
+import { markSessionRestoreEligible } from "@/features/sync/client/sessionRestoreHint"
 import { resetEphemeralTestRuntime } from "@/test/helpers/resetTestRuntime"
 
 /**
@@ -16,11 +16,11 @@ import { resetEphemeralTestRuntime } from "@/test/helpers/resetTestRuntime"
  * irrelevant to AppInitializer's initialization lifecycle under test.
  * Letting them run would add timer noise and trigger unrelated sync network calls.
  */
-vi.mock("@/features/sync/useSyncTriggers", () => ({
+vi.mock("@/features/sync/runtime/useSyncTriggers", () => ({
   useSyncTriggers: () => undefined,
 }))
 
-vi.mock("@/features/sync/useDebouncedPush", () => ({
+vi.mock("@/features/sync/runtime/useDebouncedPush", () => ({
   useDebouncedPush: () => undefined,
 }))
 

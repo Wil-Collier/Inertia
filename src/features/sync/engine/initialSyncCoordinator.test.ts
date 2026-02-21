@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { clearDatabase } from "@/test/helpers/dbTestUtils"
 import { db } from "@/services/db"
-import { setLocalDataOwnerUserId, setPullCursor } from "@/features/sync/changeTracker"
-import { useSyncStore } from "@/features/sync/store"
+import { setLocalDataOwnerUserId, setPullCursor } from "@/features/sync/tracking/changeTracker"
+import { useSyncStore } from "@/features/sync/runtime/store"
 import { ensureInitialSync, resolveInitialSyncStrategy } from "@/features/sync/engine/initialSyncCoordinator"
 import type { PullPipelineResult, PullProcessResult } from "@/features/sync/engine/pullPipeline"
 
@@ -16,7 +16,7 @@ const mergeCloudAndLocalMock = vi.fn()
 const overwriteCloudWithLocalMock = vi.fn()
 const clearLocalSyncDataMock = vi.fn()
 
-vi.mock("@/features/sync/api", () => ({
+vi.mock("@/features/sync/client/api", () => ({
   pullChanges: (...args: unknown[]) => pullChangesMock(...args),
 }))
 

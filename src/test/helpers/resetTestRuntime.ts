@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query"
-import { useAuthStore, useSyncStore } from "@/features/sync/store"
+import { useAuthStore, useSyncStore } from "@/features/sync/runtime/store"
 import { clearDatabase } from "@/test/helpers/dbTestUtils"
 import { resetWorkoutFactory } from "@/test/factories/workoutFactory"
 import { resetNutritionFactory } from "@/test/factories/nutritionFactory"

@@ -1,15 +1,15 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { applyPulledChanges, clearLocalSyncData } from "@/features/sync/engine/applyPipeline"
-import { registerSyncDexieHooks } from "@/features/sync/dexieHooks"
+import { registerSyncDexieHooks } from "@/features/sync/tracking/dexieHooks"
 import { db } from "@/services/db"
-import { COLLECTION_REGISTRY } from "@/features/sync/collectionRegistry"
+import { COLLECTION_REGISTRY } from "@/features/sync/tracking/collectionRegistry"
 import { clearDatabase, flushAsyncTasks } from "@/test/helpers/dbTestUtils"
 import {
   getLocalDataOwnerUserId,
   getRecordVersion,
   setLocalDataOwnerUserId,
   setRecordVersion,
-} from "@/features/sync/changeTracker"
+} from "@/features/sync/tracking/changeTracker"
 
 describe("applyPulledChanges integration", () => {
   beforeAll(() => {

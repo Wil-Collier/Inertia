@@ -1,5 +1,5 @@
-import { SyncApiError } from "@/features/sync/api"
-import { useAuthStore, useSyncStore } from "@/features/sync/store"
+import { SyncApiError } from "@/features/sync/client/api"
+import { useAuthStore, useSyncStore } from "@/features/sync/runtime/store"
 
 export function handleSyncError(error: unknown): void {
   const syncStore = useSyncStore.getState()

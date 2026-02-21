@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NutritionApiError, getProductByBarcode, getNutritionProvider, searchFoods } from "@/services/nutritionApi"
-import { useAuthStore } from "@/features/sync/store"
+import { useAuthStore } from "@/features/sync/runtime/store"
 import { server } from "@/test/msw/server"
 
 describe("nutritionApi service", () => {

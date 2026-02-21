@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { db } from "@/services/db"
-import { useAuthStore, useSyncStore } from "@/features/sync/store"
+import { useAuthStore, useSyncStore } from "@/features/sync/runtime/store"
 import { createActiveSessionSeed } from "@/test/factories/sessionFactory"
 import {
   createDailyNutritionLog,

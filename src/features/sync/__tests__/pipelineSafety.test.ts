@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { db } from "@/services/db"
 import { applyPulledChanges } from "@/features/sync/engine/applyPipeline"
-import { acknowledgeProcessedPendingChanges, getRecordVersion } from "@/features/sync/changeTracker"
-import type { PullChange } from "@/features/sync/schemas"
+import { acknowledgeProcessedPendingChanges, getRecordVersion } from "@/features/sync/tracking/changeTracker"
+import type { PullChange } from "@/features/sync/model/schemas"
 
 async function clearSyncTables() {
   await db.transaction("rw", [db.workoutSessions, db.syncPendingChanges, db.syncRecordVersions], async () => {

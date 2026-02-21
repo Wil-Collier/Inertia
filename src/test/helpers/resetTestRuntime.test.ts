@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { db } from "@/services/db"
-import { useAuthStore, useSyncStore } from "@/features/sync/store"
+import { useAuthStore, useSyncStore } from "@/features/sync/runtime/store"
 import { createFoodItem } from "@/test/factories/nutritionFactory"
 import { resetEphemeralTestRuntime, resetTestRuntime } from "@/test/helpers/resetTestRuntime"
 

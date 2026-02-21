@@ -1,6 +1,6 @@
 import { exportDatabase, importDatabase, CURRENT_SCHEMA_VERSION, recoverDatabase } from "@/services/db"
-import { resetSyncState } from "@/features/sync/reset"
-import { withSyncHooksSuppressed } from "@/features/sync/dexieHooks"
+import { resetSyncState } from "@/features/sync/recovery/reset"
+import { withSyncHooksSuppressed } from "@/features/sync/tracking/dexieHooks"
 import { z } from "zod"
 
 const APP_LOCAL_STORAGE_KEYS = [

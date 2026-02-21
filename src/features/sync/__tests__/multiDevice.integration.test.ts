@@ -1,9 +1,9 @@
 /* eslint-disable no-await-in-loop */
 import Dexie, { type Table } from "dexie"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { pushChanges } from "@/features/sync/api"
-import { useAuthStore } from "@/features/sync/store"
-import type { PushChange, PushRequest } from "@/features/sync/schemas"
+import { pushChanges } from "@/features/sync/client/api"
+import { useAuthStore } from "@/features/sync/runtime/store"
+import type { PushChange, PushRequest } from "@/features/sync/model/schemas"
 
 type SyncCollection =
   | "workouts"

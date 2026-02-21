@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { PendingChange } from "@/features/sync/types"
-import type { PullChange, PushChange } from "@/features/sync/schemas"
+import type { PendingChange } from "@/features/sync/model/types"
+import type { PullChange, PushChange } from "@/features/sync/model/schemas"
 
 const listPendingChangesMock = vi.fn<() => Promise<PendingChange[]>>()
 const getRecordVersionMock = vi.fn<(collection: PushChange["collection"], id: string) => Promise<number>>()
@@ -27,7 +27,7 @@ const settingsGetMock = vi.fn()
 const customExercisesToArrayMock = vi.fn()
 const dbTransactionMock = vi.fn()
 
-vi.mock("@/features/sync/changeTracker", () => ({
+vi.mock("@/features/sync/tracking/changeTracker", () => ({
   listPendingChanges: () => listPendingChangesMock(),
   getRecordVersion: (collection: PushChange["collection"], id: string) => getRecordVersionMock(collection, id),
     setRecordVersionsBulk: (...args: unknown[]) => setRecordVersionsBulkMock(...args),
@@ -35,19 +35,19 @@ vi.mock("@/features/sync/changeTracker", () => ({
     acknowledgeProcessedPendingChanges: (...args: unknown[]) => acknowledgeProcessedPendingChangesMock(...args),
   }))
 
-vi.mock("@/features/sync/api", () => ({
+vi.mock("@/features/sync/client/api", () => ({
   pushChanges: (...args: unknown[]) => pushChangesMock(...args),
 }))
 
-vi.mock("@/features/sync/projection", () => ({
+vi.mock("@/features/sync/tracking/projection", () => ({
   toCloudRecord: (...args: unknown[]) => toCloudRecordMock(...args),
 }))
 
-vi.mock("@/features/sync/deviceId", () => ({
+vi.mock("@/features/sync/client/deviceId", () => ({
   getDeviceId: () => getDeviceIdMock(),
 }))
 
-vi.mock("@/features/sync/store", () => ({
+vi.mock("@/features/sync/runtime/store", () => ({
   useSyncStore: {
     getState: () => ({
       setConflicts: (...args: unknown[]) => setConflictsMock(...args),
@@ -61,7 +61,7 @@ vi.mock("sonner", () => ({
   },
 }))
 
-vi.mock("@/features/sync/localRecordAccess", () => ({
+vi.mock("@/features/sync/tracking/localRecordAccess", () => ({
   getLocalRecord: (...args: unknown[]) => getLocalRecordMock(...args),
 }))
 

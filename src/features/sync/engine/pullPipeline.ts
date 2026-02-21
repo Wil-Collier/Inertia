@@ -1,8 +1,8 @@
-import { pullChanges } from "@/features/sync/api"
-import { getPullCursor } from "@/features/sync/changeTracker"
+import { pullChanges } from "@/features/sync/client/api"
+import { getPullCursor } from "@/features/sync/tracking/changeTracker"
 import { readAccessToken, type AccessTokenSource } from "@/features/sync/engine/accessTokenSource"
-import { MAX_PULL_LIMIT } from "@/features/sync/schemas"
-import type { PullChange, SyncCollection, SyncCursor } from "@/features/sync/schemas"
+import { MAX_PULL_LIMIT } from "@/features/sync/model/schemas"
+import type { PullChange, SyncCollection, SyncCursor } from "@/features/sync/model/schemas"
 
 const MAX_PAGES_PER_SYNC = 1000
 

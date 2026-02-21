@@ -1,4 +1,4 @@
-import { useAuthStore } from "@/features/sync/store"
+import { useAuthStore } from "@/features/sync/runtime/store"
 import { SyncSessionInactiveError } from "@/features/sync/engine/accessTokenSource"
 
 type SyncExecutionMode = "drop-if-busy" | "wait-for-turn"
