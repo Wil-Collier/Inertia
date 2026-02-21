@@ -38,6 +38,7 @@ const ExerciseListItem = memo(({
     >
       <div className="flex-1 flex flex-col items-start min-w-0 mr-2">
         <button
+          type="button"
           className={cn(
             "w-full text-left font-medium truncate transition-colors",
             isAdded ? "text-primary" : "text-foreground"

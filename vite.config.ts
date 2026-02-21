@@ -1,7 +1,7 @@
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
-import { type PluginOption } from "rolldown-vite"
+import type { PluginOption } from "rolldown-vite"
 import { defineConfig } from "vitest/config"
 import { VitePWA } from "vite-plugin-pwa"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"

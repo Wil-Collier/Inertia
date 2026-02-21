@@ -257,7 +257,7 @@ export function WorkoutPage() {
                   new Set(
                     template.exercises
                       .map((templateExercise) => exercisesById.get(templateExercise.exerciseId)?.muscleGroup)
-                      .filter((mg): mg is MuscleGroup => mg != null)
+                      .filter((mg): mg is MuscleGroup => mg !== undefined)
                   )
                 )
 

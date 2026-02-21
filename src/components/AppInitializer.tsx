@@ -206,6 +206,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
           </p>
           <div className="space-y-3">
             <button
+              type="button"
               onClick={() => void exportBackup()}
               disabled={isRecovering}
               className="w-full py-3 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -213,6 +214,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
               Download Backup (Recommended)
             </button>
             <button
+              type="button"
               onClick={() => void handleRecoverDatabase()}
               disabled={isRecovering}
               className="w-full py-3 bg-destructive text-destructive-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -237,6 +239,7 @@ export function AppInitializer({ children }: AppInitializerProps) {
             {error.message}
           </div>
           <button
+            type="button"
             onClick={() => window.location.reload()}
             className="w-full py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity"
           >

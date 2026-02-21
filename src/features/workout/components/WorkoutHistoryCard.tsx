@@ -42,6 +42,7 @@ export const WorkoutHistoryCard = memo(({
       <CardContent className="p-0">
         {/* Workout Header */}
         <button
+          type="button"
           className="flex w-full items-center gap-4 p-4 text-left"
           onClick={() => onToggleExpand(workout.id)}
         >
