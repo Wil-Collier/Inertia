@@ -108,6 +108,11 @@ export function useAddMealEntry() {
       }
       
       await db.transaction("rw", NUTRITION_LOG_AND_FOODS_SYNC_WRITE_TABLES, async () => {
+        const food = await db.foods.get(foodId)
+        if (!food) {
+          throw new Error("Selected food does not exist")
+        }
+
         const existing = await db.nutritionLogs.get(date)
 
         if (existing) {
@@ -130,8 +135,8 @@ export function useAddMealEntry() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.dates() })
       void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
     },
-    onError: () => {
-      toast.error("Failed to add food entry")
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to add food entry")
     },
   })
 }
@@ -293,14 +298,14 @@ export function useDeleteFood() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      const food = await db.foods.get(id)
-      if (!food) return // Already deleted?
-
-      if ((food.usageCount ?? 0) > 0) {
-        throw new Error("Cannot delete food that is used in meal entries. Remove the entries first.")
-      }
-
       await db.transaction("rw", FOODS_SYNC_WRITE_TABLES, async () => {
+        const food = await db.foods.get(id)
+        if (!food) return // Already deleted?
+
+        if ((food.usageCount ?? 0) > 0) {
+          throw new Error("Cannot delete food that is used in meal entries. Remove the entries first.")
+        }
+
         await db.foods.delete(id)
       })
     },

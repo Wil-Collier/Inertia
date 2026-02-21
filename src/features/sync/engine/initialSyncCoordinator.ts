@@ -3,7 +3,7 @@ import {
   clearLocalSyncData,
   finalizeAppliedPullChanges,
 } from "@/features/sync/engine/applyPipeline"
-import { pullAndProcessChanges } from "@/features/sync/engine/pullPipeline"
+import { pullAllChanges, pullAndProcessChanges } from "@/features/sync/engine/pullPipeline"
 import {
   mergeCloudAndLocal,
   overwriteCloudWithLocal,
@@ -78,11 +78,7 @@ export async function resolveInitialSyncStrategy(
   strategy: InitialSyncStrategy
 ): Promise<void> {
   if (strategy === "use-cloud") {
-    // Pull first so local data is only cleared after a successful pull.
-    // If the pull fails, local data is preserved and the user can retry.
-    await pullApplyAndPersist(accessTokenSource, userId)
-    await clearLocalSyncData()
-    await clearSyncMetadata()
+    await replaceLocalWithCloud(accessTokenSource, userId)
   } else if (strategy === "merge") {
     const summary = await mergeCloudAndLocal(accessTokenSource)
     persistMergeSummary(summary)
@@ -93,6 +89,24 @@ export async function resolveInitialSyncStrategy(
   }
 
   useSyncStore.getState().setInitialSyncState(null)
+}
+
+async function replaceLocalWithCloud(accessTokenSource: AccessTokenSource, userId: string): Promise<void> {
+  const pullResult = await pullAllChanges(accessTokenSource, { cursor: { version: 0 } })
+
+  await clearLocalSyncData()
+  await clearSyncMetadata()
+
+  const affectedCollections = await applyPulledChangesChunk(pullResult.changes)
+  await finalizeAppliedPullChanges(affectedCollections)
+
+  if (pullResult.cursor) {
+    await setPullCursor(pullResult.cursor)
+  }
+
+  await setLastSyncedAtMs(pullResult.serverTimestampMs)
+  await setLocalDataOwnerUserId(userId)
+  useSyncStore.getState().setLastSyncedAtMs(pullResult.serverTimestampMs)
 }
 
 function persistMergeSummary(summary: MergeCloudAndLocalResult | null | undefined): void {

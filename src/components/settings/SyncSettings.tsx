@@ -115,7 +115,7 @@ export function SyncSettings() {
               )}
 
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => void syncNow()}>
+                <Button variant="outline" className="flex-1" onClick={() => void syncNow({ source: "manual" })}>
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Sync Now
                 </Button>

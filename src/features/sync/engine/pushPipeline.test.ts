@@ -411,6 +411,46 @@ describe("pushPipeline", () => {
     expect(setConflictsMock).not.toHaveBeenCalled()
   })
 
+  it("updates conflict state without toasts when conflict toasts are disabled", async () => {
+    listPendingChangesMock.mockResolvedValue([
+      {
+        collection: "foods",
+        id: "food-1",
+        deleted: false,
+        baseVersion: 0,
+        mutationId: "m1",
+        enqueuedAt: 1,
+      },
+    ])
+
+    pushChangesMock.mockResolvedValueOnce({
+      acceptedChanges: [],
+      conflicts: [
+        {
+          collection: "foods",
+          id: "food-1",
+          serverVersion: 2,
+          clientBaseVersion: 0,
+          reason: "VERSION_MISMATCH",
+        },
+      ],
+    })
+
+    const { pushPendingChangesInternal } = await loadPushPipeline()
+    await pushPendingChangesInternal("token", true, false)
+
+    expect(setConflictsMock).toHaveBeenCalledWith([
+      {
+        collection: "foods",
+        id: "food-1",
+        serverVersion: 2,
+        clientBaseVersion: 0,
+        reason: "VERSION_MISMATCH",
+      },
+    ])
+    expect(toastErrorMock).not.toHaveBeenCalled()
+  })
+
   it("keeps pending changes when conflict reason is unknown to policy", async () => {
     listPendingChangesMock.mockResolvedValue([
       {

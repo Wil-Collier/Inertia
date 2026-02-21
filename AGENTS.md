@@ -4,11 +4,11 @@ Guidelines for AI coding agents working on the Inertia codebase.
 
 ## Project Overview
 
-Inertia is an offline-first PWA for tracking workouts, nutrition, and body progress. Built with React 19, Vite 7, TypeScript 5.9, TanStack Router, and Dexie.js (IndexedDB) for local-first persistence. Backend runs on Cloudflare Workers with Hono.
+Inertia is an offline-first PWA for tracking workouts, nutrition, and body progress. Built with React 19, Vite 7, TypeScript (native preview compiler via `tsgo`), TanStack Router, and Dexie.js (IndexedDB) for local-first persistence. Backend runs on Cloudflare Workers with Hono.
 
 ## Branding
 
-- **Name:** Inertia (never "Training App").
+- **Name:** Inertia
 - **Palette:** Molten Orange `#ea580c` (primary), Kinetic Red (accent), Oil Black `#0a0a0a` (background).
 - **Typography:** JetBrains Mono. All headers use `uppercase tracking-tight`.
 - **Tone:** Technical, industrial, precise. Use "Momentum" for streaks/achievements.
@@ -18,17 +18,17 @@ Inertia is an offline-first PWA for tracking workouts, nutrition, and body progr
 
 ```bash
 pnpm install              # Install dependencies
-pnpm dev --host           # Dev server with network access
-pnpm build                # Production build (tsc -b && vite build)
+pnpm dev                  # Dev server with network access
+pnpm build                # Production build (tsgo -b && vite build)
 pnpm lint                 # Oxlint with type-checking
 pnpm test                 # Run all tests once
 pnpm coverage             # Run tests with coverage report
-pnpm test src/features/sync/__tests__/engine.test.ts  # Run a single test file
-pnpm test --watch       # Watch mode
+pnpm test src/features/sync/engine/pushPipeline.test.ts  # Run a single test file
+pnpm vitest --watch      # Watch mode
 pnpm deploy              # Build + deploy to Cloudflare Workers
 ```
 
-**Always run `pnpm build && pnpm lint` before completing a task.**
+**Always run build, lint and test before completing a task.**
 
 ## Architecture
 
@@ -40,8 +40,8 @@ src/
     queries.ts           # React Query useQuery hooks
     mutations.ts         # React Query useMutation hooks
   services/              # Business logic (achievementService, statsService, db)
-  lib/                   # Shared utilities (queryKeys.ts, types.ts, utils.ts, constants.ts)
-  types/                 # Type definitions per domain
+  lib/                   # Shared utilities and domain types (queryKeys.ts, types/, utils.ts, constants.ts)
+  types/                 # Ambient/global app types
   components/            # UI components (ui/ for shadcn primitives)
   pages/                 # Page-level components
   routes/                # TanStack Router route definitions (file-based)
@@ -82,8 +82,7 @@ Always include `db.syncPendingChanges` and `db.syncRecordVersions` alongside the
 After DB writes, call services for cross-cutting concerns:
 
 ```ts
-await achievementService.updateStreaks()
-await achievementService.checkNutritionAchievements()
+await achievementService.runNutritionSideEffects()
 ```
 
 ### Routing & State
@@ -212,9 +211,9 @@ Use `toSorted()` / `toReversed()` instead of mutating `.sort()` / `.reverse()`.
 
 ## Testing
 
-- **Framework:** Vitest with jsdom environment.
+- **Framework:** Vitest (project mode: jsdom for `src`, node for `worker` and `shared`).
 - **Setup:** `src/test/setup.ts` configures `fake-indexeddb/auto` and MSW server handlers.
-- **File patterns:** `src/**/*.test.ts`, `src/**/*.spec.ts`, `src/**/*.integration.test.ts`.
+- **File patterns:** `src/**/*.test.{ts,tsx}`, `src/**/*.spec.{ts,tsx}`, `src/**/*.integration.test.{ts,tsx}`, plus `worker/**/*.test.{ts,tsx}` and `shared/**/*.test.{ts,tsx}`.
 - **Run single test:** `pnpm vitest run path/to/file.test.ts`
 - **Run with filter:** `pnpm vitest run -t "test name pattern"`
 

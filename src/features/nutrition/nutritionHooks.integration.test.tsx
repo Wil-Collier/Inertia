@@ -78,6 +78,26 @@ describe("nutrition hooks integration", () => {
     expect(checkNutritionAchievementsSpy).toHaveBeenCalled()
   })
 
+  it("rejects adding meal entries for foods that do not exist", async () => {
+    const queryClient = createTestQueryClient()
+    const wrapper = createQueryWrapper(queryClient)
+    const { result } = renderHook(() => useAddMealEntry(), { wrapper })
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          date: "2026-02-08",
+          foodId: "missing-food",
+          quantity: 1,
+          mealType: "breakfast",
+        })
+      ).rejects.toThrow("Selected food does not exist")
+    })
+
+    expect(await db.nutritionLogs.get("2026-02-08")).toBeUndefined()
+    expect(toastError).toHaveBeenCalledWith("Selected food does not exist")
+  })
+
   it("removes meal entry and decrements usage count", async () => {
     await db.foods.put({
       id: "food-1",

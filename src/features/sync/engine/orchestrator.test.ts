@@ -147,7 +147,7 @@ describe("sync orchestrator", () => {
     const ensureInitialSyncTokenSource = ensureInitialSyncMock.mock.calls[0]?.[0]
     expect(typeof ensureInitialSyncTokenSource).toBe("function")
     expect(ensureInitialSyncMock).toHaveBeenCalledWith(expect.any(Function), "user-1")
-    expect(pushPendingChangesInternalMock).toHaveBeenCalledWith(expect.any(Function), true)
+    expect(pushPendingChangesInternalMock).toHaveBeenCalledWith(expect.any(Function), true, false)
     expect(applyPulledChangesChunkMock).toHaveBeenCalled()
     expect(finalizeAppliedPullChangesMock).toHaveBeenCalledWith(new Set(["foods"]))
     expect(setPullCursorMock).toHaveBeenCalledWith({ version: 1 })
@@ -198,6 +198,15 @@ describe("sync orchestrator", () => {
 
     expect(pushPendingChangesInternalMock).toHaveBeenCalledTimes(1)
     expect(pullAndProcessChangesMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("enables conflict toast notifications for manual sync runs", async () => {
+    setOnline(true)
+    const { syncNow } = await loadOrchestrator()
+
+    await syncNow({ source: "manual" })
+
+    expect(pushPendingChangesInternalMock).toHaveBeenCalledWith(expect.any(Function), true, true)
   })
 
   it("retries transient failures with backoff and eventually succeeds", async () => {
@@ -358,7 +367,7 @@ describe("sync orchestrator", () => {
     const { pushPendingChanges } = await loadOrchestrator()
     await pushPendingChanges()
 
-    expect(pushPendingChangesInternalMock).toHaveBeenCalledWith(expect.any(Function), true)
+    expect(pushPendingChangesInternalMock).toHaveBeenCalledWith(expect.any(Function), true, false)
     expect(pullAndProcessChangesMock).toHaveBeenCalledWith(expect.any(Function), expect.any(Object))
     expect(finalizeAppliedPullChangesMock).toHaveBeenCalled()
     expect(useSyncStore.getState().status).toBe("success")

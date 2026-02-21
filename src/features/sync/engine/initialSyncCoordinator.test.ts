@@ -4,9 +4,10 @@ import { db } from "@/services/db"
 import { setLocalDataOwnerUserId, setPullCursor } from "@/features/sync/changeTracker"
 import { useSyncStore } from "@/features/sync/store"
 import { ensureInitialSync, resolveInitialSyncStrategy } from "@/features/sync/engine/initialSyncCoordinator"
-import type { PullProcessResult } from "@/features/sync/engine/pullPipeline"
+import type { PullPipelineResult, PullProcessResult } from "@/features/sync/engine/pullPipeline"
 
 const pullChangesMock = vi.fn()
+const pullAllChangesMock = vi.fn<(accessToken: string) => Promise<PullPipelineResult & { hasMore: boolean }>>()
 const pullAndProcessChangesMock = vi.fn<(accessToken: string) => Promise<PullProcessResult>>()
 const applyPulledChangesChunkMock = vi.fn()
 const finalizeAppliedPullChangesMock = vi.fn()
@@ -20,6 +21,7 @@ vi.mock("@/features/sync/api", () => ({
 }))
 
 vi.mock("@/features/sync/engine/pullPipeline", () => ({
+  pullAllChanges: (...args: [string]) => pullAllChangesMock(...args),
   pullAndProcessChanges: (...args: [string]) => pullAndProcessChangesMock(...args),
 }))
 
@@ -45,10 +47,21 @@ function defaultPullResult(): PullProcessResult {
   }
 }
 
+function defaultPullAllResult(): PullPipelineResult & { hasMore: boolean } {
+  return {
+    changes: [],
+    cursor: null,
+    serverTimestampMs: 123,
+    affectedCollections: new Set(),
+    hasMore: false,
+  }
+}
+
 describe("initialSyncCoordinator", () => {
   beforeEach(async () => {
     await clearDatabase()
     pullChangesMock.mockReset()
+    pullAllChangesMock.mockReset().mockResolvedValue(defaultPullAllResult())
     pullAndProcessChangesMock.mockReset().mockResolvedValue(defaultPullResult())
     applyPulledChangesChunkMock.mockReset().mockResolvedValue(new Set())
     finalizeAppliedPullChangesMock.mockReset().mockResolvedValue(undefined)
@@ -225,9 +238,9 @@ describe("initialSyncCoordinator", () => {
     useSyncStore.getState().setInitialSyncState({ localHasData: true, cloudHasData: true })
 
     const order: string[] = []
-    pullAndProcessChangesMock.mockImplementation(async () => {
+    pullAllChangesMock.mockImplementation(async () => {
       order.push("pull")
-      return defaultPullResult()
+      return defaultPullAllResult()
     })
     clearLocalSyncDataMock.mockImplementation(async () => {
       order.push("clearLocalSyncData")
@@ -244,7 +257,7 @@ describe("initialSyncCoordinator", () => {
 
   it("use-cloud: does not clear local data when pull fails (data-loss guard)", async () => {
     useSyncStore.getState().setInitialSyncState({ localHasData: true, cloudHasData: true })
-    pullAndProcessChangesMock.mockRejectedValueOnce(new Error("Network error"))
+    pullAllChangesMock.mockRejectedValueOnce(new Error("Network error"))
 
     await expect(resolveInitialSyncStrategy("token", "user-1", "use-cloud")).rejects.toThrow(
       "Network error"

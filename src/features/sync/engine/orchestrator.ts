@@ -20,14 +20,14 @@ const RETRY_DELAYS_MS = [1000, 5000, 15000]
 
 export const SYNC_ENABLED = import.meta.env.VITE_ENABLE_SYNC !== "false"
 
-export async function syncNow(): Promise<void> {
-  await runAuthenticatedSyncCycle()
+export async function syncNow(options: { source?: "manual" | "background" } = {}): Promise<void> {
+  await runAuthenticatedSyncCycle(options.source ?? "background")
 }
 
 // Legacy alias: this still runs a full sync cycle (push + pull + apply).
 export const pushPendingChanges = syncNow
 
-async function runAuthenticatedSyncCycle(): Promise<void> {
+async function runAuthenticatedSyncCycle(source: "manual" | "background"): Promise<void> {
   if (!SYNC_ENABLED) return
   if (!navigator.onLine) {
     useSyncStore.getState().setStatus("offline")
@@ -52,7 +52,7 @@ async function runAuthenticatedSyncCycle(): Promise<void> {
           return
         }
 
-        await pushPendingChangesInternal(accessTokenSource, true)
+        await pushPendingChangesInternal(accessTokenSource, true, source === "manual")
 
         const affectedCollections = new Set<SyncCollection>()
         const pullResult = await pullAndProcessChanges(accessTokenSource, {

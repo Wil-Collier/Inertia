@@ -21,7 +21,7 @@ export function useSync() {
     }
 
     auth.setAuth(response)
-    await syncNow()
+    await syncNow({ source: "manual" })
   }
 
   const signOut = async () => {

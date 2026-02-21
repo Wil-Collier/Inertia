@@ -42,7 +42,11 @@ export interface MergeCloudAndLocalResult {
   skippedEqual: number
 }
 
-export async function pushPendingChangesInternal(accessTokenSource: AccessTokenSource, updateStatus: boolean): Promise<void> {
+export async function pushPendingChangesInternal(
+  accessTokenSource: AccessTokenSource,
+  updateStatus: boolean,
+  notifyConflictToasts = updateStatus
+): Promise<void> {
   const pending = await listPendingChanges()
   if (pending.length === 0) return
 
@@ -62,7 +66,7 @@ export async function pushPendingChangesInternal(accessTokenSource: AccessTokenS
         const mutationIdReuseConflicts = response.conflicts.filter((conflict) => conflict.reason === "MUTATION_ID_REUSE").length
         const otherConflicts = response.conflicts.length - overwriteConflicts - tooLargeConflicts - mutationIdReuseConflicts
 
-        if (overwriteConflicts > 0) {
+        if (notifyConflictToasts && overwriteConflicts > 0) {
           toast.error(
             overwriteConflicts === 1
               ? "1 change was overwritten by a newer version from another device"
@@ -70,7 +74,7 @@ export async function pushPendingChangesInternal(accessTokenSource: AccessTokenS
           )
         }
 
-        if (tooLargeConflicts > 0) {
+        if (notifyConflictToasts && tooLargeConflicts > 0) {
           toast.error(
             tooLargeConflicts === 1
               ? "1 change was too large to sync and has been skipped"
@@ -78,7 +82,7 @@ export async function pushPendingChangesInternal(accessTokenSource: AccessTokenS
           )
         }
 
-        if (mutationIdReuseConflicts > 0) {
+        if (notifyConflictToasts && mutationIdReuseConflicts > 0) {
           toast.error(
             mutationIdReuseConflicts === 1
               ? "1 change was rejected due to a duplicate sync ID and has been skipped"
@@ -86,7 +90,7 @@ export async function pushPendingChangesInternal(accessTokenSource: AccessTokenS
           )
         }
 
-        if (otherConflicts > 0) {
+        if (notifyConflictToasts && otherConflicts > 0) {
           toast.error(
             otherConflicts === 1
               ? "1 change could not be synced and remains pending"
@@ -189,6 +193,9 @@ export async function mergeCloudAndLocal(accessTokenSource: AccessTokenSource): 
       if (decision.reason === "equal") {
         skippedEqual += 1
       } else {
+        // TODO(sync): When remote wins, write the remote record to local storage immediately
+        // (with version tracking) instead of waiting for a later pull pass. This avoids
+        // a stale-local window if sync is interrupted between merge decision and pull/apply.
         remoteWins += 1
       }
       return
