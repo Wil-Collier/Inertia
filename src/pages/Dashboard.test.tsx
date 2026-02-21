@@ -12,19 +12,19 @@ import { seedTestState } from "@/test/helpers/seedTestState"
 
 // WeeklyConsistency uses recharts which requires DOM measurements (getBBox, getComputedTextLength)
 // unavailable in jsdom. Mocking avoids spurious layout errors unrelated to Dashboard behavior.
-vi.mock("@/components/dashboard/WeeklyConsistency", () => ({
+vi.mock("@/features/dashboard/components/WeeklyConsistency", () => ({
   WeeklyConsistency: () => <div>Weekly Consistency</div>,
 }))
 
 // WeightCard uses recharts (LineChart) which requires DOM measurement APIs unavailable in jsdom.
 // Mocking prevents layout/rendering errors that would obscure the Dashboard tests.
-vi.mock("@/components/dashboard/WeightCard", () => ({
+vi.mock("@/features/dashboard/components/WeightCard", () => ({
   WeightCard: () => <div>Weight Card</div>,
 }))
 
 // AchievementBadge renders complex SVG animations and gradient effects that cause jsdom
 // warnings. Dashboard tests focus on routing, data hydration, and CTA behavior — not badge rendering.
-vi.mock("@/components/AchievementBadge", () => ({
+vi.mock("@/features/achievements/components/AchievementBadge", () => ({
   AchievementBadge: () => <div>Achievement Badge</div>,
 }))
 

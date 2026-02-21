@@ -46,7 +46,7 @@ vi.mock("@/lib/dateUtils", () => ({
   },
 }))
 
-vi.mock("@/components/BarcodeScanner", () => ({
+vi.mock("@/features/nutrition/components/BarcodeScanner", () => ({
   BarcodeScanner: ({ isOpen, onScan, onClose }: BarcodeScannerProps) =>
     isOpen ? (
       <div data-testid="barcode-scanner">

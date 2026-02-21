@@ -61,7 +61,7 @@ vi.mock("@/components/layout/Header", () => ({
   ),
 }))
 
-vi.mock("@/components/ExercisePickerSheet", () => ({
+vi.mock("@/features/workout/components/ExercisePickerSheet", () => ({
   ExercisePickerSheet: ({ isOpen, onSelect }: ExercisePickerSheetProps) =>
     isOpen ? (
       <button type="button" onClick={() => onSelect("barbell-bench-press")}>
