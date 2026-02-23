@@ -151,4 +151,46 @@ describe("progressiveOverloadService", () => {
     expect(lastUsedLbs).toBe(220)
     expect(recommendedLbs).toBe(225)
   })
+
+  it("uses the latest completed workout when multiple entries share the same date", async () => {
+    await db.workoutSessions.bulkPut([
+      {
+        id: "w-early",
+        name: "Bench Day",
+        date: "2026-02-20",
+        completedAt: "2026-02-20T08:00:00.000Z",
+        weightUnit: "kg",
+        exerciseIds: ["bench"],
+        exercises: [
+          {
+            id: "wex-early",
+            exerciseId: "bench",
+            sets: [{ id: "set-early", reps: 10, weight: 10, isCompleted: true }],
+          },
+        ],
+      },
+      {
+        id: "w-late",
+        name: "Bench Day",
+        date: "2026-02-20",
+        completedAt: "2026-02-20T18:00:00.000Z",
+        weightUnit: "kg",
+        exerciseIds: ["bench"],
+        exercises: [
+          {
+            id: "wex-late",
+            exerciseId: "bench",
+            sets: [{ id: "set-late", reps: 10, weight: 20, isCompleted: true }],
+          },
+        ],
+      },
+    ])
+
+    const lastUsedKg = await getLastUsedWeightForExercise({
+      exerciseId: "bench",
+      targetWeightUnit: "kg",
+    })
+
+    expect(lastUsedKg).toBe(20)
+  })
 })

@@ -59,4 +59,12 @@ export interface ActiveWorkoutSession {
   workout: Workout
   startedAt: string
   templateId?: string
+  pendingWeightRecommendations?: PendingWeightRecommendation[]
+}
+
+export interface PendingWeightRecommendation {
+  workoutExerciseId: string
+  exerciseId: string
+  recommendedWeight: number
+  source: "progressive-overload" | "last-used"
 }

@@ -126,10 +126,18 @@ export const WorkoutRecordSchema = z.object({
 })
 export type WorkoutRecord = z.infer<typeof WorkoutRecordSchema>
 
+export const PendingWeightRecommendationRecordSchema = z.object({
+  workoutExerciseId: z.string(),
+  exerciseId: z.string(),
+  recommendedWeight: z.number(),
+  source: z.enum(["progressive-overload", "last-used"]),
+})
+
 export const ActiveWorkoutSessionRecordSchema = z.object({
   workout: WorkoutRecordSchema,
   startedAt: z.string(),
   templateId: z.string().optional(),
+  pendingWeightRecommendations: z.array(PendingWeightRecommendationRecordSchema).optional(),
   updatedAt: z.number().optional(),
 })
 export type ActiveWorkoutSessionRecord = z.infer<typeof ActiveWorkoutSessionRecordSchema>

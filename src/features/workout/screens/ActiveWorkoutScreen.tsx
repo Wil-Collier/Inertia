@@ -17,12 +17,15 @@ import { useExercisesByIds } from "@/features/exercises/queries"
 import { useSettings } from "@/features/settings/queries"
 import { useRestTimerControls } from "@/features/workout/hooks/useRestTimer"
 import { useCountdownTimer } from "@/features/workout/hooks/useCountdownTimer"
-import { useWeightUnit } from "@/hooks/useUnits"
 import { useWorkoutChanges } from "@/features/workout/hooks/useWorkoutChanges"
 import { playDingSound, unlockAudio } from "@/lib/audio"
 
 /** Helper to convert undefined/NaN to 0 */
 const toZeroIfInvalid = (n: number | undefined): number => (Number.isFinite(n) ? n! : 0)
+const formatWorkoutUnitWeight = (weight: number, weightUnit: "kg" | "lbs"): string => {
+  const normalized = Number.isInteger(weight) ? weight : parseFloat(weight.toFixed(2))
+  return `${normalized} ${weightUnit}`
+}
 
 export function ActiveWorkout() {
   const navigate = useNavigate()
@@ -37,13 +40,14 @@ export function ActiveWorkout() {
     removeSet,
     toggleSetComplete,
     updateExerciseNotes,
+    applyWeightRecommendation,
+    dismissWeightRecommendation,
   } = useActiveSessionActions()
 
   const createTemplateMutation = useCreateTemplate()
 
   const { data: settings } = useSettings()
   const restTimerDuration = settings?.restTimerDuration ?? 90
-  const weightUnit = useWeightUnit()
   const { data: templates = [] } = useTemplates()
 
   const [showExerciseSheet, setShowExerciseSheet] = useState(false)
@@ -80,6 +84,14 @@ export function ActiveWorkout() {
     [workout?.exercises]
   )
   const { data: exercisesById = new Map() } = useExercisesByIds(exerciseIds)
+  const pendingWeightRecommendationsByExerciseId = useMemo(() => {
+    return new Map(
+      (activeSession?.pendingWeightRecommendations ?? []).map((recommendation) => [
+        recommendation.workoutExerciseId,
+        recommendation,
+      ])
+    )
+  }, [activeSession?.pendingWeightRecommendations])
 
   const completedSets = useMemo(() => {
     return (
@@ -210,6 +222,28 @@ export function ActiveWorkout() {
     [updateExerciseNotes]
   )
 
+  const handleApplyWeightRecommendation = useCallback(
+    async (workoutExerciseId: string) => {
+      try {
+        await applyWeightRecommendation(workoutExerciseId)
+      } catch {
+        // Error feedback is handled by activeSessionService
+      }
+    },
+    [applyWeightRecommendation]
+  )
+
+  const handleDismissWeightRecommendation = useCallback(
+    async (workoutExerciseId: string) => {
+      try {
+        await dismissWeightRecommendation(workoutExerciseId)
+      } catch {
+        // Error feedback is handled by activeSessionService
+      }
+    },
+    [dismissWeightRecommendation]
+  )
+
   // Automatically expand newly added exercises
   const [prevExerciseCount, setPrevExerciseCount] = useState(workout?.exercises.length ?? 0)
 
@@ -272,6 +306,9 @@ export function ActiveWorkout() {
           const isCountdownForExercise =
             countdown.activeSetId !== null &&
             workoutExercise.sets.some((s) => s.id === countdown.activeSetId)
+          const pendingWeightRecommendation = pendingWeightRecommendationsByExerciseId.get(
+            workoutExercise.id
+          )
 
           return (
             <WorkoutExerciseCard
@@ -286,7 +323,7 @@ export function ActiveWorkout() {
               onToggleSetComplete={handleToggleSetComplete}
               onRemoveExercise={handleRemoveExercise}
               onUpdateNotes={handleUpdateNotes}
-              weightUnitLabel={weightUnit.unitLabel}
+              weightUnitLabel={workout.weightUnit}
               activeSetId={countdown.activeSetId ?? undefined}
               countdownFormattedTime={isCountdownForExercise ? countdown.formattedTime : undefined}
               countdownIsRunning={isCountdownForExercise ? countdown.isRunning : false}
@@ -294,6 +331,23 @@ export function ActiveWorkout() {
               onPauseCountdown={countdown.pause}
               onResumeCountdown={countdown.resume}
               onStartRestTimer={timerControls.start}
+              weightRecommendation={
+                pendingWeightRecommendation
+                  ? {
+                      source: pendingWeightRecommendation.source,
+                      recommendedWeightLabel: formatWorkoutUnitWeight(
+                        pendingWeightRecommendation.recommendedWeight,
+                        workout.weightUnit
+                      ),
+                    }
+                  : undefined
+              }
+              onApplyWeightRecommendation={(workoutExerciseId) => {
+                void handleApplyWeightRecommendation(workoutExerciseId)
+              }}
+              onDismissWeightRecommendation={(workoutExerciseId) => {
+                void handleDismissWeightRecommendation(workoutExerciseId)
+              }}
             />
           )
         })}

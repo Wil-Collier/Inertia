@@ -61,7 +61,7 @@ describe("activeSessionService integration", () => {
     expect(session.workout.exercises[0]?.sets[0]).toMatchObject({ reps: 5, weight: 0, isCompleted: false })
   })
 
-  it("applies progressive overload recommendation when enabled for template exercises", async () => {
+  it("stores progressive overload recommendation and waits for explicit apply", async () => {
     await db.settings.put({
       id: "settings",
       theme: "system",
@@ -109,11 +109,27 @@ describe("activeSessionService integration", () => {
     const session = await activeSessionService.startWorkout("From Template", "template-prog")
     const squatSets = session.workout.exercises[0]?.sets
     if (!squatSets) throw new Error("expected squat sets")
+    const squatWorkoutExerciseId = session.workout.exercises[0]?.id
+    if (!squatWorkoutExerciseId) throw new Error("expected workout exercise id")
 
-    expect(squatSets.map((set) => set.weight)).toEqual([105, 105, 105])
+    expect(squatSets.map((set) => set.weight)).toEqual([100, 100, 100])
+    expect(session.pendingWeightRecommendations).toEqual([
+      {
+        workoutExerciseId: squatWorkoutExerciseId,
+        exerciseId: "squat",
+        recommendedWeight: 105,
+        source: "progressive-overload",
+      },
+    ])
+
+    await activeSessionService.applyWeightRecommendation(squatWorkoutExerciseId)
+
+    const updatedSession = await db.activeSession.get("current")
+    expect(updatedSession?.workout.exercises[0]?.sets.map((set) => set.weight)).toEqual([105, 105, 105])
+    expect(updatedSession?.pendingWeightRecommendations).toBeUndefined()
   })
 
-  it("uses last used weight when progressive overload is disabled", async () => {
+  it("auto-fills last used weight when progressive overload is disabled", async () => {
     await db.settings.put({
       id: "settings",
       theme: "system",
@@ -161,8 +177,11 @@ describe("activeSessionService integration", () => {
     const session = await activeSessionService.startWorkout("From Template", "template-last")
     const squatSets = session.workout.exercises[0]?.sets
     if (!squatSets) throw new Error("expected squat sets")
+    const squatWorkoutExerciseId = session.workout.exercises[0]?.id
+    if (!squatWorkoutExerciseId) throw new Error("expected workout exercise id")
 
     expect(squatSets.map((set) => set.weight)).toEqual([100, 100, 100])
+    expect(session.pendingWeightRecommendations).toBeUndefined()
   })
 
   it("adds, updates, toggles and removes sets while persisting session state", async () => {

@@ -1,6 +1,12 @@
 import { db } from "@/services/db"
 import { toast } from "sonner"
-import type { Workout, WorkoutExercise, WorkoutSet, ActiveWorkoutSession } from "@/lib/types"
+import type {
+  Workout,
+  WorkoutExercise,
+  WorkoutSet,
+  ActiveWorkoutSession,
+  PendingWeightRecommendation,
+} from "@/lib/types"
 import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
 import { buildWorkoutExerciseFromTemplate, calculateOneRepMax } from "@/lib/workoutUtils"
@@ -18,6 +24,7 @@ import {
 } from "@/services/dbTransactionTables"
 
 const MIN_REPS = 1
+const WEIGHT_RECOMMENDATION_EPSILON = 0.0001
 
 /** Defer a callback to run in the background without blocking UI */
 function deferToBackground(callback: () => void) {
@@ -114,6 +121,12 @@ async function updatePersonalRecords(workout: Workout): Promise<void> {
   }
 }
 
+function normalizePendingWeightRecommendations(
+  pendingWeightRecommendations: PendingWeightRecommendation[]
+): PendingWeightRecommendation[] | undefined {
+  return pendingWeightRecommendations.length > 0 ? pendingWeightRecommendations : undefined
+}
+
 export const activeSessionService = {
   async getSession(): Promise<ActiveWorkoutSession | null> {
     const session = await db.activeSession.get(ACTIVE_SESSION_ID)
@@ -142,6 +155,7 @@ export const activeSessionService = {
         settings?.progressiveOverloadEnabled ?? DEFAULT_PROGRESSIVE_OVERLOAD_ENABLED
 
       let resolvedExercises = exercises
+      let pendingWeightRecommendations: PendingWeightRecommendation[] = []
 
       if (templateId && resolvedExercises.length === 0) {
         const template = await db.workoutTemplates.get(templateId)
@@ -149,29 +163,61 @@ export const activeSessionService = {
           const exerciseIds = template.exercises.map((templateExercise) => templateExercise.exerciseId)
           const exercisesById = await resolveExercisesByIds(exerciseIds)
 
-          resolvedExercises = await Promise.all(
+          const buildResults = await Promise.all(
             template.exercises.map(async (templateExercise) => {
               const exercise = exercisesById.get(templateExercise.exerciseId)
               const shouldAutoLoadWeight = Boolean(exercise?.isWeighted && !exercise?.isTimeBased)
+              const workoutExercise = buildWorkoutExerciseFromTemplate(templateExercise)
 
               if (!shouldAutoLoadWeight) {
-                return buildWorkoutExerciseFromTemplate(templateExercise)
+                return {
+                  workoutExercise,
+                }
               }
 
-              const initialWeight = isProgressiveOverloadEnabled
-                ? await getTemplateExerciseRecommendedWeight({
-                    exerciseId: templateExercise.exerciseId,
-                    targetSets: templateExercise.targetSets,
-                    targetReps: templateExercise.targetReps,
-                    targetWeightUnit: weightUnit,
-                  })
-                : await getLastUsedWeightForExercise({
-                    exerciseId: templateExercise.exerciseId,
-                    targetWeightUnit: weightUnit,
-                  })
+              const lastUsedWeight = await getLastUsedWeightForExercise({
+                exerciseId: templateExercise.exerciseId,
+                targetWeightUnit: weightUnit,
+              })
+              const prefilledWorkoutExercise = buildWorkoutExerciseFromTemplate(
+                templateExercise,
+                lastUsedWeight
+              )
 
-              return buildWorkoutExerciseFromTemplate(templateExercise, initialWeight)
+              if (!isProgressiveOverloadEnabled) {
+                return {
+                  workoutExercise: prefilledWorkoutExercise,
+                }
+              }
+
+              const recommendedWeight = await getTemplateExerciseRecommendedWeight({
+                exerciseId: templateExercise.exerciseId,
+                targetSets: templateExercise.targetSets,
+                targetReps: templateExercise.targetReps,
+                targetWeightUnit: weightUnit,
+              })
+
+              if (recommendedWeight <= lastUsedWeight + WEIGHT_RECOMMENDATION_EPSILON) {
+                return {
+                  workoutExercise: prefilledWorkoutExercise,
+                }
+              }
+
+              return {
+                workoutExercise: prefilledWorkoutExercise,
+                pendingWeightRecommendation: {
+                  workoutExerciseId: prefilledWorkoutExercise.id,
+                  exerciseId: templateExercise.exerciseId,
+                  recommendedWeight,
+                  source: "progressive-overload",
+                } satisfies PendingWeightRecommendation,
+              }
             })
+          )
+
+          resolvedExercises = buildResults.map((result) => result.workoutExercise)
+          pendingWeightRecommendations = buildResults.flatMap((result) =>
+            result.pendingWeightRecommendation ? [result.pendingWeightRecommendation] : []
           )
         }
       }
@@ -188,6 +234,9 @@ export const activeSessionService = {
         workout,
         startedAt: new Date().toISOString(),
         templateId,
+        pendingWeightRecommendations: normalizePendingWeightRecommendations(
+          pendingWeightRecommendations
+        ),
       }
 
       await db.transaction("rw", ACTIVE_SESSION_SYNC_WRITE_TABLES, async () => {
@@ -450,5 +499,72 @@ export const activeSessionService = {
       toast.error("Failed to update set")
       throw error
     }
-  }
+  },
+
+  async applyWeightRecommendation(workoutExerciseId: string) {
+    try {
+      await db.transaction("rw", ACTIVE_SESSION_SYNC_WRITE_TABLES, async () => {
+        const session = await db.activeSession.get(ACTIVE_SESSION_ID)
+        if (!session) return
+
+        const pendingWeightRecommendations = session.pendingWeightRecommendations ?? []
+        const recommendation = pendingWeightRecommendations.find(
+          (candidate) => candidate.workoutExerciseId === workoutExerciseId
+        )
+        if (!recommendation) return
+
+        const workoutExercise = session.workout.exercises.find(
+          (exercise) => exercise.id === workoutExerciseId
+        )
+        if (workoutExercise) {
+          workoutExercise.sets = workoutExercise.sets.map((set) => ({
+            ...set,
+            weight: recommendation.recommendedWeight,
+          }))
+        }
+
+        const remainingRecommendations = pendingWeightRecommendations.filter(
+          (candidate) => candidate.workoutExerciseId !== workoutExerciseId
+        )
+
+        session.pendingWeightRecommendations = normalizePendingWeightRecommendations(
+          remainingRecommendations
+        )
+
+        await db.activeSession.put(session)
+      })
+    } catch (error) {
+      console.error("Failed to apply weight recommendation:", error)
+      toast.error("Failed to apply recommended weight")
+      throw error
+    }
+  },
+
+  async dismissWeightRecommendation(workoutExerciseId: string) {
+    try {
+      await db.transaction("rw", ACTIVE_SESSION_SYNC_WRITE_TABLES, async () => {
+        const session = await db.activeSession.get(ACTIVE_SESSION_ID)
+        if (!session) return
+
+        const pendingWeightRecommendations = session.pendingWeightRecommendations ?? []
+        const remainingRecommendations = pendingWeightRecommendations.filter(
+          (candidate) => candidate.workoutExerciseId !== workoutExerciseId
+        )
+
+        if (remainingRecommendations.length === pendingWeightRecommendations.length) {
+          return
+        }
+
+        session.pendingWeightRecommendations = normalizePendingWeightRecommendations(
+          remainingRecommendations
+        )
+
+        await db.activeSession.put(session)
+      })
+    } catch (error) {
+      console.error("Failed to dismiss weight recommendation:", error)
+      toast.error("Failed to dismiss recommendation")
+      throw error
+    }
+  },
 }

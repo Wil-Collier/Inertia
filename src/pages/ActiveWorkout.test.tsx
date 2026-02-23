@@ -228,6 +228,99 @@ describe("ActiveWorkout", () => {
     expect(templates[0]?.name).toBe("Power Builder")
   })
 
+  it("waits for user confirmation before applying suggested weight", async () => {
+    const user = userEvent.setup()
+
+    await seedTestState({
+      settings: createSettings(),
+      activeSession: createActiveWorkoutSession({
+        workout: createWorkout({
+          id: "workout-recommendation-apply",
+          name: "Recommendation Session",
+          date: "2026-02-09",
+          exercises: [
+            createWorkoutExercise({
+              id: "wex-reco-1",
+              exerciseId: "barbell-bench-press",
+              sets: [createWorkoutSet({ id: "set-reco-1", reps: 8, weight: 0, isCompleted: false })],
+            }),
+          ],
+        }),
+        pendingWeightRecommendations: [
+          {
+            workoutExerciseId: "wex-reco-1",
+            exerciseId: "barbell-bench-press",
+            recommendedWeight: 185,
+            source: "progressive-overload",
+          },
+        ],
+      }),
+    })
+
+    await renderActiveWorkoutRoute()
+    await screen.findByText("Increase to 185 lbs")
+
+    const beforeApply = await db.activeSession.get("current")
+    expect(beforeApply?.workout.exercises[0]?.sets[0]?.weight).toBe(0)
+
+    await user.click(screen.getByRole("button", { name: /Use recommended weight/i }))
+
+    await waitFor(async () => {
+      const afterApply = await db.activeSession.get("current")
+      expect(afterApply?.workout.exercises[0]?.sets[0]?.weight).toBe(185)
+      expect(afterApply?.pendingWeightRecommendations).toBeUndefined()
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Increase to/i)).toBeNull()
+    })
+  })
+
+  it("lets the user dismiss suggested weight without changing sets", async () => {
+    const user = userEvent.setup()
+
+    await seedTestState({
+      settings: createSettings(),
+      activeSession: createActiveWorkoutSession({
+        workout: createWorkout({
+          id: "workout-recommendation-dismiss",
+          name: "Recommendation Session",
+          date: "2026-02-09",
+          exercises: [
+            createWorkoutExercise({
+              id: "wex-reco-2",
+              exerciseId: "barbell-bench-press",
+              sets: [createWorkoutSet({ id: "set-reco-2", reps: 8, weight: 0, isCompleted: false })],
+            }),
+          ],
+        }),
+        pendingWeightRecommendations: [
+          {
+            workoutExerciseId: "wex-reco-2",
+            exerciseId: "barbell-bench-press",
+            recommendedWeight: 185,
+            source: "progressive-overload",
+          },
+        ],
+      }),
+    })
+
+    await renderActiveWorkoutRoute()
+    await screen.findByText("Increase to 185 lbs")
+
+    await user.click(screen.getByRole("button", { name: /Dismiss recommended weight/i }))
+
+    await waitFor(async () => {
+      const afterDismiss = await db.activeSession.get("current")
+      expect(afterDismiss?.workout.exercises[0]?.sets[0]?.weight).toBe(0)
+      expect(afterDismiss?.pendingWeightRecommendations).toBeUndefined()
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Increase to/i)).toBeNull()
+    })
+  })
+
   it("shows add-exercise error when adding fails", async () => {
     const user = userEvent.setup()
     const addExerciseSpy = vi

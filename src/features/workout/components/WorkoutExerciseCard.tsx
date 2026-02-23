@@ -5,6 +5,8 @@ import {
   ChevronDown,
   ChevronUp,
   StickyNote,
+  TrendingUp,
+  X,
 } from "lucide-react"
 import { format } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,6 +37,12 @@ interface WorkoutExerciseCardProps {
   onPauseCountdown: () => void
   onResumeCountdown: () => void
   onStartRestTimer: () => void
+  weightRecommendation?: {
+    recommendedWeightLabel: string
+    source: "progressive-overload" | "last-used"
+  }
+  onApplyWeightRecommendation?: (workoutExerciseId: string) => void
+  onDismissWeightRecommendation?: (workoutExerciseId: string) => void
 }
 
 export const WorkoutExerciseCard = memo(({
@@ -56,6 +64,9 @@ export const WorkoutExerciseCard = memo(({
   onPauseCountdown,
   onResumeCountdown,
   onStartRestTimer,
+  weightRecommendation,
+  onApplyWeightRecommendation,
+  onDismissWeightRecommendation,
 }: WorkoutExerciseCardProps) => {
   const hasLastPerformance = !!workoutExercise.lastPerformanceDate
   const isTimeBased = exercise?.isTimeBased ?? false
@@ -95,8 +106,45 @@ export const WorkoutExerciseCard = memo(({
                 Last: {format(parseDbDate(workoutExercise.lastPerformanceDate), "MMM d")}
               </p>
             )}
+            {weightRecommendation && (
+              <p className="mt-1 inline-flex max-w-full items-center gap-1 text-[11px] font-semibold uppercase tracking-tight text-primary">
+                <TrendingUp className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  {weightRecommendation.source === "progressive-overload" ? "Increase to " : "Start at "}
+                  {weightRecommendation.recommendedWeightLabel}
+                </span>
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-1.5 whitespace-nowrap">
+            {weightRecommendation && onApplyWeightRecommendation && onDismissWeightRecommendation && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onApplyWeightRecommendation(workoutExercise.id)
+                  }}
+                  aria-label={`Use recommended weight for ${exercise?.name || "exercise"}`}
+                >
+                  Use
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onDismissWeightRecommendation(workoutExercise.id)
+                  }}
+                  aria-label={`Dismiss recommended weight for ${exercise?.name || "exercise"}`}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
             {/* Notes indicator */}
             {workoutExercise.notes && (
               <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />

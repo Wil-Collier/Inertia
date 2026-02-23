@@ -87,6 +87,18 @@ export function useActiveSessionActions() {
     onSuccess: invalidate
   })
 
+  const applyWeightRecommendationMutation = useMutation({
+    mutationFn: (workoutExerciseId: string) =>
+      activeSessionService.applyWeightRecommendation(workoutExerciseId),
+    onSuccess: invalidate
+  })
+
+  const dismissWeightRecommendationMutation = useMutation({
+    mutationFn: (workoutExerciseId: string) =>
+      activeSessionService.dismissWeightRecommendation(workoutExerciseId),
+    onSuccess: invalidate
+  })
+
   return {
     startWorkout: startWorkoutMutation.mutateAsync,
     finishWorkout: finishWorkoutMutation.mutateAsync,
@@ -100,5 +112,7 @@ export function useActiveSessionActions() {
     updateSet: updateSetMutation.mutateAsync,
     removeSet: removeSetMutation.mutateAsync,
     toggleSetComplete: toggleSetCompleteMutation.mutateAsync,
+    applyWeightRecommendation: applyWeightRecommendationMutation.mutateAsync,
+    dismissWeightRecommendation: dismissWeightRecommendationMutation.mutateAsync,
   }
 }

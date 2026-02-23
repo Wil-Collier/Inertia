@@ -21,15 +21,34 @@ function getCompletedSets(workout: Workout, exerciseId: string): WorkoutSet[] {
   return workoutExercise.sets.filter((set) => set.isCompleted)
 }
 
+function getWorkoutChronologicalValue(workout: Workout): number {
+  if (workout.completedAt) {
+    const completedAtMs = Date.parse(workout.completedAt)
+    if (Number.isFinite(completedAtMs)) return completedAtMs
+  }
+
+  const dateMs = Date.parse(workout.date)
+  if (Number.isFinite(dateMs)) return dateMs
+  return 0
+}
+
+function sortWorkoutsChronologically(workouts: Workout[]): Workout[] {
+  return workouts.toSorted((left, right) => {
+    const byTime = getWorkoutChronologicalValue(left) - getWorkoutChronologicalValue(right)
+    if (byTime !== 0) return byTime
+    return left.id.localeCompare(right.id)
+  })
+}
+
 async function getWorkoutsByExercise(exerciseId: string): Promise<Workout[]> {
   const indexedWorkouts = await db.workoutSessions.where("exerciseIds").equals(exerciseId).sortBy("date")
-  if (indexedWorkouts.length > 0) return indexedWorkouts
+  if (indexedWorkouts.length > 0) return sortWorkoutsChronologically(indexedWorkouts)
 
   // Fallback for older records that may not have exerciseIds populated.
   const workouts = await db.workoutSessions.toArray()
-  return workouts
-    .filter((workout) => workout.exercises.some((exercise) => exercise.exerciseId === exerciseId))
-    .toSorted((a, b) => a.date.localeCompare(b.date))
+  return sortWorkoutsChronologically(
+    workouts.filter((workout) => workout.exercises.some((exercise) => exercise.exerciseId === exerciseId))
+  )
 }
 
 async function getLatestCompletedExerciseSets(

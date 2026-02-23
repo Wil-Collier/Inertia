@@ -92,6 +92,7 @@ export function createActiveWorkoutSession(
     workout: overrides.workout ?? createWorkout(),
     startedAt: overrides.startedAt ?? "2026-02-09T10:00:00.000Z",
     templateId: overrides.templateId,
+    pendingWeightRecommendations: overrides.pendingWeightRecommendations,
   }
 }
 
