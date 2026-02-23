@@ -115,7 +115,6 @@ describe("WorkoutPage", () => {
           exerciseId: "custom-back-squat",
           targetSets: 3,
           targetReps: 8,
-          targetWeight: 225,
         },
       ],
     })
@@ -157,7 +156,6 @@ describe("WorkoutPage", () => {
           exerciseId: "custom-back-squat",
           targetSets: 3,
           targetReps: 8,
-          targetWeight: 225,
         },
       ],
     })

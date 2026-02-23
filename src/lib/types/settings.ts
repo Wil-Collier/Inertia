@@ -10,6 +10,7 @@ export interface UserSettings extends Syncable {
   theme: ThemeMode
   nutritionGoals: NutritionGoals
   restTimerDuration: number
+  progressiveOverloadEnabled: boolean
   unitPreferences: {
     weight: WeightUnit
     distance: DistanceUnit

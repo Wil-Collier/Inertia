@@ -73,7 +73,6 @@ export function createWorkoutTemplateExercise(
     exerciseId: overrides.exerciseId ?? "barbell-bench-press",
     targetSets: overrides.targetSets ?? 3,
     targetReps: overrides.targetReps ?? 8,
-    targetWeight: overrides.targetWeight ?? 135,
   }
 }
 

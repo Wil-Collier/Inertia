@@ -123,7 +123,7 @@ describe("SettingsPage", () => {
         })
     })
 
-    it("persists nutrition goal changes to database", async () => {
+  it("persists nutrition goal changes to database", async () => {
         const user = userEvent.setup()
         await renderSettingsRoute()
 
@@ -137,8 +137,21 @@ describe("SettingsPage", () => {
         await waitFor(async () => {
             const settings = await db.settings.get("settings")
             expect(settings?.nutritionGoals.calories).toBe(2500)
-        })
     })
+  })
+
+  it("persists progressive overload toggle changes to database", async () => {
+    const user = userEvent.setup()
+    await renderSettingsRoute()
+
+    const progressiveOverloadSwitch = await screen.findByRole("switch")
+    await user.click(progressiveOverloadSwitch)
+
+    await waitFor(async () => {
+      const settings = await db.settings.get("settings")
+      expect(settings?.progressiveOverloadEnabled).toBe(false)
+    })
+  })
 
     it("cancels clear data dialog without deleting data", async () => {
         const user = userEvent.setup()

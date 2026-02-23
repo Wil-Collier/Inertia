@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { db } from "@/services/db"
 import { queryKeys } from "@/lib/queryKeys"
-import type { Workout, WorkoutTemplate } from "@/lib/types"
+import type { TemplateExercise, Workout, WorkoutTemplate } from "@/lib/types"
 
 import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
@@ -10,6 +10,23 @@ import {
   WORKOUT_HISTORY_SYNC_WRITE_TABLES,
   WORKOUT_TEMPLATE_SYNC_WRITE_TABLES,
 } from "@/services/dbTransactionTables"
+
+function sanitizeTemplateExercise(exercise: TemplateExercise): TemplateExercise {
+  return {
+    exerciseId: exercise.exerciseId,
+    targetSets: exercise.targetSets,
+    targetReps: exercise.targetReps,
+  }
+}
+
+function sanitizeTemplate(template: Omit<WorkoutTemplate, "id">): Omit<WorkoutTemplate, "id">
+function sanitizeTemplate(template: WorkoutTemplate): WorkoutTemplate
+function sanitizeTemplate(template: WorkoutTemplate | Omit<WorkoutTemplate, "id">) {
+  return {
+    ...template,
+    exercises: template.exercises.map(sanitizeTemplateExercise),
+  }
+}
 
 // ============ WORKOUT MUTATIONS ============
 
@@ -137,7 +154,7 @@ export function useCreateTemplate() {
   return useMutation({
     mutationFn: async (template: Omit<WorkoutTemplate, "id">) => {
       const id = crypto.randomUUID()
-      const newTemplate = { ...template, id }
+      const newTemplate = sanitizeTemplate({ ...template, id })
       await db.transaction("rw", WORKOUT_TEMPLATE_SYNC_WRITE_TABLES, async () => {
         await db.workoutTemplates.add(newTemplate)
       })
@@ -162,8 +179,16 @@ export function useUpdateTemplate() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<WorkoutTemplate> }) => {
+      const sanitizedUpdates =
+        updates.exercises !== undefined
+          ? {
+              ...updates,
+              exercises: updates.exercises.map(sanitizeTemplateExercise),
+            }
+          : updates
+
       await db.transaction("rw", WORKOUT_TEMPLATE_SYNC_WRITE_TABLES, async () => {
-        await db.workoutTemplates.update(id, updates)
+        await db.workoutTemplates.update(id, sanitizedUpdates)
       })
       return db.workoutTemplates.get(id)
     },

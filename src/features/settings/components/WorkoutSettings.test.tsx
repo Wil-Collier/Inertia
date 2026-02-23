@@ -17,6 +17,8 @@ describe("WorkoutSettings", () => {
       <WorkoutSettings
         restTimerDuration={90}
         onRestTimerChange={onRestTimerChange}
+        progressiveOverloadEnabled={true}
+        onProgressiveOverloadChange={vi.fn()}
         notificationsEnabled={false}
         onToggleNotifications={onToggleNotifications}
         canEnableNotifications={true}
@@ -37,6 +39,8 @@ describe("WorkoutSettings", () => {
       <WorkoutSettings
         restTimerDuration={90}
         onRestTimerChange={vi.fn()}
+        progressiveOverloadEnabled={false}
+        onProgressiveOverloadChange={vi.fn()}
         notificationsEnabled={false}
         onToggleNotifications={vi.fn()}
         canEnableNotifications={false}
@@ -45,5 +49,28 @@ describe("WorkoutSettings", () => {
     )
 
     expect(screen.queryByText("Notifications blocked. Please enable in browser settings.")).not.toBeNull()
+  })
+
+  it("toggles progressive overload setting", async () => {
+    const user = userEvent.setup()
+    const onProgressiveOverloadChange = vi.fn()
+
+    render(
+      <WorkoutSettings
+        restTimerDuration={90}
+        onRestTimerChange={vi.fn()}
+        progressiveOverloadEnabled={true}
+        onProgressiveOverloadChange={onProgressiveOverloadChange}
+        notificationsEnabled={false}
+        onToggleNotifications={vi.fn()}
+        canEnableNotifications={true}
+        notificationPermission="granted"
+      />
+    )
+
+    await user.click(screen.getByRole("switch"))
+
+    expect(onProgressiveOverloadChange).toHaveBeenCalled()
+    expect(onProgressiveOverloadChange.mock.calls[0]?.[0]).toBe(false)
   })
 })

@@ -34,6 +34,7 @@ describe("settings hooks integration", () => {
     expect(result.current.data).toMatchObject({
       theme: "system",
       restTimerDuration: 90,
+      progressiveOverloadEnabled: true,
       areNotificationsEnabled: false,
       unitPreferences: { weight: "kg", distance: "km" },
     })
@@ -44,6 +45,7 @@ describe("settings hooks integration", () => {
       id: "settings",
       theme: "dark",
       restTimerDuration: 75,
+      progressiveOverloadEnabled: true,
       areNotificationsEnabled: false,
       unitPreferences: { weight: "lbs", distance: "mi" },
       nutritionGoals: { calories: 2500, protein: 170, carbs: 300, fat: 80, fiber: 35, sugar: 60 },
@@ -77,6 +79,7 @@ describe("settings hooks integration", () => {
     const previous = {
       theme: "dark",
       restTimerDuration: 75,
+      progressiveOverloadEnabled: true,
       areNotificationsEnabled: false,
       unitPreferences: { weight: "lbs", distance: "mi" },
       nutritionGoals: { calories: 2500, protein: 170, carbs: 300, fat: 80, fiber: 35, sugar: 60 },

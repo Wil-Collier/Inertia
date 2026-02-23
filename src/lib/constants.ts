@@ -17,6 +17,7 @@ export const DEFAULT_NUTRITION_GOALS = {
   sugar: 50 
 } as const
 export const DEFAULT_REST_TIMER_DURATION = 90
+export const DEFAULT_PROGRESSIVE_OVERLOAD_ENABLED = true
 export const DEFAULT_THEME = "system" as const
 
 // Singleton record IDs

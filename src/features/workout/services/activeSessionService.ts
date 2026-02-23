@@ -5,8 +5,13 @@ import { achievementService } from "@/services/achievementService"
 import { statsService } from "@/services/statsService"
 import { buildWorkoutExerciseFromTemplate, calculateOneRepMax } from "@/lib/workoutUtils"
 import { getToday } from "@/lib/dateUtils"
-import { ACTIVE_SESSION_ID } from "@/lib/constants"
+import { ACTIVE_SESSION_ID, DEFAULT_PROGRESSIVE_OVERLOAD_ENABLED } from "@/lib/constants"
 import { toLbs } from "@/lib/conversions"
+import { resolveExercisesByIds } from "@/features/exercises/resolveExercises"
+import {
+  getLastUsedWeightForExercise,
+  getTemplateExerciseRecommendedWeight,
+} from "@/features/workout/services/progressiveOverloadService"
 import {
   ACTIVE_SESSION_SYNC_WRITE_TABLES,
   WORKOUT_COMPLETION_SYNC_WRITE_TABLES,
@@ -130,18 +135,46 @@ export const activeSessionService = {
         throw new Error("An active workout session already exists")
       }
 
+      // Capture settings and weight unit at session start for data integrity
+      const settings = await db.settings.get("settings")
+      const weightUnit = settings?.unitPreferences?.weight ?? "kg"
+      const isProgressiveOverloadEnabled =
+        settings?.progressiveOverloadEnabled ?? DEFAULT_PROGRESSIVE_OVERLOAD_ENABLED
+
       let resolvedExercises = exercises
 
       if (templateId && resolvedExercises.length === 0) {
         const template = await db.workoutTemplates.get(templateId)
         if (template) {
-          resolvedExercises = template.exercises.map(buildWorkoutExerciseFromTemplate)
+          const exerciseIds = template.exercises.map((templateExercise) => templateExercise.exerciseId)
+          const exercisesById = await resolveExercisesByIds(exerciseIds)
+
+          resolvedExercises = await Promise.all(
+            template.exercises.map(async (templateExercise) => {
+              const exercise = exercisesById.get(templateExercise.exerciseId)
+              const shouldAutoLoadWeight = Boolean(exercise?.isWeighted && !exercise?.isTimeBased)
+
+              if (!shouldAutoLoadWeight) {
+                return buildWorkoutExerciseFromTemplate(templateExercise)
+              }
+
+              const initialWeight = isProgressiveOverloadEnabled
+                ? await getTemplateExerciseRecommendedWeight({
+                    exerciseId: templateExercise.exerciseId,
+                    targetSets: templateExercise.targetSets,
+                    targetReps: templateExercise.targetReps,
+                    targetWeightUnit: weightUnit,
+                  })
+                : await getLastUsedWeightForExercise({
+                    exerciseId: templateExercise.exerciseId,
+                    targetWeightUnit: weightUnit,
+                  })
+
+              return buildWorkoutExerciseFromTemplate(templateExercise, initialWeight)
+            })
+          )
         }
       }
-
-      // Capture weight unit at session start for data integrity
-      const settings = await db.settings.get("settings")
-      const weightUnit = settings?.unitPreferences?.weight ?? "kg"
 
       const workout: Workout = {
         id: crypto.randomUUID(),

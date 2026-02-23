@@ -25,7 +25,7 @@ interface TemplateEditSheetProps {
   onRemoveExercise: (exerciseId: string) => Promise<void>
   onUpdateTargets: (
     exerciseId: string,
-    field: "targetSets" | "targetReps" | "targetWeight",
+    field: "targetSets" | "targetReps",
     value: number
   ) => Promise<void>
   isSaving: boolean
@@ -99,7 +99,7 @@ export function TemplateEditSheet({
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
-                            <div className="mt-2 grid grid-cols-3 gap-2">
+                            <div className="mt-2 grid grid-cols-2 gap-2">
                               <div>
                                 <Label className="text-xs">Sets</Label>
                                 <Input
@@ -122,21 +122,6 @@ export function TemplateEditSheet({
                                   onChange={(e) => void onUpdateTargets(
                                       templateExercise.exerciseId,
                                       "targetReps",
-                                      parseInt(e.target.value) || 0
-                                    )}
-                                  min={0}
-                                  className="mt-1 h-8"
-                                  placeholder="-"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs">Weight</Label>
-                                <Input
-                                  type="number"
-                                  value={templateExercise.targetWeight ?? ""}
-                                  onChange={(e) => void onUpdateTargets(
-                                      templateExercise.exerciseId,
-                                      "targetWeight",
                                       parseInt(e.target.value) || 0
                                     )}
                                   min={0}

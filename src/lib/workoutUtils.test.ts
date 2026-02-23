@@ -42,11 +42,10 @@ describe("workoutUtils", () => {
       exerciseId: "squat",
       targetSets: 0,
       targetReps: 6,
-      targetWeight: 225,
     })
 
     expect(built.exerciseId).toBe("squat")
     expect(built.sets).toHaveLength(1)
-    expect(built.sets[0]).toMatchObject({ reps: 6, weight: 225, isCompleted: false })
+    expect(built.sets[0]).toMatchObject({ reps: 6, weight: 0, isCompleted: false })
   })
 })

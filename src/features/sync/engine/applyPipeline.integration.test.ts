@@ -159,6 +159,7 @@ describe("applyPulledChanges integration", () => {
         data: {
           theme: "system",
           restTimerDuration: 90,
+          progressiveOverloadEnabled: true,
           areNotificationsEnabled: false,
           unitPreferences: { weight: "kg", distance: "km" },
           nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
@@ -425,6 +426,7 @@ describe("applyPulledChanges integration", () => {
         data: {
           theme: "system",
           restTimerDuration: 120,
+          progressiveOverloadEnabled: true,
           areNotificationsEnabled: true,
           unitPreferences: { weight: "lbs", distance: "mi" },
           nutritionGoals: { calories: 2500, protein: 180, carbs: 300, fat: 80, fiber: 35, sugar: 60 },
@@ -490,6 +492,7 @@ describe("applyPulledChanges integration", () => {
       id: "settings",
       theme: "system",
       restTimerDuration: 90,
+      progressiveOverloadEnabled: true,
       areNotificationsEnabled: false,
       unitPreferences: { weight: "kg", distance: "km" },
       nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },

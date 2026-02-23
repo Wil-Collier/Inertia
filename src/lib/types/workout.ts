@@ -39,7 +39,6 @@ export interface TemplateExercise {
   exerciseId: string
   targetSets: number
   targetReps?: number
-  targetWeight?: number
 }
 
 export interface WorkoutTemplate extends SyncableWithId {

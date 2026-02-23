@@ -119,13 +119,11 @@ export function ActiveWorkout() {
             name: templateName.trim(),
             exercises: completed.exercises.map((e) => {
               const reps = e.sets.find((s) => (s.reps ?? 0) > 0)?.reps
-              const weight = e.sets.find((s) => (s.weight ?? 0) > 0)?.weight
 
               return {
                 exerciseId: e.exerciseId,
                 targetSets: e.sets.length,
                 targetReps: toZeroIfInvalid(reps),
-                targetWeight: toZeroIfInvalid(weight),
               }
             }),
           })

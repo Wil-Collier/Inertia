@@ -7,6 +7,7 @@ import {
   DEFAULT_THEME, 
   DEFAULT_UNIT_PREFERENCES, 
   DEFAULT_REST_TIMER_DURATION, 
+  DEFAULT_PROGRESSIVE_OVERLOAD_ENABLED,
   DEFAULT_NUTRITION_GOALS 
 } from "@/lib/constants"
 import { SETTINGS_SYNC_WRITE_TABLES } from "@/services/dbTransactionTables"
@@ -27,6 +28,8 @@ export function useUpdateSettings() {
         const newSettings: UserSettings & { id: string } = { 
           theme: existing?.theme ?? (DEFAULT_THEME as ThemeMode),
           restTimerDuration: existing?.restTimerDuration ?? DEFAULT_REST_TIMER_DURATION,
+          progressiveOverloadEnabled:
+            existing?.progressiveOverloadEnabled ?? DEFAULT_PROGRESSIVE_OVERLOAD_ENABLED,
           areNotificationsEnabled: existing?.areNotificationsEnabled ?? false,
           ...updates,
           unitPreferences: {

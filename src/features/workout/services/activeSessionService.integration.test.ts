@@ -15,6 +15,7 @@ describe("activeSessionService integration", () => {
       id: "settings",
       theme: "system",
       restTimerDuration: 90,
+      progressiveOverloadEnabled: true,
       areNotificationsEnabled: false,
       unitPreferences: { weight: "lbs", distance: "mi" },
       nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
@@ -50,14 +51,118 @@ describe("activeSessionService integration", () => {
     await db.workoutTemplates.put({
       id: "template-1",
       name: "Template",
-      exercises: [{ exerciseId: "squat", targetSets: 0, targetReps: 5, targetWeight: 225 }],
+      exercises: [{ exerciseId: "squat", targetSets: 0, targetReps: 5 }],
     })
 
     const session = await activeSessionService.startWorkout("From Template", "template-1")
 
     expect(session.workout.exercises).toHaveLength(1)
     expect(session.workout.exercises[0]?.sets).toHaveLength(1)
-    expect(session.workout.exercises[0]?.sets[0]).toMatchObject({ reps: 5, weight: 225, isCompleted: false })
+    expect(session.workout.exercises[0]?.sets[0]).toMatchObject({ reps: 5, weight: 0, isCompleted: false })
+  })
+
+  it("applies progressive overload recommendation when enabled for template exercises", async () => {
+    await db.settings.put({
+      id: "settings",
+      theme: "system",
+      restTimerDuration: 90,
+      progressiveOverloadEnabled: true,
+      areNotificationsEnabled: false,
+      unitPreferences: { weight: "lbs", distance: "mi" },
+      nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+    })
+
+    await db.customExercises.put({
+      id: "squat",
+      name: "Back Squat",
+      muscleGroup: "legs",
+      isCustom: true,
+      isWeighted: true,
+      isTimeBased: false,
+    })
+
+    await db.workoutSessions.put({
+      id: "w-prev",
+      name: "Prior Squat Session",
+      date: "2026-02-20",
+      weightUnit: "lbs",
+      exerciseIds: ["squat"],
+      exercises: [
+        {
+          id: "wex-1",
+          exerciseId: "squat",
+          sets: [
+            { id: "set-1", reps: 8, weight: 100, isCompleted: true },
+            { id: "set-2", reps: 9, weight: 100, isCompleted: true },
+            { id: "set-3", reps: 9, weight: 100, isCompleted: true },
+          ],
+        },
+      ],
+    })
+
+    await db.workoutTemplates.put({
+      id: "template-prog",
+      name: "Template",
+      exercises: [{ exerciseId: "squat", targetSets: 3, targetReps: 8 }],
+    })
+
+    const session = await activeSessionService.startWorkout("From Template", "template-prog")
+    const squatSets = session.workout.exercises[0]?.sets
+    if (!squatSets) throw new Error("expected squat sets")
+
+    expect(squatSets.map((set) => set.weight)).toEqual([105, 105, 105])
+  })
+
+  it("uses last used weight when progressive overload is disabled", async () => {
+    await db.settings.put({
+      id: "settings",
+      theme: "system",
+      restTimerDuration: 90,
+      progressiveOverloadEnabled: false,
+      areNotificationsEnabled: false,
+      unitPreferences: { weight: "lbs", distance: "mi" },
+      nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },
+    })
+
+    await db.customExercises.put({
+      id: "squat",
+      name: "Back Squat",
+      muscleGroup: "legs",
+      isCustom: true,
+      isWeighted: true,
+      isTimeBased: false,
+    })
+
+    await db.workoutSessions.put({
+      id: "w-prev",
+      name: "Prior Squat Session",
+      date: "2026-02-20",
+      weightUnit: "lbs",
+      exerciseIds: ["squat"],
+      exercises: [
+        {
+          id: "wex-1",
+          exerciseId: "squat",
+          sets: [
+            { id: "set-1", reps: 8, weight: 100, isCompleted: true },
+            { id: "set-2", reps: 7, weight: 100, isCompleted: true },
+            { id: "set-3", reps: 7, weight: 90, isCompleted: true },
+          ],
+        },
+      ],
+    })
+
+    await db.workoutTemplates.put({
+      id: "template-last",
+      name: "Template",
+      exercises: [{ exerciseId: "squat", targetSets: 3, targetReps: 8 }],
+    })
+
+    const session = await activeSessionService.startWorkout("From Template", "template-last")
+    const squatSets = session.workout.exercises[0]?.sets
+    if (!squatSets) throw new Error("expected squat sets")
+
+    expect(squatSets.map((set) => set.weight)).toEqual([100, 100, 100])
   })
 
   it("adds, updates, toggles and removes sets while persisting session state", async () => {
@@ -126,6 +231,7 @@ describe("activeSessionService integration", () => {
       id: "settings",
       theme: "system",
       restTimerDuration: 90,
+      progressiveOverloadEnabled: true,
       areNotificationsEnabled: false,
       unitPreferences: { weight: "lbs", distance: "mi" },
       nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },

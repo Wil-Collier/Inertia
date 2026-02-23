@@ -27,6 +27,7 @@ describe("sync projection", () => {
         id: "settings",
         theme: "dark",
         restTimerDuration: 90,
+        progressiveOverloadEnabled: true,
         areNotificationsEnabled: false,
         unitPreferences: { weight: "kg", distance: "km" },
         nutritionGoals: { calories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 30, sugar: 50 },

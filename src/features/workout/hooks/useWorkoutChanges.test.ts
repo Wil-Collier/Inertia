@@ -24,7 +24,7 @@ function buildTemplate(): WorkoutTemplate {
   return {
     id: "tpl-1",
     name: "Push Template",
-    exercises: [{ exerciseId: "bench", targetSets: 1, targetReps: 5, targetWeight: 100 }],
+    exercises: [{ exerciseId: "bench", targetSets: 1, targetReps: 5 }],
   }
 }
 
@@ -118,5 +118,21 @@ describe("useWorkoutChanges", () => {
       })
     )
     expect(editedResult.result.current.hasChanges()).toBe(true)
+  })
+
+  it("does not treat template auto-filled weight changes as unsaved edits", () => {
+    const autoLoadedWeightWorkout = buildWorkout()
+    autoLoadedWeightWorkout.exercises[0].sets[0].weight = 135
+
+    const { result } = renderHook(() =>
+      useWorkoutChanges({
+        workout: autoLoadedWeightWorkout,
+        templateId: "tpl-1",
+        templates: [buildTemplate()],
+        completedSets: 0,
+      })
+    )
+
+    expect(result.current.hasChanges()).toBe(false)
   })
 })

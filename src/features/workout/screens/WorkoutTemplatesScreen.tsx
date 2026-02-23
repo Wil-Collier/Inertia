@@ -19,7 +19,22 @@ import {
   useDeleteTemplate,
 } from "@/features/workout/mutations"
 import { useExercisesByIds } from "@/features/exercises/queries"
-import type { WorkoutTemplate } from "@/lib/types"
+import type { TemplateExercise, WorkoutTemplate } from "@/lib/types"
+
+function sanitizeTemplateExercise(exercise: TemplateExercise): TemplateExercise {
+  return {
+    exerciseId: exercise.exerciseId,
+    targetSets: exercise.targetSets,
+    targetReps: exercise.targetReps,
+  }
+}
+
+function normalizeTemplate(template: WorkoutTemplate): WorkoutTemplate {
+  return {
+    ...template,
+    exercises: template.exercises.map(sanitizeTemplateExercise),
+  }
+}
 
 export function WorkoutTemplates() {
   const navigate = useNavigate()
@@ -81,7 +96,7 @@ export function WorkoutTemplates() {
       })
       setNewTemplateName("")
       setIsCreating(false)
-      setEditingTemplate(template)
+      setEditingTemplate(normalizeTemplate(template))
       setEditName(template.name)
     } catch {
       // Mutation toasts
@@ -103,7 +118,7 @@ export function WorkoutTemplates() {
   )
 
   const handleEditOpen = useCallback((template: WorkoutTemplate) => {
-    setEditingTemplate(template)
+    setEditingTemplate(normalizeTemplate(template))
     setEditName(template.name)
   }, [])
 
@@ -130,7 +145,7 @@ export function WorkoutTemplates() {
       if (!editingTemplate) return
 
       const updatedExercises = [
-        ...editingTemplate.exercises,
+        ...editingTemplate.exercises.map(sanitizeTemplateExercise),
         { exerciseId, targetSets: 3, targetReps: 10 },
       ]
 
@@ -156,7 +171,7 @@ export function WorkoutTemplates() {
 
       const updatedExercises = editingTemplate.exercises.filter(
         (e) => e.exerciseId !== exerciseId
-      )
+      ).map(sanitizeTemplateExercise)
 
       try {
         await updateTemplateMutation.mutateAsync({
@@ -177,14 +192,22 @@ export function WorkoutTemplates() {
   const handleUpdateTargets = useCallback(
     async (
       exerciseId: string,
-      field: "targetSets" | "targetReps" | "targetWeight",
+      field: "targetSets" | "targetReps",
       value: number
     ) => {
       if (!editingTemplate) return
 
-      const updatedExercises = editingTemplate.exercises.map((e) =>
-        e.exerciseId === exerciseId ? { ...e, [field]: value } : e
-      )
+      const updatedExercises = editingTemplate.exercises.map((exercise) => {
+        const sanitized = sanitizeTemplateExercise(exercise)
+        if (sanitized.exerciseId !== exerciseId) {
+          return sanitized
+        }
+
+        return {
+          ...sanitized,
+          [field]: value,
+        }
+      })
 
       try {
         await updateTemplateMutation.mutateAsync({

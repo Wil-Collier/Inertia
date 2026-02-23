@@ -122,6 +122,10 @@ export function SettingsPage() {
         <WorkoutSettings
           restTimerDuration={settings.restTimerDuration}
           onRestTimerChange={(duration) => updateSettingsMutation.mutate({ restTimerDuration: duration })}
+          progressiveOverloadEnabled={settings.progressiveOverloadEnabled}
+          onProgressiveOverloadChange={(enabled) =>
+            updateSettingsMutation.mutate({ progressiveOverloadEnabled: enabled })
+          }
           notificationsEnabled={settings.areNotificationsEnabled}
           onToggleNotifications={() => void handleToggleNotifications()}
           canEnableNotifications={canEnableNotifications}

@@ -3,10 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 
 interface WorkoutSettingsProps {
   restTimerDuration: number
   onRestTimerChange: (duration: number) => void
+  progressiveOverloadEnabled: boolean
+  onProgressiveOverloadChange: (enabled: boolean) => void
   notificationsEnabled: boolean
   onToggleNotifications: () => void
   canEnableNotifications: boolean
@@ -16,6 +19,8 @@ interface WorkoutSettingsProps {
 export function WorkoutSettings({
   restTimerDuration,
   onRestTimerChange,
+  progressiveOverloadEnabled,
+  onProgressiveOverloadChange,
   notificationsEnabled,
   onToggleNotifications,
   canEnableNotifications,
@@ -42,6 +47,20 @@ export function WorkoutSettings({
           <p className="text-xs text-muted-foreground">
             Default rest time between sets (0-600 seconds)
           </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="progressive-overload">Progressive Overload</Label>
+            <p className="text-xs text-muted-foreground">
+              Auto-suggest next workout weight for template exercises
+            </p>
+          </div>
+          <Switch
+            id="progressive-overload"
+            checked={progressiveOverloadEnabled}
+            onCheckedChange={onProgressiveOverloadChange}
+          />
         </div>
 
         {/* Notifications */}

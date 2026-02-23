@@ -142,7 +142,6 @@ export const WorkoutTemplateRecordSchema = z.object({
       exerciseId: z.string(),
       targetSets: z.number(),
       targetReps: z.number().optional(),
-      targetWeight: z.number().optional(),
     })
   ),
   updatedAt: z.number().optional(),
@@ -223,6 +222,7 @@ export const UserSettingsRecordSchema = z.object({
     sugar: z.number(),
   }),
   restTimerDuration: z.number(),
+  progressiveOverloadEnabled: z.boolean().optional().default(true),
   unitPreferences: z.object({
     weight: WeightUnitSchema,
     distance: z.enum(["mi", "km"]),

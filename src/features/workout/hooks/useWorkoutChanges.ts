@@ -47,12 +47,10 @@ export function useWorkoutChanges({
       const defaultSetCount = Math.max(1, templateEx.targetSets || 0)
       if (workoutEx.sets.length !== defaultSetCount) return true
 
-      // Detect draft changes to set fields (weight/reps) even if not completed yet.
+      // Detect draft rep changes even if sets are not completed yet.
       const defaultReps = templateEx.targetReps ?? 0
-      const defaultWeight = templateEx.targetWeight ?? 0
       for (const set of workoutEx.sets) {
         if ((set.reps ?? 0) !== defaultReps) return true
-        if ((set.weight ?? 0) !== defaultWeight) return true
       }
     }
 

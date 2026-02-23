@@ -17,6 +17,7 @@ export function createSettings(overrides: Partial<UserSettings> = {}): UserSetti
       distance: "km",
     },
     restTimerDuration: overrides.restTimerDuration ?? 90,
+    progressiveOverloadEnabled: overrides.progressiveOverloadEnabled ?? true,
     nutritionGoals: overrides.nutritionGoals ?? DEFAULT_GOALS,
     areNotificationsEnabled: overrides.areNotificationsEnabled ?? false,
     updatedAt: overrides.updatedAt,
