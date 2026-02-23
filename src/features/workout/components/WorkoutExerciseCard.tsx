@@ -7,6 +7,7 @@ import {
   StickyNote,
   TrendingUp,
   X,
+  ArrowUp,
 } from "lucide-react"
 import { format } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -70,9 +71,13 @@ export const WorkoutExerciseCard = memo(({
 }: WorkoutExerciseCardProps) => {
   const hasLastPerformance = !!workoutExercise.lastPerformanceDate
   const isTimeBased = exercise?.isTimeBased ?? false
+  const completedCount = workoutExercise.sets.filter((s) => s.isCompleted).length
+  const totalCount = workoutExercise.sets.length
+  const allCompleted = completedCount === totalCount && totalCount > 0
 
   return (
     <Card className={cn("transition-all", !isExpanded && "gap-0")}>
+      {/* Clean header: chevron + name/meta + set counter + delete */}
       <CardHeader
         className="cursor-pointer px-4 py-3"
         onClick={() => onToggleExpanded(workoutExercise.id)}
@@ -86,16 +91,19 @@ export const WorkoutExerciseCard = memo(({
         tabIndex={0}
         aria-label={`${isExpanded ? "Collapse" : "Expand"} ${exercise?.name || "exercise"}`}
       >
-        <div className="grid grid-cols-[40px_1fr_auto_40px] gap-2 items-center">
-          <div className="flex justify-center">
+        <div className="flex items-center gap-3">
+          {/* Expand/collapse chevron */}
+          <div className="flex shrink-0 items-center justify-center w-5">
             {isExpanded ? (
-              <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
             ) : (
-              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
             )}
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1">
+
+          {/* Exercise name + last performance */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
               <CardTitle className={cn("text-base leading-tight", !isExpanded && "line-clamp-2")}>
                 {exercise?.name || "Unknown Exercise"}
               </CardTitle>
@@ -106,70 +114,35 @@ export const WorkoutExerciseCard = memo(({
                 Last: {format(parseDbDate(workoutExercise.lastPerformanceDate), "MMM d")}
               </p>
             )}
-            {weightRecommendation && (
-              <p className="mt-1 inline-flex max-w-full items-center gap-1 text-[11px] font-semibold uppercase tracking-tight text-primary">
-                <TrendingUp className="h-3 w-3 shrink-0" />
-                <span className="truncate">
-                  {weightRecommendation.source === "progressive-overload" ? "Increase to " : "Start at "}
-                  {weightRecommendation.recommendedWeightLabel}
-                </span>
-              </p>
-            )}
           </div>
-          <div className="flex items-center gap-1.5 whitespace-nowrap">
-            {weightRecommendation && onApplyWeightRecommendation && onDismissWeightRecommendation && (
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="xs"
-                  className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onApplyWeightRecommendation(workoutExercise.id)
-                  }}
-                  aria-label={`Use recommended weight for ${exercise?.name || "exercise"}`}
-                >
-                  Use
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="text-muted-foreground hover:text-foreground"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onDismissWeightRecommendation(workoutExercise.id)
-                  }}
-                  aria-label={`Dismiss recommended weight for ${exercise?.name || "exercise"}`}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            )}
-            {/* Notes indicator */}
+
+          {/* Right side: notes indicator + set counter + delete */}
+          <div className="flex shrink-0 items-center gap-2">
             {workoutExercise.notes && (
               <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
             )}
-            <span className="text-sm text-muted-foreground tabular-nums">
-              {workoutExercise.sets.filter((s) => s.isCompleted).length}/
-              {workoutExercise.sets.length}
+            <span className={cn(
+              "text-sm tabular-nums font-medium",
+              allCompleted ? "text-primary" : "text-muted-foreground",
+            )}>
+              {completedCount}/{totalCount}
             </span>
-          </div>
-          <div className="flex justify-center">
             <Button
               variant="ghost"
-              size="icon-sm"
-              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              size="icon-xs"
+              className="text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
               onClick={(e) => {
                 e.stopPropagation()
                 onRemoveExercise(workoutExercise.id)
               }}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
       </CardHeader>
 
+      {/* Expandable content */}
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-200 ease-out",
@@ -178,6 +151,51 @@ export const WorkoutExerciseCard = memo(({
       >
         <div className="overflow-hidden">
           <CardContent className="space-y-3 pt-0">
+            {/* Progressive overload recommendation — only visible when expanded */}
+            {weightRecommendation && onApplyWeightRecommendation && onDismissWeightRecommendation && (
+              <div className="flex items-center gap-3 rounded-lg bg-primary/8 px-3 py-2 ring-1 ring-primary/15">
+                <div className="flex shrink-0 items-center justify-center rounded-md bg-primary/15 p-1.5">
+                  {weightRecommendation.source === "progressive-overload" ? (
+                    <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                  ) : (
+                    <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                    {weightRecommendation.source === "progressive-overload" ? "Increase to " : "Start at "}
+                    {weightRecommendation.recommendedWeightLabel}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Button
+                    variant="default"
+                    size="xs"
+                    className="h-7 px-3 text-xs font-bold uppercase tracking-wider"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onApplyWeightRecommendation(workoutExercise.id)
+                    }}
+                    aria-label={`Use recommended weight for ${exercise?.name || "exercise"}`}
+                  >
+                    Apply
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-primary/50 hover:text-primary hover:bg-primary/10"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onDismissWeightRecommendation(workoutExercise.id)
+                    }}
+                    aria-label={`Dismiss recommended weight for ${exercise?.name || "exercise"}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Sets Header */}
             <div className={cn(
               "gap-2 text-xs text-muted-foreground grid",
