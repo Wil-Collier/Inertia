@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "worker/**/*.{ts,tsx}",
+    "shared/**/*.{ts,tsx}"
+  ],
+  "ignore": [
+    "src/types/global.d.ts"
+  ],
+  "ignoreDependencies": [
+    "@tanstack/react-query-devtools",
+    "@tanstack/router-devtools",
+    "rolldown"
+  ],
+  "ignoreBinaries": [
+    "open"
+  ],
+  "rules": {
+    "exports": "off",
+    "types": "off",
+    "duplicates": "off"
+  }
+}
