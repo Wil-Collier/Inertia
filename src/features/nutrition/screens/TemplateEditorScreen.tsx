@@ -152,7 +152,6 @@ export function TemplateEditorScreen({ templateId }: TemplateEditorScreenProps) 
       setShowAddSheet(false)
       setSearchQuery("")
       setBarcodeResults([])
-      toast.success(`Added ${food.name}`)
     },
     [addFoodMutation.mutateAsync, templateId]
   )

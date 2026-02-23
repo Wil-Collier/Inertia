@@ -129,14 +129,10 @@ export function ActiveWorkout() {
               }
             }),
           })
-          toast.success(`Workout saved & template "${templateName.trim()}" created!`)
         } catch (error) {
           console.error(error)
-          toast.success("Workout saved!")
           toast.error("Workout saved, but template creation failed")
         }
-      } else {
-        toast.success("Workout saved!")
       }
 
       void navigate({ to: "/workout" })

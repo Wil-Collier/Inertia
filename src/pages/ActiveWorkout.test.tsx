@@ -296,7 +296,6 @@ describe("ActiveWorkout", () => {
     const workouts = await db.workoutSessions.toArray()
     expect(workouts).toHaveLength(1)
     expect(workouts[0]?.name).toBe("Template Failure Session")
-    expect(activeWorkoutTestState.toastSuccess).toHaveBeenCalledWith("Workout saved!")
     expect(activeWorkoutTestState.toastError).toHaveBeenCalledWith(
       "Workout saved, but template creation failed"
     )

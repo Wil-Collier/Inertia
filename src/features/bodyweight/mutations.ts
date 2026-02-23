@@ -19,7 +19,6 @@ export function useAddWeightEntry() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.bodyWeight.all })
-      toast.success("Weight logged")
     },
     onError: () => {
       toast.error("Failed to log weight")
@@ -38,7 +37,6 @@ export function useDeleteWeightEntry() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.bodyWeight.all })
-      toast.success("Entry deleted")
     },
     onError: () => {
       toast.error("Failed to delete entry")

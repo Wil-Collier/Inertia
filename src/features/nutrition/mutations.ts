@@ -311,7 +311,6 @@ export function useDeleteFood() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.foods.all })
-      toast.success("Food deleted")
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to delete food")
@@ -388,7 +387,6 @@ export function useSaveMealTemplate() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.foods.mealTemplates() })
-      toast.success("Template saved")
     },
     onError: () => {
       toast.error("Failed to save template")
@@ -407,7 +405,6 @@ export function useUpdateMealTemplate() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.foods.mealTemplates() })
-      toast.success("Template updated")
     },
     onError: () => {
       toast.error("Failed to update template")
@@ -426,7 +423,6 @@ export function useDeleteMealTemplate() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.foods.mealTemplates() })
-      toast.success("Template deleted")
     },
     onError: () => {
       toast.error("Failed to delete template")
@@ -495,7 +491,6 @@ export function useApplyMealTemplate() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.daily(date) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.nutrition.dates() })
       void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
-      toast.success("Template applied")
     },
     onError: () => {
       toast.error("Failed to apply template")

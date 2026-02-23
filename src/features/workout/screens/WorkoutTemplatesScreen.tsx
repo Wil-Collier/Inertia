@@ -5,7 +5,6 @@ import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { toast } from "sonner"
 import {
   TemplateCard,
   CreateTemplateDialog,
@@ -144,7 +143,6 @@ export function WorkoutTemplates() {
           ...editingTemplate,
           exercises: updatedExercises,
         })
-        toast.success("Exercise added")
       } catch {
         // Mutation toasts
       }
@@ -169,7 +167,6 @@ export function WorkoutTemplates() {
           ...editingTemplate,
           exercises: updatedExercises,
         })
-        toast.success("Exercise removed")
       } catch {
         // Mutation toasts
       }

@@ -157,7 +157,6 @@ export function NutritionScreen() {
 
         if (food) {
           await handleAddFood(food, 1)
-          toast.success(`Found: ${food.name}`)
         } else {
           setScannedBarcode(barcode)
           setActiveTab("myfoods")

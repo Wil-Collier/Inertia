@@ -48,13 +48,11 @@ export function SettingsPage() {
     if (settings.areNotificationsEnabled) {
       // Disable notifications
       await updateSettingsMutation.mutateAsync({ areNotificationsEnabled: false })
-      toast.success("Notifications disabled")
     } else {
       // Request permission and enable
       const permission = await requestNotificationPermission()
       if (permission === "granted") {
         await updateSettingsMutation.mutateAsync({ areNotificationsEnabled: true })
-        toast.success("Notifications enabled")
       } else if (permission === "denied") {
         toast.error("Notification permission denied. Please enable in browser settings.")
       } else {
@@ -72,7 +70,6 @@ export function SettingsPage() {
       try {
         const { downloadExport } = await import("@/services/dataExport")
         await downloadExport()
-        toast.success("Data exported successfully")
       } catch {
         toast.error("Failed to export data")
       }
@@ -105,7 +102,6 @@ export function SettingsPage() {
       const { clearAllData } = await import("@/services/dataExport")
       await clearAllData()
       setShowClearDialog(false)
-      toast.success("All data cleared")
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to clear data"
       toast.error(message)

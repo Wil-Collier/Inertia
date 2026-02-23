@@ -122,7 +122,6 @@ export function useDeleteWorkout() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.workouts.all })
       void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
-      toast.success("Workout deleted")
     },
     onError: () => {
       toast.error("Failed to delete workout")
@@ -151,7 +150,6 @@ export function useCreateTemplate() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
       void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
-      toast.success("Template created")
     },
     onError: () => {
       toast.error("Failed to create template")
@@ -198,7 +196,6 @@ export function useDeleteTemplate() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
       void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
-      toast.success("Template deleted")
     },
     onError: () => {
       toast.error("Failed to delete template")

@@ -33,7 +33,6 @@ export function useAddExercise() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
-      toast.success("Exercise created")
     },
     onError: () => {
       toast.error("Failed to create exercise")
@@ -86,7 +85,6 @@ export function useDeleteExercise() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
       void queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
-      toast.success("Exercise deleted")
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to delete exercise")
@@ -109,7 +107,6 @@ export function useUpdateExercise() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.all })
-      toast.success("Exercise updated")
     },
     onError: () => {
       toast.error("Failed to update exercise")

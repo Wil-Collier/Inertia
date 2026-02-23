@@ -4,7 +4,6 @@ import { Dumbbell, Loader2 } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -73,7 +72,6 @@ export function WorkoutHistory() {
     try {
       await deleteWorkoutMutation.mutateAsync(workoutToDelete.id)
       setWorkoutToDelete(null)
-      toast.success("Workout deleted")
     } catch {
       // Store already toasts
     } finally {

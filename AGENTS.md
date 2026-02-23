@@ -182,7 +182,9 @@ Security-relevant scope includes: auth, sync, middleware, API routes, request pa
 ### Error Handling
 
 - **User-facing errors:** `toast.error("message")` via `sonner`.
-- **Success feedback:** `toast.success("message")` for destructive or important actions.
+- **Toasts are signal, not confirmation:** Do not show success/info toasts for actions with clear, immediate UI confirmation (for example add/delete/update where lists, cards, counters, dialogs, or navigation already reflect success).
+- **Use toast when UI cannot clearly indicate outcome:** Reserve non-error toasts for non-obvious/background events (for example achievement unlocks, session/sync state transitions, update availability).
+- **Avoid duplicate feedback:** Do not stack screen-level success toasts on top of mutation/service-level feedback for the same event.
 - **Non-user-facing:** `console.error(...)` for debugging.
 - **Mutation errors:** Handle in `onError` callback with toast + optional rollback.
 - **Typed errors:** Use specific error classes (e.g., `NutritionApiError`) when appropriate.

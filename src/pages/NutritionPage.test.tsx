@@ -123,10 +123,6 @@ describe("NutritionPage", () => {
     await openBreakfastSheet(user)
     await scanDefaultBarcode(user)
 
-    await waitFor(() => {
-      expect(nutritionTestState.toastSuccess).toHaveBeenCalledWith("Found: Remote Oats")
-    })
-
     expect(screen.queryByTestId("barcode-scanner")).toBeNull()
 
     await waitFor(() => {
