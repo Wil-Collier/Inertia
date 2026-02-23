@@ -5,7 +5,7 @@ import { db } from "@/services/db"
 import { activeSessionService } from "@/features/workout/services/activeSessionService"
 import { WorkoutPage } from "@/pages/WorkoutPage"
 import { createSettings } from "@/test/factories/settingsFactory"
-import { createWorkoutTemplate } from "@/test/factories/workoutFactory"
+import { createWorkout, createWorkoutTemplate } from "@/test/factories/workoutFactory"
 import { renderAppRoute } from "@/test/helpers/renderAppRoute"
 import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
 import { seedTestState } from "@/test/helpers/seedTestState"
@@ -185,5 +185,23 @@ describe("WorkoutPage", () => {
     })
     expect(router.state.location.pathname).toBe("/workout")
     expect(await db.activeSession.get("current")).toBeUndefined()
+  })
+
+  it("renders zero-minute recent sessions as 0m without corrupting the date label", async () => {
+    await seedTestState({
+      workouts: [
+        createWorkout({
+          id: "workout-zero-minutes",
+          name: "Quick Test",
+          date: "2026-02-23",
+          duration: 0,
+          completedAt: "2026-02-23T10:00:00.000Z",
+        }),
+      ],
+    })
+
+    await renderWorkoutRoute()
+
+    expect(await screen.findByText("Feb 23, 2026 • 0m")).toBeTruthy()
   })
 })

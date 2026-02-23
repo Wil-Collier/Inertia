@@ -79,6 +79,7 @@ export function ActiveWorkout() {
   }, [])
 
   const workout = activeSession?.workout
+  const isTemplateWorkout = Boolean(activeSession?.templateId)
   const exerciseIds = useMemo(
     () => workout?.exercises.map((e) => e.exerciseId) ?? [],
     [workout?.exercises]
@@ -125,7 +126,7 @@ export function ActiveWorkout() {
         return
       }
 
-      if (saveAsTemplate && templateName.trim()) {
+      if (!isTemplateWorkout && saveAsTemplate && templateName.trim()) {
         try {
           await createTemplateMutation.mutateAsync({
             name: templateName.trim(),
@@ -152,7 +153,15 @@ export function ActiveWorkout() {
     } finally {
       setIsFinishing(false)
     }
-  }, [finishWorkout, saveAsTemplate, templateName, createTemplateMutation, navigate, timerControls])
+  }, [
+    finishWorkout,
+    isTemplateWorkout,
+    saveAsTemplate,
+    templateName,
+    createTemplateMutation,
+    navigate,
+    timerControls,
+  ])
 
   const handleCancel = useCallback(async () => {
     timerControls.reset()
@@ -352,15 +361,16 @@ export function ActiveWorkout() {
           )
         })}
 
-        {/* Add Exercise Button */}
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => setShowExerciseSheet(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Exercise
-        </Button>
+        {!isTemplateWorkout && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowExerciseSheet(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Exercise
+          </Button>
+        )}
 
         {/* Finish Button */}
         <Button
@@ -374,13 +384,14 @@ export function ActiveWorkout() {
         </Button>
       </div>
 
-      {/* Exercise Selection Sheet */}
-      <ExercisePickerSheet
-        isOpen={showExerciseSheet}
-        onOpenChange={setShowExerciseSheet}
-        onSelect={(exerciseId) => void handleAddExercise(exerciseId)}
-        addedExerciseIds={workout.exercises.map((e) => e.exerciseId)}
-      />
+      {!isTemplateWorkout && (
+        <ExercisePickerSheet
+          isOpen={showExerciseSheet}
+          onOpenChange={setShowExerciseSheet}
+          onSelect={(exerciseId) => void handleAddExercise(exerciseId)}
+          addedExerciseIds={workout.exercises.map((e) => e.exerciseId)}
+        />
+      )}
 
       <FinishWorkoutDialog
         open={showFinishDialog}
@@ -388,6 +399,7 @@ export function ActiveWorkout() {
         completedSets={completedSets}
         totalSets={totalSets}
         exerciseCount={workout.exercises.length}
+        canSaveAsTemplate={!isTemplateWorkout}
         saveAsTemplate={saveAsTemplate}
         onSaveAsTemplateChange={setSaveAsTemplate}
         templateName={templateName}

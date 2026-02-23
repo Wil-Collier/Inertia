@@ -320,7 +320,7 @@ export function WorkoutPage() {
                             <p className="font-bold text-sm truncate">{workout.name}</p>
                             <p className="text-xxs font-medium text-muted-foreground">
                               {format(parseDbDate(workout.date), "MMM d, yyyy")}
-                              {workout.duration && ` • ${workout.duration}m`}
+                              {Number.isFinite(workout.duration) && ` • ${workout.duration}m`}
                             </p>
                           </div>
                         </CardContent>

@@ -228,6 +228,48 @@ describe("ActiveWorkout", () => {
     expect(templates[0]?.name).toBe("Power Builder")
   })
 
+  it("does not allow add-exercise or save-as-template for template-started workouts", async () => {
+    const user = userEvent.setup()
+
+    await seedTestState({
+      settings: createSettings(),
+      activeSession: createActiveWorkoutSession({
+        templateId: "template-1",
+        workout: createWorkout({
+          id: "workout-from-template",
+          name: "Template Session",
+          date: "2026-02-09",
+          exercises: [
+            createWorkoutExercise({
+              id: "wex-1",
+              exerciseId: "barbell-bench-press",
+              sets: [
+                createWorkoutSet({ id: "set-1", reps: 5, weight: 225, isCompleted: true }),
+              ],
+            }),
+          ],
+        }),
+      }),
+    })
+
+    const { router } = await renderActiveWorkoutRoute()
+    await screen.findByRole("button", { name: "Finish Workout" })
+
+    expect(screen.queryByRole("button", { name: "Add Exercise" })).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Finish Workout" }))
+    expect(screen.queryByRole("checkbox")).toBeNull()
+    expect(screen.queryByPlaceholderText("Template name")).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Finish" }))
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/workout")
+    })
+
+    const templates = await db.workoutTemplates.toArray()
+    expect(templates).toHaveLength(0)
+  })
+
   it("waits for user confirmation before applying suggested weight", async () => {
     const user = userEvent.setup()
 

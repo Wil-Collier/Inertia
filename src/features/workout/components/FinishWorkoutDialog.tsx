@@ -16,6 +16,7 @@ interface FinishWorkoutDialogProps {
   completedSets: number
   totalSets: number
   exerciseCount: number
+  canSaveAsTemplate?: boolean
   saveAsTemplate: boolean
   onSaveAsTemplateChange: (checked: boolean) => void
   templateName: string
@@ -30,6 +31,7 @@ export function FinishWorkoutDialog({
   completedSets,
   totalSets,
   exerciseCount,
+  canSaveAsTemplate = true,
   saveAsTemplate,
   onSaveAsTemplateChange,
   templateName,
@@ -49,23 +51,25 @@ export function FinishWorkoutDialog({
             {exerciseCount} exercises.
           </p>
 
-          <div className="space-y-2">
-            <Label className="flex items-center gap-3 py-2 cursor-pointer">
-              <Checkbox
-                checked={saveAsTemplate}
-                onCheckedChange={(checked) => onSaveAsTemplateChange(!!checked)}
-              />
-              <span className="text-sm">Save as template</span>
-            </Label>
+          {canSaveAsTemplate && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-3 py-2 cursor-pointer">
+                <Checkbox
+                  checked={saveAsTemplate}
+                  onCheckedChange={(checked) => onSaveAsTemplateChange(!!checked)}
+                />
+                <span className="text-sm">Save as template</span>
+              </Label>
 
-            {saveAsTemplate && (
-              <Input
-                placeholder="Template name"
-                value={templateName}
-                onChange={(e) => onTemplateNameChange(e.target.value)}
-              />
-            )}
-          </div>
+              {saveAsTemplate && (
+                <Input
+                  placeholder="Template name"
+                  value={templateName}
+                  onChange={(e) => onTemplateNameChange(e.target.value)}
+                />
+              )}
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button
