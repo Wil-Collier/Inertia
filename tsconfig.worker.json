@@ -4,7 +4,7 @@
         "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
         "types": [
             "@cloudflare/workers-types/latest",
-            "rolldown-vite/client"
+            "vite/client"
         ]
     },
     "include": [

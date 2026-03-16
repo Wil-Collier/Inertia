@@ -1,7 +1,7 @@
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
-import type { PluginOption } from "rolldown-vite"
+import type { PluginOption } from "vite"
 import { defineConfig } from "vitest/config"
 import { VitePWA } from "vite-plugin-pwa"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
@@ -106,13 +106,11 @@ export default (defineConfig as any)({
       "@tanstack/react-query",
       "@tanstack/react-router",
     ],
-    rolldownOptions: {
-      target: "es2019",
-    },
   },
   build: {
     target: "es2019",
-    rollupOptions: {
+    // NOTE: rollupOptions renamed to rolldownOptions in Vite 8
+    rolldownOptions: {
       output: {
         manualChunks: (id: string) => {
           if (id.includes("node_modules")) {
