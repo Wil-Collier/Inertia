@@ -67,7 +67,7 @@ Inertia is built for people who treat fitness like a system: measure inputs, exe
 
 ## Tech Stack
 
-- **Frontend:** [React 19](https://react.dev/), [Vite 7](https://vite.dev/), [TypeScript](https://www.typescriptlang.org/)
+- **Frontend:** [React 19](https://react.dev/), [Vite 8](https://vite.dev/), [TypeScript](https://www.typescriptlang.org/)
 - **Routing:** [TanStack Router](https://tanstack.com/router)
 - **State/Data:** [TanStack Query](https://tanstack.com/query), [Dexie.js](https://dexie.org/), [Zustand](https://zustand-demo.pmnd.rs/)
 - **UI:** [Tailwind CSS v4](https://tailwindcss.com/), [lucide-react](https://lucide.dev/)

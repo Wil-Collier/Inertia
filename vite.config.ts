@@ -112,32 +112,41 @@ export default (defineConfig as any)({
     // NOTE: rollupOptions renamed to rolldownOptions in Vite 8
     rolldownOptions: {
       output: {
-        manualChunks: (id: string) => {
-          if (id.includes("node_modules")) {
-            const isReact =
-              id.includes("/react/") ||
-              id.includes("/react-dom/") ||
-              id.includes("/react/jsx-runtime") ||
-              id.includes("/react/jsx-dev-runtime")
-            const isTanstack = id.includes("@tanstack/react-router") || id.includes("@tanstack/react-query")
-            if (isReact || isTanstack) {
-              return "vendor-core"
-            }
-            if (id.includes("recharts")) {
-              return "vendor-recharts"
-            }
-            if (id.includes("zustand") || id.includes("date-fns")) {
-              return "vendor-utils"
-            }
-            if (id.includes("quagga2")) {
-              return "vendor-barcode"
-            }
-          }
+        codeSplitting: {
+          groups: [
+            {
+              name: (id: string) => {
+                if (id.includes("node_modules")) {
+                  const isReact =
+                    id.includes("/react/") ||
+                    id.includes("/react-dom/") ||
+                    id.includes("/react/jsx-runtime") ||
+                    id.includes("/react/jsx-dev-runtime")
+                  const isTanstack = id.includes("@tanstack/react-router") || id.includes("@tanstack/react-query")
+                  if (isReact || isTanstack) {
+                    return "vendor-core"
+                  }
+                  if (id.includes("recharts")) {
+                    return "vendor-recharts"
+                  }
+                  if (id.includes("zustand") || id.includes("date-fns")) {
+                    return "vendor-utils"
+                  }
+                  if (id.includes("quagga2")) {
+                    return "vendor-barcode"
+                  }
+                }
+              },
+            },
+          ],
         },
       },
     },
   },
   test: {
+    env: {
+      VITE_GOOGLE_CLIENT_ID: "test-client-id.apps.googleusercontent.com",
+    },
     pool: "threads",
     projects: [
       {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { format } from "date-fns"
 import { db } from "@/services/db"
 import { activeSessionService } from "@/features/workout/services/activeSessionService"
 import { WorkoutPage } from "@/pages/WorkoutPage"
@@ -9,6 +10,7 @@ import { createWorkout, createWorkoutTemplate } from "@/test/factories/workoutFa
 import { renderAppRoute } from "@/test/helpers/renderAppRoute"
 import { resetTestRuntime } from "@/test/helpers/resetTestRuntime"
 import { seedTestState } from "@/test/helpers/seedTestState"
+import { formatDate, parseDbDate } from "@/lib/dateUtils"
 
 const workoutPageState = vi.hoisted(() => ({
   toastError: vi.fn(),
@@ -188,20 +190,23 @@ describe("WorkoutPage", () => {
   })
 
   it("renders zero-minute recent sessions as 0m without corrupting the date label", async () => {
+    const workoutDate = formatDate(new Date())
+
     await seedTestState({
       workouts: [
         createWorkout({
           id: "workout-zero-minutes",
           name: "Quick Test",
-          date: "2026-02-23",
+          date: workoutDate,
           duration: 0,
-          completedAt: "2026-02-23T10:00:00.000Z",
+          completedAt: new Date().toISOString(),
         }),
       ],
     })
 
     await renderWorkoutRoute()
 
-    expect(await screen.findByText("Feb 23, 2026 • 0m")).toBeTruthy()
+    const formattedDate = format(parseDbDate(workoutDate), "MMM d, yyyy")
+    expect(await screen.findByText(`${formattedDate} • 0m`)).toBeTruthy()
   })
 })

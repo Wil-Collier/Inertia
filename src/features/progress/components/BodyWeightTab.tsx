@@ -91,7 +91,7 @@ export function BodyWeightTab({
     setNewWeight("")
   }
 
-  const weightTooltipFormatter = useCallback((value: number | string | Array<number | string> | undefined) => [`${String(value ?? 0)} ${preferredUnit}`, "Weight"] as [string, string], [preferredUnit])
+  const weightTooltipFormatter = useCallback((value: number | string | ReadonlyArray<number | string> | undefined) => [`${String(value ?? 0)} ${preferredUnit}`, "Weight"] as [string, string], [preferredUnit])
   const weightDomain = useMemo(() => ["dataMin - 2", "dataMax + 2"] as [string, string], [])
 
   return (

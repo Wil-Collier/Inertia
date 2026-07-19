@@ -9,20 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as ProgressRouteImport } from './routes/progress'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as WorkoutIndexRouteImport } from './routes/workout/index'
+import { Route as ProgressRouteImport } from './routes/progress'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as NutritionIndexRouteImport } from './routes/nutrition/index'
-import { Route as WorkoutTemplatesRouteImport } from './routes/workout/templates'
-import { Route as WorkoutHistoryRouteImport } from './routes/workout/history'
-import { Route as WorkoutActiveRouteImport } from './routes/workout/active'
-import { Route as NutritionTemplateEditorRouteImport } from './routes/nutrition/template-editor'
 import { Route as NutritionHistoryRouteImport } from './routes/nutrition/history'
+import { Route as NutritionTemplateEditorRouteImport } from './routes/nutrition/template-editor'
+import { Route as WorkoutIndexRouteImport } from './routes/workout/index'
+import { Route as WorkoutActiveRouteImport } from './routes/workout/active'
+import { Route as WorkoutHistoryRouteImport } from './routes/workout/history'
+import { Route as WorkoutTemplatesRouteImport } from './routes/workout/templates'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProgressRoute = ProgressRouteImport.update({
@@ -30,14 +30,9 @@ const ProgressRoute = ProgressRouteImport.update({
   path: '/progress',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const WorkoutIndexRoute = WorkoutIndexRouteImport.update({
-  id: '/workout/',
-  path: '/workout/',
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NutritionIndexRoute = NutritionIndexRouteImport.update({
@@ -45,19 +40,9 @@ const NutritionIndexRoute = NutritionIndexRouteImport.update({
   path: '/nutrition/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkoutTemplatesRoute = WorkoutTemplatesRouteImport.update({
-  id: '/workout/templates',
-  path: '/workout/templates',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const WorkoutHistoryRoute = WorkoutHistoryRouteImport.update({
-  id: '/workout/history',
-  path: '/workout/history',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const WorkoutActiveRoute = WorkoutActiveRouteImport.update({
-  id: '/workout/active',
-  path: '/workout/active',
+const NutritionHistoryRoute = NutritionHistoryRouteImport.update({
+  id: '/nutrition/history',
+  path: '/nutrition/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NutritionTemplateEditorRoute = NutritionTemplateEditorRouteImport.update({
@@ -65,9 +50,24 @@ const NutritionTemplateEditorRoute = NutritionTemplateEditorRouteImport.update({
   path: '/nutrition/template-editor',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NutritionHistoryRoute = NutritionHistoryRouteImport.update({
-  id: '/nutrition/history',
-  path: '/nutrition/history',
+const WorkoutIndexRoute = WorkoutIndexRouteImport.update({
+  id: '/workout/',
+  path: '/workout/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkoutActiveRoute = WorkoutActiveRouteImport.update({
+  id: '/workout/active',
+  path: '/workout/active',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkoutHistoryRoute = WorkoutHistoryRouteImport.update({
+  id: '/workout/history',
+  path: '/workout/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkoutTemplatesRoute = WorkoutTemplatesRouteImport.update({
+  id: '/workout/templates',
+  path: '/workout/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -162,11 +162,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/progress': {
@@ -176,18 +176,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProgressRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/workout/': {
-      id: '/workout/'
-      path: '/workout'
-      fullPath: '/workout/'
-      preLoaderRoute: typeof WorkoutIndexRouteImport
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/nutrition/': {
@@ -197,25 +190,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NutritionIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workout/templates': {
-      id: '/workout/templates'
-      path: '/workout/templates'
-      fullPath: '/workout/templates'
-      preLoaderRoute: typeof WorkoutTemplatesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/workout/history': {
-      id: '/workout/history'
-      path: '/workout/history'
-      fullPath: '/workout/history'
-      preLoaderRoute: typeof WorkoutHistoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/workout/active': {
-      id: '/workout/active'
-      path: '/workout/active'
-      fullPath: '/workout/active'
-      preLoaderRoute: typeof WorkoutActiveRouteImport
+    '/nutrition/history': {
+      id: '/nutrition/history'
+      path: '/nutrition/history'
+      fullPath: '/nutrition/history'
+      preLoaderRoute: typeof NutritionHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/nutrition/template-editor': {
@@ -225,11 +204,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NutritionTemplateEditorRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/nutrition/history': {
-      id: '/nutrition/history'
-      path: '/nutrition/history'
-      fullPath: '/nutrition/history'
-      preLoaderRoute: typeof NutritionHistoryRouteImport
+    '/workout/': {
+      id: '/workout/'
+      path: '/workout'
+      fullPath: '/workout/'
+      preLoaderRoute: typeof WorkoutIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workout/active': {
+      id: '/workout/active'
+      path: '/workout/active'
+      fullPath: '/workout/active'
+      preLoaderRoute: typeof WorkoutActiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workout/history': {
+      id: '/workout/history'
+      path: '/workout/history'
+      fullPath: '/workout/history'
+      preLoaderRoute: typeof WorkoutHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workout/templates': {
+      id: '/workout/templates'
+      path: '/workout/templates'
+      fullPath: '/workout/templates'
+      preLoaderRoute: typeof WorkoutTemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
