@@ -6,7 +6,7 @@ This file should stay high-signal: keep only project-specific pitfalls that are 
 
 ## Project Overview
 
-Inertia is an offline-first PWA for tracking workouts, nutrition, and body progress. Built with React 19, Vite 7, TypeScript (native preview compiler via `tsgo`), TanStack Router, and Dexie.js (IndexedDB) for local-first persistence. Backend runs on Cloudflare Workers with Hono.
+Inertia is an offline-first PWA for tracking workouts, nutrition, and body progress. Built with React 19, Vite 8, TypeScript (native preview compiler via `tsgo`), TanStack Router, and Dexie.js (IndexedDB) for local-first persistence. Backend runs on Cloudflare Workers with Hono.
 
 
 ## Non-Obvious Constraints
