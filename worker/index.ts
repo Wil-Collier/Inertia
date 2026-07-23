@@ -40,7 +40,7 @@ function hasFileExtension(pathname: string): boolean {
 }
 
 function isNavigationRequest(request: Request): boolean {
-  if (request.method !== "GET") {
+  if (request.method !== "GET" && request.method !== "HEAD") {
     return false
   }
 
@@ -92,22 +92,24 @@ app.all("/api/*", (c) => {
     return c.json({ error: "Not found" }, 404)
 })
 
-// Serve SPA app shell only for real navigation requests.
-// Missing asset URLs should remain 404s instead of being rewritten to index.html.
-app.get("*", async (c) => {
+// Serve the SPA shell for real navigation requests and proxy everything else
+// to the asset binding so existing assets resolve and missing assets stay 404s.
+app.on(["GET", "HEAD"], "*", async (c) => {
   const request = c.req.raw
   const url = new URL(request.url)
-
-  if (!isNavigationRequest(request) || hasFileExtension(url.pathname)) {
-    return c.notFound()
-  }
 
   if (!c.env.ASSETS) {
     return c.notFound()
   }
 
-  const indexUrl = new URL("/index.html", url)
-  return await c.env.ASSETS.fetch(indexUrl.toString())
+  if (isNavigationRequest(request) && !hasFileExtension(url.pathname)) {
+    // Cloudflare's asset binding redirects /index.html to /. Fetching the
+    // canonical root directly avoids a redirect loop when this worker handles /.
+    const indexUrl = new URL("/", url)
+    return await c.env.ASSETS.fetch(new Request(indexUrl.toString(), request))
+  }
+
+  return await c.env.ASSETS.fetch(request)
 })
 
 export default app
