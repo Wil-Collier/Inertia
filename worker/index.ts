@@ -103,7 +103,9 @@ app.on(["GET", "HEAD"], "*", async (c) => {
   }
 
   if (isNavigationRequest(request) && !hasFileExtension(url.pathname)) {
-    const indexUrl = new URL("/index.html", url)
+    // Cloudflare's asset binding redirects /index.html to /. Fetching the
+    // canonical root directly avoids a redirect loop when this worker handles /.
+    const indexUrl = new URL("/", url)
     return await c.env.ASSETS.fetch(new Request(indexUrl.toString(), request))
   }
 

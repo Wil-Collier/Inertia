@@ -10,13 +10,17 @@ function createEnv() {
         const request = input instanceof Request ? input : new Request(input)
         const url = new URL(request.url)
 
-        if (url.pathname === "/index.html") {
+        if (url.pathname === "/") {
           const body = request.method === "HEAD"
             ? null
             : "<!doctype html><html><body>Inertia</body></html>"
           return new Response(body, {
             headers: { "Content-Type": "text/html; charset=utf-8" },
           })
+        }
+
+        if (url.pathname === "/index.html") {
+          return Response.redirect(new URL("/", url).toString(), 307)
         }
 
         if (url.pathname === "/assets/app.js") {
