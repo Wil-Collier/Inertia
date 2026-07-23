@@ -475,7 +475,6 @@ describe("Security Controls", () => {
             const env = createEnv(db)
 
             // Make 30 requests to fill the rate limit bucket.
-            // These are independent so we fire them concurrently with Promise.all.
             const burnRequests = Array.from({ length: 30 }, () =>
                 app.request(
                     "/api/auth/refresh",
@@ -486,7 +485,7 @@ describe("Security Controls", () => {
                     env
                 )
             )
-            await Promise.all(burnRequests)
+            await Promise.all(burnRequests.map((request) => Promise.resolve(request)))
 
             // The 31st request should be rate limited
             const response = await app.request(

@@ -10,10 +10,8 @@
         "binding": "ASSETS",
         // Avoid serving index.html for missing asset paths (for example stale JS chunks).
         "not_found_handling": "none",
-        // Ensure /api/* routes go to the Worker first
-        "run_worker_first": [
-            "/api/*"
-        ]
+        // Let the Worker distinguish SPA navigations from real asset requests.
+        "run_worker_first": true
     },
     "d1_databases": [
         {

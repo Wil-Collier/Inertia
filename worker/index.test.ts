@@ -7,11 +7,21 @@ function createEnv() {
   return {
     ASSETS: {
       fetch: async (input: RequestInfo | URL) => {
-        const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url)
+        const request = input instanceof Request ? input : new Request(input)
+        const url = new URL(request.url)
 
         if (url.pathname === "/index.html") {
-          return new Response("<!doctype html><html><body>Inertia</body></html>", {
+          const body = request.method === "HEAD"
+            ? null
+            : "<!doctype html><html><body>Inertia</body></html>"
+          return new Response(body, {
             headers: { "Content-Type": "text/html; charset=utf-8" },
+          })
+        }
+
+        if (url.pathname === "/assets/app.js") {
+          return new Response("console.log('Inertia')", {
+            headers: { "Content-Type": "text/javascript; charset=utf-8" },
           })
         }
 
@@ -73,6 +83,24 @@ describe("worker app integration", () => {
     await expect(response.text()).resolves.toContain("Inertia")
   })
 
+  it("serves navigation headers without a body for HEAD routes", async () => {
+    const response = await app.request(
+      "/workout",
+      {
+        method: "HEAD",
+        headers: {
+          Accept: "text/html",
+          "sec-fetch-mode": "navigate",
+        },
+      },
+      createEnv()
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get("Content-Type")).toContain("text/html")
+    await expect(response.text()).resolves.toBe("")
+  })
+
   it("returns 404 for missing asset-like paths instead of html fallback", async () => {
     const response = await app.request(
       "/assets/missing-chunk.js",
@@ -86,6 +114,14 @@ describe("worker app integration", () => {
 
     expect(response.status).toBe(404)
     expect(response.headers.get("Content-Type") ?? "").not.toContain("text/html")
+  })
+
+  it("proxies existing asset requests to the asset binding", async () => {
+    const response = await app.request("/assets/app.js", {}, createEnv())
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get("Content-Type")).toContain("text/javascript")
+    await expect(response.text()).resolves.toContain("Inertia")
   })
 
   it("requires auth for sync routes", async () => {
@@ -176,7 +212,7 @@ describe("worker app integration", () => {
       )
     )
 
-    const responses = await Promise.all(requests)
+    const responses = await Promise.all(requests.map((request) => Promise.resolve(request)))
     expect(responses.some((response) => response.status === 429)).toBe(true)
   })
 })
