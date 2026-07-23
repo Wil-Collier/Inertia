@@ -54,7 +54,9 @@ export function DateNavigator({
                   onCalendarOpenChange(false)
                 }
               }}
-              initialFocus
+              // DayPicker's v10 replacement for initialFocus; return focus to the calendar for keyboard users.
+              // oxlint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
             />
           </PopoverContent>
         </Popover>
